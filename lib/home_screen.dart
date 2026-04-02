@@ -206,7 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
         'category': 'فساتين',
         'rating': 4.8,
         'distance': '2.5 كم',
-        'imageUrl': 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=80&w=800',
+        'imageUrl': 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&q=80&w=800',
         'discount': 'تخفيضات حتى 40%',
       },
       {
@@ -214,8 +214,8 @@ class _HomeScreenState extends State<HomeScreen> {
         'category': 'ملابس رجالية',
         'rating': 4.5,
         'distance': '1.2 كم',
-        'imageUrl': 'https://images.unsplash.com/photo-1479064566235-0ad33c99026c?auto=format&fit=crop&q=80&w=800',
-        'discount': 'تخفيضات حتى 20%',
+        'imageUrl': 'https://images.unsplash.com/photo-1516257984877-a03aae3acbc8?auto=format&fit=crop&q=80&w=800',
+        'discount': null, // No discount
       },
       {
         'name': 'الرجل الأنيق',
@@ -231,7 +231,7 @@ class _HomeScreenState extends State<HomeScreen> {
         'rating': 4.7,
         'distance': '5 كم',
         'imageUrl': 'https://images.unsplash.com/photo-1539008835657-9e8e6293e245?auto=format&fit=crop&q=80&w=800',
-        'discount': 'تخفيضات حتى 15%',
+        'discount': null, // No discount
       },
       {
         'name': 'عالم الأطفال',
@@ -242,12 +242,12 @@ class _HomeScreenState extends State<HomeScreen> {
         'discount': 'تخفيضات حتى 25%',
       },
       {
-        'name': 'لوكس برفيوم',
-        'category': 'عطور فرنسية',
+        'name': 'توب فاشن',
+        'category': 'ملابس شتوية',
         'rating': 4.9,
         'distance': '2.1 كم',
-        'imageUrl': 'https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&q=80&w=800',
-        'discount': 'تخفيضات حتى 50%',
+        'imageUrl': 'https://images.unsplash.com/photo-1581044777550-4cfa60707c03?auto=format&fit=crop&q=80&w=800',
+        'discount': null, // No discount
       },
     ];
 
