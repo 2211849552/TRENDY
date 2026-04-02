@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'forgot_password_screen.dart'; // Add this import
 
-class LoginScreen extends StatelessWidget {
-  const LoginScreen({super.key});
+class ForgotPasswordScreen extends StatelessWidget {
+  const ForgotPasswordScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -12,7 +11,7 @@ class LoginScreen extends StatelessWidget {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              const SizedBox(height: 40),
+              const SizedBox(height: 60),
               // Logo and Title Section
               Center(
                 child: Column(
@@ -50,7 +49,7 @@ class LoginScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 40),
-              // Login Card Section
+              // Card Section
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 padding: const EdgeInsets.all(24),
@@ -64,19 +63,20 @@ class LoginScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'تسجيل الدخول',
+                        'استعادة كلمة المرور',
                         style: TextStyle(
-                          fontSize: 24,
+                          fontSize: 22,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       const Text(
-                        'أدخل بياناتك للوصول إلى حسابك',
+                        'أدخل بريدك الإلكتروني وسنرسل لك رابط لإعادة تعيين كلمة المرور',
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.white70,
+                          height: 1.5,
                         ),
                       ),
                       const SizedBox(height: 32),
@@ -114,77 +114,20 @@ class LoginScreen extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 20),
                       
-                      // Password Field
-                      const Text(
-                        'كلمة المرور',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        obscureText: true,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          hintText: '••••••••',
-                          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
-                          filled: true,
-                          fillColor: Colors.black.withValues(alpha: 0.05),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.white30),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.white30),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.white),
-                          ),
-                        ),
-                      ),
+                      const SizedBox(height: 32),
                       
-                      const SizedBox(height: 12),
-                      
-                      // Forgot Password Link
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
-                            );
-                          },
-                          style: TextButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            minimumSize: const Size(50, 30),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: const Text(
-                            'نسيت كلمة المرور؟',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 24),
-                      
-                      // Login Button
+                      // Send Button
                       SizedBox(
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: () {},
+                          onPressed: () {
+                            // TODO: Implement send link logic
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('تم إرسال رابط استعادة كلمة المرور بنجاح')),
+                            );
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF00D1FF), // Cyan/Light Blue
                             foregroundColor: Colors.white,
@@ -194,32 +137,7 @@ class LoginScreen extends StatelessWidget {
                             elevation: 0,
                           ),
                           child: const Text(
-                            'تسجيل الدخول',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 16),
-                      
-                      // Guest Login Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: OutlinedButton(
-                          onPressed: () {},
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.white30),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text(
-                            'متابعة كزائر',
+                            'إرسال رابط الاستعادة',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -230,27 +148,22 @@ class LoginScreen extends StatelessWidget {
                       
                       const SizedBox(height: 24),
                       
-                      // Create Account Text
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text(
-                            'ليس لديك حساب؟ ',
-                            style: TextStyle(color: Colors.white70),
-                          ),
-                          GestureDetector(
-                            onTap: () {},
-                            child: const Text(
-                              'إنشاء حساب جديد',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
+                      // Back to Login Link
+                      Center(
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          child: const Text(
+                            'العودة لتسجيل الدخول',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                      const SizedBox(height: 10),
                     ],
                   ),
                 ),
