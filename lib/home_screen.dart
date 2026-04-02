@@ -15,37 +15,43 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0A1931), // Matching Dark Blue Background
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 10),
-              // Header
-              _buildHeader(),
-              const SizedBox(height: 20),
-              // Welcome Banner
-              _buildWelcomeBanner(),
-              const SizedBox(height: 24),
-              // Search and Filter
-              _buildSearchSection(),
-              const SizedBox(height: 32),
-              // Stores Section Title
-              const Text(
-                'المتاجر المتوفرة (5)',
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+        child: CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  const SizedBox(height: 10),
+                  // Header
+                  _buildHeader(),
+                  const SizedBox(height: 20),
+                  // Welcome Banner
+                  _buildWelcomeBanner(),
+                  const SizedBox(height: 24),
+                  // Search and Filter
+                  _buildSearchSection(),
+                  const SizedBox(height: 32),
+                  // Stores Section Title
+                  const Text(
+                    'المتاجر المتوفرة (5)',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ]),
               ),
-              const SizedBox(height: 20),
-              // Stores List (Vertical for simplicity in grid/list)
-              _buildStoreList(),
-              const SizedBox(height: 20),
-            ],
-          ),
+            ),
+            // Stores Grid
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              sliver: _buildStoreGrid(),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 30)),
+          ],
         ),
       ),
       bottomNavigationBar: _buildBottomNav(),
@@ -193,35 +199,79 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildStoreList() {
-    return Column(
-      children: [
-        _buildStoreCard(
-          name: 'متجر الأناقة',
-          category: 'فساتين',
-          rating: 4.8,
-          distance: '2.5 كم',
-          imageUrl: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=80&w=800',
-          discount: 'تخفيضات حتى 40%',
-        ),
-        const SizedBox(height: 20),
-        _buildStoreCard(
-          name: 'بوتيك الموضة',
-          category: 'ملابس رجالية',
-          rating: 4.5,
-          distance: '1.2 كم',
-          imageUrl: 'https://images.unsplash.com/photo-1479064566235-0ad33c99026c?auto=format&fit=crop&q=80&w=800',
-        ),
-        const SizedBox(height: 20),
-        _buildStoreCard(
-            name: 'الرجل الأنيق',
-            category: 'بدل رجالية',
-            rating: 4.6,
-            distance: '0.8 كم',
-            imageUrl: 'https://images.unsplash.com/photo-1594932224010-749e7552882c?auto=format&fit=crop&q=80&w=800',
-            discount: 'تخفيضات حتى 30%',
-        ),
-      ],
+    Widget _buildStoreGrid() {
+    final List<Map<String, dynamic>> stores = [
+      {
+        'name': 'متجر الأناقة',
+        'category': 'فساتين',
+        'rating': 4.8,
+        'distance': '2.5 كم',
+        'imageUrl': 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=80&w=800',
+        'discount': 'تخفيضات حتى 40%',
+      },
+      {
+        'name': 'بوتيك الموضة',
+        'category': 'ملابس رجالية',
+        'rating': 4.5,
+        'distance': '1.2 كم',
+        'imageUrl': 'https://images.unsplash.com/photo-1479064566235-0ad33c99026c?auto=format&fit=crop&q=80&w=800',
+        'discount': 'تخفيضات حتى 20%',
+      },
+      {
+        'name': 'الرجل الأنيق',
+        'category': 'بدل رجالية',
+        'rating': 4.6,
+        'distance': '0.8 كم',
+        'imageUrl': 'https://images.unsplash.com/photo-1594932224010-749e7552882c?auto=format&fit=crop&q=80&w=800',
+        'discount': 'تخفيضات حتى 30%',
+      },
+      {
+        'name': 'متجر الفخامة',
+        'category': 'فساتين سهرة',
+        'rating': 4.7,
+        'distance': '5 كم',
+        'imageUrl': 'https://images.unsplash.com/photo-1539008835657-9e8e6293e245?auto=format&fit=crop&q=80&w=800',
+        'discount': 'تخفيضات حتى 15%',
+      },
+      {
+        'name': 'عالم الأطفال',
+        'category': 'ملابس أطفال',
+        'rating': 4.9,
+        'distance': '3.8 كم',
+        'imageUrl': 'https://images.unsplash.com/photo-1519751138087-5bf79df62d5a?auto=format&fit=crop&q=80&w=800',
+        'discount': 'تخفيضات حتى 25%',
+      },
+      {
+        'name': 'لوكس برفيوم',
+        'category': 'عطور فرنسية',
+        'rating': 4.9,
+        'distance': '2.1 كم',
+        'imageUrl': 'https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&q=80&w=800',
+        'discount': 'تخفيضات حتى 50%',
+      },
+    ];
+
+    return SliverGrid(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 16,
+        crossAxisSpacing: 16,
+        mainAxisExtent: 260, // Total height for the card
+      ),
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          final store = stores[index];
+          return _buildStoreCard(
+            name: store['name'],
+            category: store['category'],
+            rating: store['rating'],
+            distance: store['distance'],
+            imageUrl: store['imageUrl'],
+            discount: store['discount'],
+          );
+        },
+        childCount: stores.length,
+      ),
     );
   }
 
@@ -243,72 +293,68 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           // Store Image with badges
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                child: Image.network(
-                  imageUrl,
-                  height: 180,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              // Category
-              Positioned(
-                top: 12,
-                right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.blueAccent.withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    category,
-                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+          Expanded(
+            child: Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  child: Image.network(
+                    imageUrl,
+                    height: double.infinity,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
                   ),
                 ),
-              ),
-              // Discount
-              if (discount != null)
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.redAccent.withValues(alpha: 0.8),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      discount,
-                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                // Discount Badge (matching current mockup)
+                if (discount != null)
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF00D1FF).withValues(alpha: 0.8), // Cyan/Light Blue
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        discount,
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
           // Store Info
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  name,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                  category,
+                  style: const TextStyle(color: Colors.blueAccent, fontSize: 11, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                const SizedBox(height: 6),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Text(distance, style: const TextStyle(color: Colors.white70)),
-                    const SizedBox(width: 12),
-                    Text(rating.toString(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    Text(rating.toString(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                     const SizedBox(width: 4),
-                    const Icon(Icons.star, color: Colors.amber, size: 16),
+                    const Icon(Icons.star, color: Colors.amber, size: 14),
                   ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  distance,
+                  style: const TextStyle(color: Colors.white70, fontSize: 11),
                 ),
               ],
             ),
