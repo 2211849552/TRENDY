@@ -206,7 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
         'category': 'فساتين',
         'rating': 4.8,
         'distance': '2.5 كم',
-        'imageUrl': 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&q=80&w=800',
+        'imageUrl': 'https://images.unsplash.com/photo-1539106604284-9697c1873a11?auto=format&fit=crop&q=80&w=800',
         'discount': 'تخفيضات حتى 40%',
       },
       {
@@ -214,15 +214,15 @@ class _HomeScreenState extends State<HomeScreen> {
         'category': 'ملابس رجالية',
         'rating': 4.5,
         'distance': '1.2 كم',
-        'imageUrl': 'https://images.unsplash.com/photo-1516257984877-a03aae3acbc8?auto=format&fit=crop&q=80&w=800',
-        'discount': null, // No discount
+        'imageUrl': 'https://images.unsplash.com/photo-1490114538077-0a7f8cb49891?auto=format&fit=crop&q=80&w=800',
+        'discount': null,
       },
       {
         'name': 'الرجل الأنيق',
         'category': 'بدل رجالية',
         'rating': 4.6,
         'distance': '0.8 كم',
-        'imageUrl': 'https://images.unsplash.com/photo-1594932224010-749e7552882c?auto=format&fit=crop&q=80&w=800',
+        'imageUrl': 'https://images.unsplash.com/photo-1593032465175-481ac7f401a0?auto=format&fit=crop&q=80&w=800',
         'discount': 'تخفيضات حتى 30%',
       },
       {
@@ -230,15 +230,15 @@ class _HomeScreenState extends State<HomeScreen> {
         'category': 'فساتين سهرة',
         'rating': 4.7,
         'distance': '5 كم',
-        'imageUrl': 'https://images.unsplash.com/photo-1539008835657-9e8e6293e245?auto=format&fit=crop&q=80&w=800',
-        'discount': null, // No discount
+        'imageUrl': 'https://images.unsplash.com/photo-1566174053879-31528523f8ae?auto=format&fit=crop&q=80&w=800',
+        'discount': null,
       },
       {
         'name': 'عالم الأطفال',
         'category': 'ملابس أطفال',
         'rating': 4.9,
         'distance': '3.8 كم',
-        'imageUrl': 'https://images.unsplash.com/photo-1519751138087-5bf79df62d5a?auto=format&fit=crop&q=80&w=800',
+        'imageUrl': 'https://images.unsplash.com/photo-1622290291468-a28f7a7ae6a8?auto=format&fit=crop&q=80&w=800',
         'discount': 'تخفيضات حتى 25%',
       },
       {
@@ -246,8 +246,8 @@ class _HomeScreenState extends State<HomeScreen> {
         'category': 'ملابس شتوية',
         'rating': 4.9,
         'distance': '2.1 كم',
-        'imageUrl': 'https://images.unsplash.com/photo-1581044777550-4cfa60707c03?auto=format&fit=crop&q=80&w=800',
-        'discount': null, // No discount
+        'imageUrl': 'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=800',
+        'discount': null,
       },
     ];
 
@@ -256,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisCount: 2,
         mainAxisSpacing: 16,
         crossAxisSpacing: 16,
-        mainAxisExtent: 260, // Total height for the card
+        mainAxisExtent: 260,
       ),
       delegate: SliverChildBuilderDelegate(
         (context, index) {
@@ -303,6 +303,25 @@ class _HomeScreenState extends State<HomeScreen> {
                     height: double.infinity,
                     width: double.infinity,
                     fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                              : null,
+                          color: Colors.blueAccent,
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.white10,
+                        child: const Center(
+                          child: Icon(Icons.broken_image_outlined, color: Colors.white24, size: 40),
+                        ),
+                      );
+                    },
                   ),
                 ),
                 // Discount Badge (matching current mockup)
