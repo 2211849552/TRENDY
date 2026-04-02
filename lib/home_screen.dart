@@ -206,7 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
         'category': 'فساتين',
         'rating': 4.8,
         'distance': '2.5 كم',
-        'imageUrl': 'https://images.unsplash.com/photo-1539106604284-9697c1873a11?auto=format&fit=crop&q=80&w=800',
+        'imageUrl': 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&q=80&w=800',
         'discount': 'تخفيضات حتى 40%',
       },
       {
@@ -238,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen> {
         'category': 'ملابس أطفال',
         'rating': 4.9,
         'distance': '3.8 كم',
-        'imageUrl': 'https://images.unsplash.com/photo-1622290291468-a28f7a7ae6a8?auto=format&fit=crop&q=80&w=800',
+        'imageUrl': 'https://images.unsplash.com/photo-1621451537084-482c73073a0f?auto=format&fit=crop&q=80&w=800',
         'discount': 'تخفيضات حتى 25%',
       },
       {
