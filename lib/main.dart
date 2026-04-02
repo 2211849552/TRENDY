@@ -1,23 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'login_screen.dart'; // استدعاء شاشة تسجيل الدخول
 
 void main() {
-  runApp(const TrendyApp());
+  runApp(const MatajariApp());
 }
 
-class TrendyApp extends StatelessWidget {
-  const TrendyApp({super.key});
+class MatajariApp extends StatelessWidget {
+  const MatajariApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Trendy',
+      title: 'متجري',
       debugShowCheckedModeBanner: false,
+      // Dark Theme Configuration
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0061FF)),
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: const Color(0xFF0B1220),
+        primaryColor: const Color(0xFF3B82F6),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF3B82F6),
+          brightness: Brightness.dark,
+        ),
+        textTheme: GoogleFonts.cairoTextTheme(
+          ThemeData.dark().textTheme,
+        ),
         useMaterial3: true,
-        fontFamily: 'Cairo', // خط افتراضي لدعم اللغة العربية
       ),
+      // RTL Support
+      locale: const Locale('ar', 'AE'),
+      supportedLocales: const [
+        Locale('ar', 'AE'),
+      ],
       home: const SplashScreen(),
     );
   }
@@ -63,7 +78,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 alignment: Alignment.center,
                 children: [
                   Icon(
-                    Icons.checkroom, 
+                    Icons.storefront_outlined, 
                     size: 80,
                     color: Color(0xFF0061FF),
                   ),
@@ -81,7 +96,7 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             const SizedBox(height: 30),
             const Text(
-              'Trendy',
+              'متجري',
               style: TextStyle(
                 fontSize: 40,
                 fontWeight: FontWeight.bold,
@@ -91,7 +106,7 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             const SizedBox(height: 10),
             const Text(
-              'الموضة في متناول يدك',
+              'منصة التسوق الإلكتروني',
               style: TextStyle(
                 fontSize: 18,
                 color: Colors.white,
