@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'register_screen.dart';
 import 'forgot_password_screen.dart'; // Add this import
 
 class LoginScreen extends StatelessWidget {
@@ -239,7 +240,14 @@ class LoginScreen extends StatelessWidget {
                             style: TextStyle(color: Colors.white70),
                           ),
                           GestureDetector(
-                            onTap: () {},
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const RegisterScreen(),
+                                ),
+                              );
+                            },
                             child: const Text(
                               'إنشاء حساب جديد',
                               style: TextStyle(
