@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'home_screen.dart'; // Add this import
 
 class RegisterScreen extends StatelessWidget {
   const RegisterScreen({super.key});
@@ -122,7 +123,12 @@ class RegisterScreen extends StatelessWidget {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: () {},
+                          onPressed: () {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (context) => const HomeScreen()),
+                            );
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF00D1FF), // Cyan/Light Blue
                             foregroundColor: Colors.white,

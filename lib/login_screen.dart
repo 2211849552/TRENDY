@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart'; // Add this import
+import 'home_screen.dart'; // Add this import
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -185,7 +186,12 @@ class LoginScreen extends StatelessWidget {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: () {},
+                          onPressed: () {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (context) => const HomeScreen()),
+                            );
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF00D1FF), // Cyan/Light Blue
                             foregroundColor: Colors.white,
