@@ -33,7 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 32),
                   // Stores Section Title
                   const Text(
-                    'المتاجر المتوفرة (5)',
+                    'المتاجر المتوفرة (6)',
                     textAlign: TextAlign.right,
                     style: TextStyle(
                       fontSize: 22,
