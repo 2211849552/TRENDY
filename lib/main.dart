@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'login_screen.dart'; // استدعاء شاشة تسجيل الدخول
 
 void main() {
   runApp(const TrendyApp());
@@ -11,31 +12,46 @@ class TrendyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Trendy',
-      // إخفاء شريط الـ debug
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0061FF)),
         useMaterial3: true,
-        fontFamily: 'Cairo', // يمكنك استخدام خط مثل Cairo إذا كان متوفراً
+        fontFamily: 'Cairo', // خط افتراضي لدعم اللغة العربية
       ),
       home: const SplashScreen(),
     );
   }
 }
 
-class SplashScreen extends StatelessWidget {
+class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // الانتقال بعد 3 ثواني إلى شاشة تسجيل الدخول
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // لون الخلفية الأزرق كما في الصورة
       backgroundColor: const Color(0xFF0061FF), 
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // دائرة الشعار البيضاء
             Container(
               width: 140,
               height: 140,
@@ -46,13 +62,11 @@ class SplashScreen extends StatelessWidget {
               child: const Stack(
                 alignment: Alignment.center,
                 children: [
-                  // أيقونة الملابس (يمكنك استبدالها بصورة asset مثل Image.asset('assets/tshirt.png') لاحقاً)
                   Icon(
                     Icons.checkroom, 
                     size: 80,
                     color: Color(0xFF0061FF),
                   ),
-                  // النجمة الصغيرة (الشرارة/sparkle)
                   Positioned(
                     top: 25,
                     right: 25,
@@ -66,8 +80,6 @@ class SplashScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 30),
-            
-            // اسم التطبيق Trendy
             const Text(
               'Trendy',
               style: TextStyle(
@@ -77,10 +89,7 @@ class SplashScreen extends StatelessWidget {
                 letterSpacing: 1.5,
               ),
             ),
-            
             const SizedBox(height: 10),
-            
-            // الشعار الوصفي (Slogan)
             const Text(
               'الموضة في متناول يدك',
               style: TextStyle(
@@ -89,10 +98,7 @@ class SplashScreen extends StatelessWidget {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            
             const SizedBox(height: 50),
-            
-            // النقاط الثلاث السفلية
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -109,7 +115,6 @@ class SplashScreen extends StatelessWidget {
     );
   }
 
-  // دالة مساعدة لإنشاء النقطة البيضاء
   Widget _buildDot() {
     return Container(
       width: 8,
