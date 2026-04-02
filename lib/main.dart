@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'login_screen.dart'; // استدعاء شاشة تسجيل الدخول
 
 void main() {
@@ -32,6 +33,11 @@ class MatajariApp extends StatelessWidget {
       locale: const Locale('ar', 'AE'),
       supportedLocales: const [
         Locale('ar', 'AE'),
+      ],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
       ],
       home: const SplashScreen(),
     );
