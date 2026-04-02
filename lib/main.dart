@@ -84,7 +84,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 alignment: Alignment.center,
                 children: [
                   Icon(
-                    Icons.storefront_outlined, 
+                    Icons.checkroom_rounded, // T-shirt icon
                     size: 80,
                     color: Color(0xFF0061FF),
                   ),
@@ -102,24 +102,24 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             const SizedBox(height: 30),
             const Text(
-              'متجري',
+              'Trendy',
               style: TextStyle(
-                fontSize: 40,
+                fontSize: 48,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
                 letterSpacing: 1.5,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 5),
             const Text(
-              'منصة التسوق الإلكتروني',
+              'الموضة في متناول يدك',
               style: TextStyle(
                 fontSize: 18,
                 color: Colors.white,
                 fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 50),
+            const SizedBox(height: 40),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
