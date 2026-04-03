@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'complaints_screen.dart';
+import 'notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -10,6 +12,96 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  String _searchQuery = "";
+  String _selectedCategory = "جميع المتاجر";
+  String _selectedSort = "الأقرب";
+
+  final List<Map<String, dynamic>> _stores = [
+    {
+      'name': 'متجر الأناقة',
+      'category': 'فساتين',
+      'rating': 4.8,
+      'distance': '2.5 كم',
+      'imageUrl': 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&q=80&w=800',
+      'discount': 'تخفيضات حتى 40%',
+    },
+    {
+      'name': 'بوتيك الموضة',
+      'category': 'ملابس رجالية',
+      'rating': 4.5,
+      'distance': '1.2 كم',
+      'imageUrl': 'https://images.unsplash.com/photo-1490114538077-0a7f8cb49891?auto=format&fit=crop&q=80&w=800',
+      'discount': null,
+    },
+    {
+      'name': 'الرجل الأنيق',
+      'category': 'بدل رجالية',
+      'rating': 4.6,
+      'distance': '0.8 كم',
+      'imageUrl': 'https://images.unsplash.com/photo-1593032465175-481ac7f401a0?auto=format&fit=crop&q=80&w=800',
+      'discount': 'تخفيضات حتى 30%',
+    },
+    {
+      'name': 'متجر الفخامة',
+      'category': 'فساتين سهرة',
+      'rating': 4.7,
+      'distance': '5 كم',
+      'imageUrl': 'https://images.unsplash.com/photo-1566174053879-31528523f8ae?auto=format&fit=crop&q=80&w=800',
+      'discount': null,
+    },
+    {
+      'name': 'عالم الأطفال',
+      'category': 'ملابس أطفال',
+      'rating': 4.9,
+      'distance': '3.8 كم',
+      'imageUrl': 'https://images.unsplash.com/photo-1621451537084-482c73073a0f?auto=format&fit=crop&q=80&w=800',
+      'discount': 'تخفيضات حتى 25%',
+    },
+    {
+      'name': 'توب فاشن',
+      'category': 'ملابس شتوية',
+      'rating': 4.9,
+      'distance': '2.1 كم',
+      'imageUrl': 'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=800',
+      'discount': null,
+    },
+  ];
+
+  List<Map<String, dynamic>> get _filteredStores {
+    List<Map<String, dynamic>> filtered = _stores.where((store) {
+      final nameMatches = store['name'].toLowerCase().contains(_searchQuery.toLowerCase());
+      
+      bool categoryMatches = _selectedCategory == "جميع المتاجر";
+      if (_selectedCategory == "رجالي") {
+        categoryMatches = store['category'].toString().contains("رجالية") || store['category'].toString().contains("رجالي");
+      } else if (_selectedCategory == "نسائي") {
+        categoryMatches = store['category'].toString().contains("فساتين") || store['category'].toString().contains("نسائي");
+      } else if (_selectedCategory == "أطفال") {
+        categoryMatches = store['category'].toString().contains("أطفال");
+      }
+      
+      return nameMatches && categoryMatches;
+    }).toList();
+
+    // Apply Sorting
+    if (_selectedSort == "الأعلى تقييماً") {
+      filtered.sort((a, b) => b['rating'].compareTo(a['rating']));
+    } else if (_selectedSort == "العروض أولاً") {
+      filtered.sort((a, b) {
+        if (a['discount'] != null && b['discount'] == null) return -1;
+        if (a['discount'] == null && b['discount'] != null) return 1;
+        return 0;
+      });
+    } else if (_selectedSort == "الأقرب") {
+      filtered.sort((a, b) {
+        double distA = double.tryParse(a['distance'].split(' ')[0]) ?? 99.0;
+        double distB = double.tryParse(b['distance'].split(' ')[0]) ?? 99.0;
+        return distA.compareTo(distB);
+      });
+    }
+
+    return filtered;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,8 +125,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildSearchSection(),
                   const SizedBox(height: 32),
                   // Stores Section Title
-                  const Text(
-                    'المتاجر المتوفرة (6)',
+                  Text(
+                    'المتاجر المتوفرة (${_filteredStores.length})',
                     textAlign: TextAlign.right,
                     style: TextStyle(
                       fontSize: 22,
@@ -144,7 +236,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: _buildBannerIcon(Icons.chat_bubble_outline),
               ),
               const SizedBox(width: 12),
-              _buildBannerIcon(Icons.notifications_none),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+                  );
+                },
+                child: _buildBannerIcon(Icons.notifications_none),
+              ),
             ],
           ),
         ],
@@ -169,9 +269,10 @@ class _HomeScreenState extends State<HomeScreen> {
         // Search Bar
         TextField(
           textAlign: TextAlign.right,
+          onChanged: (value) => setState(() => _searchQuery = value),
           decoration: InputDecoration(
             hintText: '...ابحث عن متجر',
-            hintStyle: const TextStyle(color: Colors.white30),
+            hintStyle: GoogleFonts.cairo(color: Colors.white30, fontSize: 13),
             prefixIcon: const Icon(Icons.search, color: Colors.white30),
             filled: true,
             fillColor: const Color(0xFF1E5BB3).withValues(alpha: 0.2),
@@ -185,83 +286,66 @@ class _HomeScreenState extends State<HomeScreen> {
         // Filter Dropdowns
         Row(
           children: [
-            Expanded(child: _buildDropdown('الأقرب')),
+            Expanded(
+              child: _buildModernDropdown(
+                value: _selectedSort,
+                items: ['الأقرب', 'الأعلى تقييماً', 'العروض أولاً'],
+                onChanged: (val) => setState(() => _selectedSort = val!),
+              ),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: _buildDropdown('جميع المتاجر')),
+            Expanded(
+              child: _buildModernDropdown(
+                value: _selectedCategory,
+                items: ['جميع المتاجر', 'رجالي', 'نسائي', 'أطفال'],
+                onChanged: (val) => setState(() => _selectedCategory = val!),
+              ),
+            ),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildDropdown(String title) {
+  Widget _buildModernDropdown({
+    required String value,
+    required List<String> items,
+    required void Function(String?) onChanged,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: const Color(0xFF1E5BB3).withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Icon(Icons.keyboard_arrow_down, color: Colors.white54),
-          Text(title, style: const TextStyle(color: Colors.white)),
-        ],
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value,
+          dropdownColor: const Color(0xFF0A1931),
+          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white54, size: 20),
+          isExpanded: true,
+          style: GoogleFonts.cairo(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+          items: items
+              .map((item) => DropdownMenuItem(
+                    value: item,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(item, textAlign: TextAlign.right),
+                    ),
+                  ))
+              .toList(),
+          onChanged: onChanged,
+        ),
       ),
     );
   }
 
     Widget _buildStoreGrid() {
-    final List<Map<String, dynamic>> stores = [
-      {
-        'name': 'متجر الأناقة',
-        'category': 'فساتين',
-        'rating': 4.8,
-        'distance': '2.5 كم',
-        'imageUrl': 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&q=80&w=800',
-        'discount': 'تخفيضات حتى 40%',
-      },
-      {
-        'name': 'بوتيك الموضة',
-        'category': 'ملابس رجالية',
-        'rating': 4.5,
-        'distance': '1.2 كم',
-        'imageUrl': 'https://images.unsplash.com/photo-1490114538077-0a7f8cb49891?auto=format&fit=crop&q=80&w=800',
-        'discount': null,
-      },
-      {
-        'name': 'الرجل الأنيق',
-        'category': 'بدل رجالية',
-        'rating': 4.6,
-        'distance': '0.8 كم',
-        'imageUrl': 'https://images.unsplash.com/photo-1593032465175-481ac7f401a0?auto=format&fit=crop&q=80&w=800',
-        'discount': 'تخفيضات حتى 30%',
-      },
-      {
-        'name': 'متجر الفخامة',
-        'category': 'فساتين سهرة',
-        'rating': 4.7,
-        'distance': '5 كم',
-        'imageUrl': 'https://images.unsplash.com/photo-1566174053879-31528523f8ae?auto=format&fit=crop&q=80&w=800',
-        'discount': null,
-      },
-      {
-        'name': 'عالم الأطفال',
-        'category': 'ملابس أطفال',
-        'rating': 4.9,
-        'distance': '3.8 كم',
-        'imageUrl': 'https://images.unsplash.com/photo-1621451537084-482c73073a0f?auto=format&fit=crop&q=80&w=800',
-        'discount': 'تخفيضات حتى 25%',
-      },
-      {
-        'name': 'توب فاشن',
-        'category': 'ملابس شتوية',
-        'rating': 4.9,
-        'distance': '2.1 كم',
-        'imageUrl': 'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=800',
-        'discount': null,
-      },
-    ];
+    final stores = _filteredStores;
 
     return SliverGrid(
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
