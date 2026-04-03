@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'complaints_screen.dart';
 import 'notifications_screen.dart';
+import 'store_details_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -357,13 +358,29 @@ class _HomeScreenState extends State<HomeScreen> {
       delegate: SliverChildBuilderDelegate(
         (context, index) {
           final store = stores[index];
-          return _buildStoreCard(
-            name: store['name'],
-            category: store['category'],
-            rating: store['rating'],
-            distance: store['distance'],
-            imageUrl: store['imageUrl'],
-            discount: store['discount'],
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => StoreDetailsScreen(
+                    storeName: store['name'],
+                    storeCategory: store['category'],
+                    storeRating: store['rating'],
+                    storeDistance: store['distance'],
+                    storeImageUrl: store['imageUrl'],
+                  ),
+                ),
+              );
+            },
+            child: _buildStoreCard(
+              name: store['name'],
+              category: store['category'],
+              rating: store['rating'],
+              distance: store['distance'],
+              imageUrl: store['imageUrl'],
+              discount: store['discount'],
+            ),
           );
         },
         childCount: stores.length,
