@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'complaints_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -101,7 +102,15 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Row(
                 children: [
-                  _buildBannerIcon(Icons.chat_bubble_outline),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const ComplaintsScreen()),
+                      );
+                    },
+                    child: _buildBannerIcon(Icons.chat_bubble_outline),
+                  ),
                   const SizedBox(width: 12),
                   _buildBannerIcon(Icons.notifications_none),
                 ],
