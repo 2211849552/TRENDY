@@ -40,7 +40,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: ElevatedButton.icon(
-                    onPressed: () {},
+                    onPressed: () => _showNewComplaintDialog(context),
                     icon: const Icon(Icons.add, color: Colors.white, size: 20),
                     label: const Text(
                       'شكوى جديدة',
@@ -163,6 +163,191 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showNewComplaintDialog(BuildContext context) {
+    String selectedType = 'استفسار عام';
+    String selectedOrder = 'لا يوجد';
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            bool showOrderField = selectedType == 'مشكلة في الطلب' || selectedType == 'مشكلة مع المتجر';
+            
+            return Dialog(
+              backgroundColor: const Color(0xFF121E36),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: Directionality(
+                textDirection: TextDirection.rtl,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'إنشاء شكوى جديدة',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close, color: Colors.white54, size: 20),
+                          ),
+                        ],
+                      ),
+                      const Text(
+                        'املأ النموذج أدناه لإرسال شكوى، أو استفسار',
+                        style: TextStyle(fontSize: 13, color: Colors.white54),
+                      ),
+                      const SizedBox(height: 24),
+                      
+                      // Component: Complaint Type
+                      _buildLabel('نوع الشكوى'),
+                      const SizedBox(height: 8),
+                      _buildDropdownField(
+                        value: selectedType,
+                        items: ['استفسار عام', 'مشكلة فنية', 'مشكلة في الطلب', 'مشكلة مع المتجر'],
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDialogState(() => selectedType = val);
+                          }
+                        },
+                      ),
+                      
+                      if (showOrderField) ...[
+                        const SizedBox(height: 20),
+                        // Component: Related Order
+                        _buildLabel('الطلب المرتبط (اختياري)'),
+                        const SizedBox(height: 8),
+                        _buildDropdownField(
+                          value: selectedOrder,
+                          items: ['لا يوجد'],
+                          onChanged: (val) {
+                            if (val != null) {
+                              setDialogState(() => selectedOrder = val);
+                            }
+                          },
+                        ),
+                      ],
+                      
+                      const SizedBox(height: 20),
+                      
+                      // Component: Title
+                      _buildLabel('العنوان'),
+                      const SizedBox(height: 8),
+                      _buildTextField(hint: 'اكتب عنوان الشكوى...'),
+                      
+                      const SizedBox(height: 20),
+                      
+                      // Component: Details
+                      _buildLabel('التفاصيل'),
+                      const SizedBox(height: 8),
+                      _buildTextField(hint: 'اشرح المشكلة أو الاستفسار بالتفصيل...', maxLines: 5),
+                      
+                      const SizedBox(height: 32),
+                      
+                      // Submit Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF3B82F6),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                          ),
+                          child: const Text(
+                            'إرسال الشكوى',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildLabel(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: Colors.white,
+      ),
+    );
+  }
+
+  Widget _buildTextField({required String hint, int maxLines = 1}) {
+    return TextField(
+      maxLines: maxLines,
+      style: const TextStyle(color: Colors.white, fontSize: 14),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: Colors.white24, fontSize: 13),
+        filled: true,
+        fillColor: Colors.white.withValues(alpha: 0.03),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.white10),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.white10),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF3B82F6)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropdownField({
+    required String value,
+    required List<String> items,
+    required void Function(String?) onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value,
+          dropdownColor: const Color(0xFF121E36),
+          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white24),
+          isExpanded: true,
+          items: items
+              .map((e) => DropdownMenuItem(
+                    value: e,
+                    child: Text(e, style: const TextStyle(color: Colors.white, fontSize: 14)),
+                  ))
+              .toList(),
+          onChanged: onChanged,
+        ),
       ),
     );
   }

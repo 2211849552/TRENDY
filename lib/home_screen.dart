@@ -94,55 +94,58 @@ class _HomeScreenState extends State<HomeScreen> {
         color: const Color(0xFF1E5BB3), // Blue card
         borderRadius: BorderRadius.circular(24),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const ComplaintsScreen()),
-                      );
-                    },
-                    child: _buildBannerIcon(Icons.chat_bubble_outline),
+          // Right side: All the Text (First child in RTL becomes Right)
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'مرحباً بك في متجري',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
-                  const SizedBox(width: 12),
-                  _buildBannerIcon(Icons.notifications_none),
-                ],
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'اكتشف أفضل المتاجر والمنتجات في ليبيا',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white70,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'أهلاً hajer',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Left side: Icons (Second child in RTL becomes Left)
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ComplaintsScreen()),
+                  );
+                },
+                child: _buildBannerIcon(Icons.chat_bubble_outline),
               ),
-              const SizedBox(), // Spacer
+              const SizedBox(width: 12),
+              _buildBannerIcon(Icons.notifications_none),
             ],
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'مرحباً بك في متجري',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'اكتشف أفضل المتاجر والمنتجات في ليبيا',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.white70,
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'أهلاً hajer',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.white,
-              fontWeight: FontWeight.w500,
-            ),
           ),
         ],
       ),
