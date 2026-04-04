@@ -9,6 +9,7 @@ import 'models/favorites_manager.dart';
 import 'models/cart_manager.dart';
 import 'models/orders_manager.dart';
 import 'orders_page.dart';
+import 'settings_page.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool isGuest;
@@ -143,14 +144,12 @@ class _HomeScreenState extends State<HomeScreen> {
         return OrdersPage(
           onBrowseStores: () => setState(() => _selectedIndex = 0),
         );
-      default:
-        // Settings or placeholders
-        return Center(
-          child: Text(
-            'الإعدادات قيد التطوير',
-            style: GoogleFonts.cairo(color: Colors.white70, fontSize: 18),
-          ),
+      case 4:
+        return SettingsPage(
+          onBrowseStores: () => setState(() => _selectedIndex = 0),
         );
+      default:
+        return const SizedBox.shrink();
     }
   }
 
