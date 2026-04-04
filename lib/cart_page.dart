@@ -77,18 +77,18 @@ class _CartPageState extends State<CartPage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          'سلة التسوق',
-          style: GoogleFonts.cairo(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
-        ),
         TextButton.icon(
           onPressed: widget.onBrowseStores,
-          label: const Icon(Icons.arrow_forward, color: Colors.white70, size: 18),
-          icon: const Text(
+          icon: const Icon(Icons.arrow_forward, color: Colors.white70, size: 18),
+          label: const Text(
             'رجوع',
             style: TextStyle(color: Colors.white70, fontSize: 16),
           ),
           style: TextButton.styleFrom(padding: EdgeInsets.zero),
+        ),
+        Text(
+          'سلة التسوق',
+          style: GoogleFonts.cairo(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
         ),
       ],
     );

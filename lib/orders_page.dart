@@ -80,6 +80,15 @@ class _OrdersPageState extends State<OrdersPage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
+        TextButton.icon(
+          onPressed: widget.onBrowseStores,
+          icon: const Icon(Icons.arrow_forward, color: Colors.white70, size: 18),
+          label: const Text(
+            'رجوع',
+            style: TextStyle(color: Colors.white70, fontSize: 16),
+          ),
+          style: TextButton.styleFrom(padding: EdgeInsets.zero),
+        ),
         Text(
           'الطلبات (${_ordersManager.count})',
           style: GoogleFonts.cairo(
@@ -87,15 +96,6 @@ class _OrdersPageState extends State<OrdersPage> {
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
-        ),
-        TextButton.icon(
-          onPressed: widget.onBrowseStores,
-          icon: const Text(
-            'رجوع',
-            style: TextStyle(color: Colors.white70, fontSize: 16),
-          ),
-          label: const Icon(Icons.arrow_forward, color: Colors.white70, size: 18),
-          style: TextButton.styleFrom(padding: EdgeInsets.zero),
         ),
       ],
     );

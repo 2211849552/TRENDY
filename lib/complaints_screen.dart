@@ -77,6 +77,23 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
+        // Back Button
+        InkWell(
+          onTap: () => Navigator.pop(context),
+          child: const Row(
+            children: [
+              Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 16),
+              SizedBox(width: 4),
+              Text(
+                'رجوع',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
         // Trendy Logo
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -96,23 +113,6 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
               ),
               SizedBox(width: 6),
               Icon(Icons.checkroom_rounded, color: Colors.blueAccent, size: 20),
-            ],
-          ),
-        ),
-        // Back Button
-        InkWell(
-          onTap: () => Navigator.pop(context),
-          child: const Row(
-            children: [
-              Text(
-                'رجوع',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
-                ),
-              ),
-              SizedBox(width: 4),
-              Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 16),
             ],
           ),
         ),

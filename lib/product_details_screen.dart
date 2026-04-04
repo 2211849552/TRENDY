@@ -181,33 +181,41 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 color: Colors.blueAccent,
               ),
             ),
-            const SizedBox(width: 16),
-            Text(
-              '${widget.product.originalPrice} د.ل',
-              style: const TextStyle(
-                fontSize: 18,
-                color: Colors.white24,
-                decoration: TextDecoration.lineThrough,
+            if (widget.product.originalPrice != null) ...[
+              const SizedBox(width: 16),
+              Text(
+                '${widget.product.originalPrice} د.ل',
+                style: const TextStyle(
+                  fontSize: 18,
+                  color: Colors.white24,
+                  decoration: TextDecoration.lineThrough,
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFF00D1FF).withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(20),
+            ],
+            if (widget.product.discount != null && widget.product.discount!.isNotEmpty) ...[
+              const SizedBox(width: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF00D1FF).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${widget.product.discount} خصم',
+                  style: const TextStyle(color: Color(0xFF00D1FF), fontSize: 12, fontWeight: FontWeight.bold),
+                ),
               ),
-              child: Text(
-                '${widget.product.discount} خصم',
-                style: const TextStyle(color: Color(0xFF00D1FF), fontSize: 12, fontWeight: FontWeight.bold),
-              ),
-            ),
+            ],
           ],
         ),
         const SizedBox(height: 12),
-        const Text(
-          'متوفر',
-          style: TextStyle(color: Colors.greenAccent, fontWeight: FontWeight.bold, fontSize: 14),
+        Text(
+          widget.product.isOutOfStock ? 'نفدت الكمية' : 'متوفر',
+          style: TextStyle(
+            color: widget.product.isOutOfStock ? Colors.redAccent : Colors.greenAccent, 
+            fontWeight: FontWeight.bold, 
+            fontSize: 14
+          ),
         ),
       ],
     );
@@ -340,7 +348,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           child: SizedBox(
             height: 56,
             child: ElevatedButton(
-              onPressed: () {
+              onPressed: widget.product.isOutOfStock ? null : () {
                 try {
                   _cartManager.addToCart(
                     widget.product,

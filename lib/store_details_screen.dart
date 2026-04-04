@@ -9,6 +9,7 @@ class StoreDetailsScreen extends StatefulWidget {
   final double storeRating;
   final String storeDistance;
   final String storeImageUrl;
+  final String? storeDiscount;
 
   const StoreDetailsScreen({
     super.key,
@@ -17,6 +18,7 @@ class StoreDetailsScreen extends StatefulWidget {
     required this.storeRating,
     required this.storeDistance,
     required this.storeImageUrl,
+    this.storeDiscount,
   });
 
   @override
@@ -27,16 +29,34 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
   String _selectedCategory = 'الكل';
   RangeValues _priceRange = const RangeValues(0, 1500);
   String _selectedRating = 'جميع التقييمات';
-  int _bottomNavIndex = 0;
   late final List<Product> _allProducts;
 
   @override
   void initState() {
     super.initState();
-    _allProducts = _getMockProducts(widget.storeCategory, widget.storeName);
+    _allProducts = _getMockProducts(widget.storeCategory, widget.storeName, widget.storeDiscount != null);
   }
 
-  List<Product> _getMockProducts(String storeCat, String storeName) {
+  List<Product> _getMockProducts(String storeCat, String storeName, bool hasStoreDiscount) {
+    List<Product> products = _generateRawProducts(storeCat, storeName);
+    
+    if (!hasStoreDiscount) {
+      return products.map((p) => Product(
+        name: p.name,
+        category: p.category,
+        price: p.price,
+        originalPrice: null,
+        rating: p.rating,
+        imageUrl: p.imageUrl,
+        discount: null,
+        storeName: p.storeName,
+        isOutOfStock: p.isOutOfStock,
+      )).toList();
+    }
+    return products;
+  }
+
+  List<Product> _generateRawProducts(String storeCat, String storeName) {
     // 1. متجر الأناقة (Casual/Mainstream Women)
     if (storeName.contains('الأناقة')) {
       return [
@@ -54,10 +74,10 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
           name: 'بلوزة قطنية أنيقة',
           category: 'قميص',
           price: 95,
-          originalPrice: 130,
+          originalPrice: null,
           rating: 4.6,
           imageUrl: 'https://images.unsplash.com/photo-1485960994840-00aa453e0f2d?auto=format&fit=crop&q=80&w=400',
-          discount: '-%25',
+          discount: null,
           storeName: storeName,
         ),
         Product(
@@ -69,6 +89,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
           imageUrl: 'https://images.unsplash.com/photo-1591561954557-26941169b49e?auto=format&fit=crop&q=80&w=400',
           discount: '-%30',
           storeName: storeName,
+          isOutOfStock: true,
         ),
         Product(
           name: 'تنورة جينز عصرية',
@@ -538,7 +559,6 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
@@ -560,7 +580,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
         // Back Button
         Positioned(
           top: 16,
-          left: 16,
+          right: 16,
           child: CircleAvatar(
             backgroundColor: Colors.black38,
             child: IconButton(
@@ -597,17 +617,18 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                         color: Colors.white,
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.pinkAccent.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(12),
+                    if (_allProducts.any((p) => p.discount != null && p.discount!.isNotEmpty))
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.pinkAccent.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'عروض خاصة',
+                          style: GoogleFonts.cairo(color: Colors.pinkAccent, fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
                       ),
-                      child: Text(
-                        'عروض خاصة',
-                        style: GoogleFonts.cairo(color: Colors.pinkAccent, fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -747,14 +768,13 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
             // Image and badges
             Expanded(
               child: Stack(
+                fit: StackFit.expand,
                 children: [
                   ClipRRect(
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                     child: Image.network(
                       p.imageUrl,
                       fit: BoxFit.cover,
-                      width: double.infinity,
-                      height: double.infinity,
                       loadingBuilder: (context, child, loadingProgress) {
                         if (loadingProgress == null) return child;
                         return Center(
@@ -777,20 +797,37 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                       },
                     ),
                   ),
-                  Positioned(
-                    top: 10,
-                    right: 10,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(color: Colors.blueAccent, borderRadius: BorderRadius.circular(10)),
-                      child: Text(p.discount, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                  if (p.discount != null && p.discount!.isNotEmpty)
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(color: Colors.blueAccent, borderRadius: BorderRadius.circular(10)),
+                        child: Text(p.discount!, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ),
                     ),
-                  ),
-                  Positioned(
+                  const Positioned(
                     top: 10,
                     left: 10,
                     child: Icon(Icons.favorite_outline, color: Colors.white, size: 20),
                   ),
+                  if (p.isOutOfStock)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                        ),
+                        child: Center(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(8)),
+                            child: const Text('نفدت الكمية', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -815,7 +852,8 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                     children: [
                       Text('${p.price} د.ل', style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 14)),
                       const SizedBox(width: 8),
-                      Text('${p.originalPrice} د.ل', style: const TextStyle(color: Colors.white24, fontSize: 11, decoration: TextDecoration.lineThrough)),
+                      if (p.originalPrice != null)
+                        Text('${p.originalPrice} د.ل', style: const TextStyle(color: Colors.white24, fontSize: 11, decoration: TextDecoration.lineThrough)),
                     ],
                   ),
                 ],
@@ -858,24 +896,4 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
     );
   }
 
-  Widget _buildBottomNav() {
-    return BottomNavigationBar(
-      currentIndex: _bottomNavIndex,
-      onTap: (index) {
-        setState(() => _bottomNavIndex = index);
-        if (index == 0) Navigator.pop(context); // Feedback: go home
-      },
-      type: BottomNavigationBarType.fixed,
-      backgroundColor: const Color(0xFF0A1931),
-      selectedItemColor: Colors.blueAccent,
-      unselectedItemColor: Colors.white54,
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'الرئيسية'),
-        BottomNavigationBarItem(icon: Icon(Icons.storefront_outlined), activeIcon: Icon(Icons.storefront), label: 'المتجر'),
-        BottomNavigationBarItem(icon: Icon(Icons.favorite_outline), activeIcon: Icon(Icons.favorite), label: 'المفضلة'),
-        BottomNavigationBarItem(icon: Icon(Icons.shopping_basket_outlined), activeIcon: Icon(Icons.shopping_basket), label: 'السلة'),
-        BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), activeIcon: Icon(Icons.settings), label: 'الإعدادات'),
-      ],
-    );
-  }
 }

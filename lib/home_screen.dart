@@ -412,6 +412,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     storeRating: store['rating'],
                     storeDistance: store['distance'],
                     storeImageUrl: store['imageUrl'],
+                    storeDiscount: store['discount'],
                   ),
                 ),
               );
