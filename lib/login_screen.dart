@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'register_screen.dart';
-import 'forgot_password_screen.dart'; // Add this import
-import 'home_screen.dart'; // Add this import
+import 'forgot_password_screen.dart';
+import 'home_screen.dart';
+import 'l10n/app_strings.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -22,7 +23,7 @@ class LoginScreen extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.blue.withValues(alpha: 0.1),
+                        color: Colors.blue.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -32,18 +33,18 @@ class LoginScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'متجري',
-                      style: TextStyle(
+                    Text(
+                      context.tr('login_brand'),
+                      style: const TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'منصة التسوق الإلكتروني',
-                      style: TextStyle(
+                    Text(
+                      context.tr('login_subtitle'),
+                      style: const TextStyle(
                         fontSize: 16,
                         color: Colors.white70,
                       ),
@@ -61,22 +62,22 @@ class LoginScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Directionality(
-                  textDirection: TextDirection.rtl,
+                  textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'تسجيل الدخول',
-                        style: TextStyle(
+                      Text(
+                        context.tr('login_title'),
+                        style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'أدخل بياناتك للوصول إلى حسابك',
-                        style: TextStyle(
+                      Text(
+                        context.tr('login_hint'),
+                        style: const TextStyle(
                           fontSize: 14,
                           color: Colors.white70,
                         ),
@@ -84,9 +85,9 @@ class LoginScreen extends StatelessWidget {
                       const SizedBox(height: 32),
                       
                       // Email Field
-                      const Text(
-                        'البريد الإلكتروني',
-                        style: TextStyle(
+                      Text(
+                        context.tr('email'),
+                        style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
@@ -98,9 +99,9 @@ class LoginScreen extends StatelessWidget {
                         style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
                           hintText: 'example@mail.com',
-                          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+                          hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
                           filled: true,
-                          fillColor: Colors.black.withValues(alpha: 0.05),
+                          fillColor: Colors.black.withOpacity(0.05),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -119,9 +120,9 @@ class LoginScreen extends StatelessWidget {
                       const SizedBox(height: 20),
                       
                       // Password Field
-                      const Text(
-                        'كلمة المرور',
-                        style: TextStyle(
+                      Text(
+                        context.tr('login_password'),
+                        style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
@@ -133,9 +134,9 @@ class LoginScreen extends StatelessWidget {
                         style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
                           hintText: '••••••••',
-                          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+                          hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
                           filled: true,
-                          fillColor: Colors.black.withValues(alpha: 0.05),
+                          fillColor: Colors.black.withOpacity(0.05),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -156,7 +157,7 @@ class LoginScreen extends StatelessWidget {
                       
                       // Forgot Password Link
                       Align(
-                        alignment: Alignment.centerLeft,
+                        alignment: AlignmentDirectional.centerStart,
                         child: TextButton(
                           onPressed: () {
                             Navigator.push(
@@ -169,9 +170,9 @@ class LoginScreen extends StatelessWidget {
                             minimumSize: const Size(50, 30),
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
-                          child: const Text(
-                            'نسيت كلمة المرور؟',
-                            style: TextStyle(
+                          child: Text(
+                            context.tr('forgot_password'),
+                            style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 13,
                             ),
@@ -202,9 +203,9 @@ class LoginScreen extends StatelessWidget {
                             ),
                             elevation: 0,
                           ),
-                          child: const Text(
-                            'تسجيل الدخول',
-                            style: TextStyle(
+                          child: Text(
+                            context.tr('login_title'),
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
@@ -232,9 +233,9 @@ class LoginScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          child: const Text(
-                            'متابعة كزائر',
-                            style: TextStyle(
+                          child: Text(
+                            context.tr('guest_continue'),
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
@@ -248,9 +249,9 @@ class LoginScreen extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text(
-                            'ليس لديك حساب؟ ',
-                            style: TextStyle(color: Colors.white70),
+                          Text(
+                            context.tr('no_account'),
+                            style: const TextStyle(color: Colors.white70),
                           ),
                           GestureDetector(
                             onTap: () {
@@ -261,9 +262,9 @@ class LoginScreen extends StatelessWidget {
                                 ),
                               );
                             },
-                            child: const Text(
-                              'إنشاء حساب جديد',
-                              style: TextStyle(
+                            child: Text(
+                              context.tr('create_account'),
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
                               ),

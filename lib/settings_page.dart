@@ -1,7 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'notifications_screen.dart';
 import 'complaints_screen.dart';
+import 'wallet_screen.dart';
+import 'models/wallet_manager.dart';
+import 'locale/app_locale.dart';
+import 'l10n/app_strings.dart';
 
 class SettingsPage extends StatefulWidget {
   final VoidCallback onBrowseStores;
@@ -14,19 +19,106 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   bool notificationsEnabled = true;
-  String selectedLanguage = 'العربية';
+
+  late final TextEditingController _fullName;
+  late final TextEditingController _email;
+  late final TextEditingController _phoneField;
+  late final TextEditingController _address;
+  late final TextEditingController _currentPassword;
+  late final TextEditingController _newPassword;
+  late final TextEditingController _confirmPassword;
+
+  final WalletManager _wallet = WalletManager();
+
+  @override
+  void initState() {
+    super.initState();
+    _fullName = TextEditingController();
+    _email = TextEditingController();
+    _phoneField = TextEditingController();
+    _address = TextEditingController();
+    _currentPassword = TextEditingController();
+    _newPassword = TextEditingController();
+    _confirmPassword = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _fullName.dispose();
+    _email.dispose();
+    _phoneField.dispose();
+    _address.dispose();
+    _currentPassword.dispose();
+    _newPassword.dispose();
+    _confirmPassword.dispose();
+    super.dispose();
+  }
+
+  void _saveProfile() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(context.tr('saved_ok'), style: GoogleFonts.cairo()),
+        backgroundColor: const Color(0xFF1E5BB3),
+      ),
+    );
+  }
+
+  void _changePassword() {
+    final cur = _currentPassword.text;
+    final newP = _newPassword.text;
+    final conf = _confirmPassword.text;
+    if (cur.isEmpty || newP.isEmpty || conf.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.tr('pwd_fill_all'), style: GoogleFonts.cairo()),
+          backgroundColor: Colors.redAccent.shade700,
+        ),
+      );
+      return;
+    }
+    if (newP != conf) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.tr('pwd_mismatch'), style: GoogleFonts.cairo()),
+          backgroundColor: Colors.redAccent.shade700,
+        ),
+      );
+      return;
+    }
+    if (newP.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.tr('pwd_short'), style: GoogleFonts.cairo()),
+          backgroundColor: Colors.redAccent.shade700,
+        ),
+      );
+      return;
+    }
+    _currentPassword.clear();
+    _newPassword.clear();
+    _confirmPassword.clear();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(context.tr('pwd_changed_ok'), style: GoogleFonts.cairo()),
+        backgroundColor: const Color(0xFF1E5BB3),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       color: const Color(0xFF0A1931),
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Directionality(
-        textDirection: TextDirection.rtl,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+      child: ListenableBuilder(
+        listenable: Listenable.merge([_wallet, AppLocale.instance]),
+        builder: (context, _) {
+          return Directionality(
+            textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               const SizedBox(height: 20),
               // Header Match OrdersPage / FavoritesPage
               _buildHeader(),
@@ -34,7 +126,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
               // Title aligned like other pages
               Text(
-                'الإعدادات',
+                context.tr('settings_title'),
                 style: GoogleFonts.cairo(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -45,17 +137,27 @@ class _SettingsPageState extends State<SettingsPage> {
 
               // Quick Links Section
               _buildSectionCard(
-                title: 'روابط سريعة',
-                subtitle: 'الوصول السريع للصفحات المهمة',
+                title: context.tr('settings_quick_links'),
+                subtitle: context.tr('settings_quick_links_sub'),
                 children: [
                   _buildQuickLink(
-                    title: 'المحفظة',
-                    subtitle: '100.00 د.ل',
+                    title: context.tr('wallet'),
+                    subtitle: AppStrings.format(context, 'wallet_link_sub', params: {
+                      'balance': _wallet.balance.toStringAsFixed(2),
+                    }),
                     icon: Icons.account_balance_wallet_outlined,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (context) => const WalletScreen(),
+                        ),
+                      );
+                    },
                   ),
                   _buildQuickLink(
-                    title: 'الإشعارات',
-                    subtitle: '0 غير مقروء',
+                    title: context.tr('notifications'),
+                    subtitle: context.tr('notifications_sub'),
                     icon: Icons.notifications_none_rounded,
                     onTap: () {
                       Navigator.push(
@@ -65,8 +167,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     },
                   ),
                   _buildQuickLink(
-                    title: 'الشكاوى والدعم',
-                    subtitle: '0 شكوى',
+                    title: context.tr('support'),
+                    subtitle: context.tr('support_sub'),
                     icon: Icons.support_agent_outlined,
                     showBorder: false,
                     onTap: () {
@@ -82,36 +184,62 @@ class _SettingsPageState extends State<SettingsPage> {
 
               // Personal Info Section
               _buildSectionCard(
-                title: 'المعلومات الشخصية',
-                subtitle: 'قم بتحديث بياناتك الشخصية',
+                title: context.tr('personal_info'),
+                subtitle: context.tr('personal_info_sub'),
                 icon: Icons.person_outline,
                 children: [
                   Row(
                     children: [
-                      Expanded(child: _buildInputField('الاسم الكامل', 'aya adel')),
+                      Expanded(
+                        child: _buildInputField(
+                          context.tr('full_name'),
+                          hint: context.tr('hint_name'),
+                          controller: _fullName,
+                        ),
+                      ),
                       const SizedBox(width: 16),
-                      Expanded(child: _buildInputField('البريد الإلكتروني', 'kaissomar@gmail.com')),
+                      Expanded(
+                        child: _buildInputField(
+                          context.tr('email'),
+                          hint: context.tr('hint_email'),
+                          controller: _email,
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      Expanded(child: _buildInputField('رقم الهاتف', '+218 91 234 5678')),
+                      Expanded(
+                        child: _buildInputField(
+                          context.tr('phone'),
+                          hint: context.tr('hint_phone'),
+                          controller: _phoneField,
+                          keyboardType: TextInputType.phone,
+                        ),
+                      ),
                       const SizedBox(width: 16),
-                      Expanded(child: _buildInputField('العنوان', 'المدينة، الشارع')),
+                      Expanded(
+                        child: _buildInputField(
+                          context.tr('address'),
+                          hint: context.tr('hint_address'),
+                          controller: _address,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 24),
                   Align(
-                    alignment: Alignment.centerLeft,
+                    alignment: AlignmentDirectional.centerStart,
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: _saveProfile,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF3B82F6),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       ),
-                      child: Text('حفظ التغييرات', style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold)),
+                      child: Text(context.tr('save_changes'), style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
@@ -120,30 +248,49 @@ class _SettingsPageState extends State<SettingsPage> {
 
               // Change Password Section
               _buildSectionCard(
-                title: 'تغيير كلمة المرور',
-                subtitle: 'قم بتحديث كلمة المرور الخاصة بك',
+                title: context.tr('change_password_title'),
+                subtitle: context.tr('change_password_sub'),
                 icon: Icons.lock_outline,
                 children: [
-                  _buildInputField('كلمة المرور الحالية', '********', obscureText: true),
+                  _buildInputField(
+                    context.tr('current_password'),
+                    hint: context.tr('hint_password'),
+                    controller: _currentPassword,
+                    obscureText: true,
+                  ),
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      Expanded(child: _buildInputField('كلمة المرور الجديدة', '********', obscureText: true)),
+                      Expanded(
+                        child: _buildInputField(
+                          context.tr('new_password'),
+                          hint: context.tr('hint_password'),
+                          controller: _newPassword,
+                          obscureText: true,
+                        ),
+                      ),
                       const SizedBox(width: 16),
-                      Expanded(child: _buildInputField('تأكيد كلمة المرور', '********', obscureText: true)),
+                      Expanded(
+                        child: _buildInputField(
+                          context.tr('confirm_password'),
+                          hint: context.tr('hint_password'),
+                          controller: _confirmPassword,
+                          obscureText: true,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 24),
                   Align(
-                    alignment: Alignment.centerLeft,
+                    alignment: AlignmentDirectional.centerStart,
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: _changePassword,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF3B82F6),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       ),
-                      child: Text('تغيير كلمة المرور', style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold)),
+                      child: Text(context.tr('change_password_btn'), style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
@@ -152,8 +299,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
               // App Preferences Section
               _buildSectionCard(
-                title: 'تفضيلات التطبيق',
-                subtitle: 'إدارة إعدادات التطبيق',
+                title: context.tr('app_prefs'),
+                subtitle: context.tr('app_prefs_sub'),
                 icon: Icons.settings_outlined,
                 children: [
                   // Notifications Toggle
@@ -163,8 +310,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('تفعيل الإشعارات', style: GoogleFonts.cairo(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                          Text('استلام إشعارات حول الطلبات والعروض الخاصة', style: GoogleFonts.cairo(color: Colors.white54, fontSize: 13)),
+                          Text(context.tr('enable_notifications'), style: GoogleFonts.cairo(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                          Text(context.tr('notifications_desc'), style: GoogleFonts.cairo(color: Colors.white54, fontSize: 13)),
                         ],
                       ),
                       Switch(
@@ -187,8 +334,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('اللغة', style: GoogleFonts.cairo(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                            Text('اختر اللغة المفضلة لواجهة التطبيق', style: GoogleFonts.cairo(color: Colors.white54, fontSize: 13)),
+                            Text(context.tr('language'), style: GoogleFonts.cairo(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                            Text(context.tr('language_desc'), style: GoogleFonts.cairo(color: Colors.white54, fontSize: 13)),
                           ],
                         ),
                       ),
@@ -196,24 +343,28 @@ class _SettingsPageState extends State<SettingsPage> {
                         width: 140,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.05),
+                          color: Colors.white.withOpacity(0.05),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.white10),
                         ),
                         child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: selectedLanguage,
+                          child: DropdownButton<Locale>(
+                            value: AppLocale.instance.locale,
                             dropdownColor: const Color(0xFF121E36),
                             icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white54),
                             isExpanded: true,
-                            items: ['العربية', 'English']
-                                .map((e) => DropdownMenuItem(
-                                      value: e,
-                                      child: Text(e, style: const TextStyle(color: Colors.white, fontSize: 14)),
-                                    ))
-                                .toList(),
-                            onChanged: (val) {
-                              if (val != null) setState(() => selectedLanguage = val);
+                            items: [
+                              DropdownMenuItem(
+                                value: const Locale('ar'),
+                                child: Text(context.tr('lang_ar'), style: const TextStyle(color: Colors.white, fontSize: 14)),
+                              ),
+                              DropdownMenuItem(
+                                value: const Locale('en'),
+                                child: Text(context.tr('lang_en'), style: const TextStyle(color: Colors.white, fontSize: 14)),
+                              ),
+                            ],
+                            onChanged: (loc) {
+                              if (loc != null) AppLocale.instance.setLocale(loc);
                             },
                           ),
                         ),
@@ -231,8 +382,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('تسجيل الخروج', style: GoogleFonts.cairo(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold)),
-                      Text('إنهاء جلسة العمل الحالية والخروج من الحساب', style: GoogleFonts.cairo(color: Colors.white54, fontSize: 13)),
+                      Text(context.tr('logout'), style: GoogleFonts.cairo(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text(context.tr('logout_desc'), style: GoogleFonts.cairo(color: Colors.white54, fontSize: 13)),
                     ],
                   ),
                   ElevatedButton.icon(
@@ -240,9 +391,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       // Handled in main navigation or state
                     },
                     icon: const Icon(Icons.exit_to_app, color: Colors.white, size: 20),
-                    label: Text('تسجيل الخروج', style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold)),
+                    label: Text(context.tr('logout_btn'), style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.redAccent.withValues(alpha: 0.8),
+                      backgroundColor: Colors.redAccent.withOpacity(0.8),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
@@ -250,9 +401,11 @@ class _SettingsPageState extends State<SettingsPage> {
                 ],
               ),
               const SizedBox(height: 40),
-            ],
-          ),
-        ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -263,17 +416,21 @@ class _SettingsPageState extends State<SettingsPage> {
       children: [
         TextButton.icon(
           onPressed: widget.onBrowseStores,
-          icon: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 16),
-          label: const Text(
-            'رجوع',
-            style: TextStyle(color: Colors.white70, fontSize: 16),
+          icon: Icon(
+            context.isRtl ? Icons.arrow_forward_ios_rounded : Icons.arrow_back_ios_rounded,
+            color: Colors.white70,
+            size: 16,
+          ),
+          label: Text(
+            context.tr('back'),
+            style: const TextStyle(color: Colors.white70, fontSize: 16),
           ),
           style: TextButton.styleFrom(padding: EdgeInsets.zero),
         ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E5BB3).withValues(alpha: 0.3),
+            color: const Color(0xFF1E5BB3).withOpacity(0.3),
             borderRadius: BorderRadius.circular(10),
           ),
           child: const Row(
@@ -301,7 +458,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withValues(alpha: 0.1),
+        color: const Color(0xFF1E5BB3).withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white10),
       ),
@@ -346,7 +503,7 @@ class _SettingsPageState extends State<SettingsPage> {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.blueAccent.withValues(alpha: 0.1),
+            color: Colors.blueAccent.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, color: Colors.blueAccent, size: 24),
@@ -359,20 +516,28 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildInputField(String label, String hint, {bool obscureText = false}) {
+  Widget _buildInputField(
+    String label, {
+    required String hint,
+    required TextEditingController controller,
+    bool obscureText = false,
+    TextInputType? keyboardType,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: GoogleFonts.cairo(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
         TextField(
+          controller: controller,
           obscureText: obscureText,
+          keyboardType: keyboardType,
           style: const TextStyle(color: Colors.white, fontSize: 14),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(color: Colors.white54, fontSize: 14),
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.05),
+            fillColor: Colors.white.withOpacity(0.05),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),

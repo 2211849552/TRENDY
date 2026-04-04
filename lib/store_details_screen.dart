@@ -601,7 +601,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(0xFF1E5BB3).withValues(alpha: 0.95),
+              color: const Color(0xFF1E5BB3).withOpacity(0.95),
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 5))
@@ -625,7 +625,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.pinkAccent.withValues(alpha: 0.3),
+                          color: Colors.pinkAccent.withOpacity(0.3),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -681,7 +681,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
       margin: const EdgeInsets.only(left: 8),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
@@ -692,7 +692,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withValues(alpha: 0.1),
+        color: const Color(0xFF1E5BB3).withOpacity(0.1),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white10),
       ),
@@ -762,7 +762,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF1E5BB3).withValues(alpha: 0.05),
+          color: const Color(0xFF1E5BB3).withOpacity(0.05),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: Colors.white10),
         ),
@@ -786,7 +786,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                             value: loadingProgress.expectedTotalBytes != null
                                 ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
                                 : null,
-                            color: Colors.blueAccent.withValues(alpha: 0.5),
+                            color: Colors.blueAccent.withOpacity(0.5),
                             strokeWidth: 2,
                           ),
                         );
@@ -820,7 +820,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                     Positioned.fill(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.5),
+                          color: Colors.black.withOpacity(0.5),
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                         ),
                         child: Center(
@@ -877,7 +877,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white10),
       ),

@@ -57,7 +57,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E5BB3).withValues(alpha: 0.3),
+          color: const Color(0xFF1E5BB3).withOpacity(0.3),
           borderRadius: BorderRadius.circular(12),
         ),
         child: const Row(
@@ -118,7 +118,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withValues(alpha: 0.1),
+        color: const Color(0xFF1E5BB3).withOpacity(0.1),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white10),
       ),
@@ -237,7 +237,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
         Icon(
           Icons.favorite_border_rounded,
           size: 100,
-          color: Colors.white.withValues(alpha: 0.6),
+          color: Colors.white.withOpacity(0.6),
         ),
         const SizedBox(height: 32),
         Text(

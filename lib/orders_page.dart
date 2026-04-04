@@ -41,13 +41,13 @@ class _OrdersPageState extends State<OrdersPage> {
   Color _statusBackground(String status) {
     switch (status) {
       case 'قيد الانتظار':
-        return const Color(0xFFE6B422).withValues(alpha: 0.25);
+        return const Color(0xFFE6B422).withOpacity(0.25);
       case 'جاهز للاستلام':
-        return Colors.green.withValues(alpha: 0.25);
+        return Colors.green.withOpacity(0.25);
       case 'تم التوصيل':
-        return Colors.blueAccent.withValues(alpha: 0.2);
+        return Colors.blueAccent.withOpacity(0.2);
       default:
-        return Colors.white.withValues(alpha: 0.1);
+        return Colors.white.withOpacity(0.1);
     }
   }
 
@@ -144,7 +144,7 @@ class _OrdersPageState extends State<OrdersPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E5BB3).withValues(alpha: 0.3),
+          color: const Color(0xFF1E5BB3).withOpacity(0.3),
           borderRadius: BorderRadius.circular(12),
         ),
         child: const Row(
@@ -205,7 +205,7 @@ class _OrdersPageState extends State<OrdersPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withValues(alpha: 0.15),
+        color: const Color(0xFF1E5BB3).withOpacity(0.15),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.white10),
       ),
@@ -299,7 +299,7 @@ class _OrdersPageState extends State<OrdersPage> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withValues(alpha: 0.35),
+        color: const Color(0xFF1E5BB3).withOpacity(0.35),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white12),
       ),
@@ -408,7 +408,7 @@ class _OrdersPageState extends State<OrdersPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.filter_alt_off_outlined, size: 64, color: Colors.white.withValues(alpha: 0.35)),
+          Icon(Icons.filter_alt_off_outlined, size: 64, color: Colors.white.withOpacity(0.35)),
           const SizedBox(height: 16),
           Text(
             'لا توجد طلبات في هذا التصنيف',
@@ -431,13 +431,13 @@ class _OrdersPageState extends State<OrdersPage> {
         Container(
           padding: const EdgeInsets.all(40),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
+            color: Colors.white.withOpacity(0.05),
             shape: BoxShape.circle,
           ),
           child: Icon(
             Icons.inventory_2_outlined,
             size: 100,
-            color: Colors.white.withValues(alpha: 0.4),
+            color: Colors.white.withOpacity(0.4),
           ),
         ),
         const SizedBox(height: 32),

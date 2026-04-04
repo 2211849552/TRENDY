@@ -1,7 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'locale/app_locale.dart';
+import 'l10n/app_strings.dart';
 import 'models/cart_manager.dart';
 import 'models/cart_item.dart';
+import 'models/wallet_manager.dart';
 import 'login_screen.dart';
 
 class CartPage extends StatefulWidget {
@@ -27,7 +31,7 @@ class _CartPageState extends State<CartPage> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: _cartManager,
+      listenable: Listenable.merge([_cartManager, WalletManager(), AppLocale.instance]),
       builder: (context, _) {
         bool isEmpty = _cartManager.items.isEmpty;
 
@@ -35,7 +39,7 @@ class _CartPageState extends State<CartPage> {
           color: const Color(0xFF0A1931),
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Directionality(
-            textDirection: TextDirection.rtl,
+            textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
             child: Column(
               children: [
                 const SizedBox(height: 20),
@@ -62,7 +66,7 @@ class _CartPageState extends State<CartPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E5BB3).withValues(alpha: 0.3),
+          color: const Color(0xFF1E5BB3).withOpacity(0.3),
           borderRadius: BorderRadius.circular(12),
         ),
         child: const Row(
@@ -86,15 +90,19 @@ class _CartPageState extends State<CartPage> {
       children: [
         TextButton.icon(
           onPressed: widget.onBrowseStores,
-          icon: const Icon(Icons.arrow_forward, color: Colors.white70, size: 18),
-          label: const Text(
-            'رجوع',
-            style: TextStyle(color: Colors.white70, fontSize: 16),
+          icon: Icon(
+            context.isRtl ? Icons.arrow_forward : Icons.arrow_back,
+            color: Colors.white70,
+            size: 18,
+          ),
+          label: Text(
+            context.tr('back'),
+            style: const TextStyle(color: Colors.white70, fontSize: 16),
           ),
           style: TextButton.styleFrom(padding: EdgeInsets.zero),
         ),
         Text(
-          'سلة التسوق',
+          context.tr('cart_title'),
           style: GoogleFonts.cairo(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
         ),
       ],
@@ -129,7 +137,7 @@ class _CartPageState extends State<CartPage> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withValues(alpha: 0.1),
+        color: const Color(0xFF1E5BB3).withOpacity(0.1),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white10),
       ),
@@ -137,16 +145,25 @@ class _CartPageState extends State<CartPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'ملخص الطلب',
+            context.tr('cart_summary'),
             style: GoogleFonts.cairo(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
           ),
           const SizedBox(height: 32),
-          _buildSummaryRow('عدد المنتجات', '${_cartManager.totalItems}'),
+          _buildSummaryRow(context.tr('cart_items_count'), '${_cartManager.totalItems}'),
           const SizedBox(height: 16),
-          _buildSummaryRow('الإجمالي', '${_cartManager.totalPrice} د.ل', valueColor: Colors.blueAccent),
+          _buildSummaryRow(
+            context.tr('cart_total'),
+            '${_cartManager.totalPrice}${context.tr('currency_suffix')}',
+            valueColor: Colors.blueAccent,
+          ),
           const Divider(color: Colors.white10, height: 40),
           if (!widget.isGuest) ...[
-            _buildSummaryRow('رصيد المحفظة: 100 د.ل', '', fontSize: 14, color: Colors.white54),
+            _buildSummaryRow(
+              context.tr('cart_wallet_balance'),
+              '${WalletManager().balance.toStringAsFixed(2)}${context.tr('currency_suffix')}',
+              fontSize: 14,
+              color: Colors.white54,
+            ),
             const SizedBox(height: 24),
           ] else ...[
             const SizedBox(height: 16),
@@ -173,7 +190,7 @@ class _CartPageState extends State<CartPage> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
               child: Text(
-                widget.isGuest ? 'تسجيل الدخول لإتمام الطلب' : 'الدفع عبر المحفظة',
+                widget.isGuest ? context.tr('cart_login_prompt') : context.tr('cart_pay_wallet'),
                 style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ),
@@ -183,7 +200,7 @@ class _CartPageState extends State<CartPage> {
             child: TextButton(
               onPressed: () => _cartManager.clearCart(),
               child: Text(
-                'تفريغ السلة',
+                context.tr('cart_clear'),
                 style: GoogleFonts.cairo(color: Colors.blueAccent, fontWeight: FontWeight.bold),
               ),
             ),
@@ -208,7 +225,7 @@ class _CartPageState extends State<CartPage> {
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withValues(alpha: 0.1),
+        color: const Color(0xFF1E5BB3).withOpacity(0.1),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white10),
       ),
@@ -229,7 +246,7 @@ class _CartPageState extends State<CartPage> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  '${item.product.price} د.ل',
+                  '${item.product.price}${context.tr('currency_suffix')}',
                   style: GoogleFonts.cairo(fontSize: 20, color: Colors.blueAccent, fontWeight: FontWeight.bold),
                 ),
               ],
@@ -270,7 +287,7 @@ class _CartPageState extends State<CartPage> {
   Widget _buildQuantityCounter(CartItem item) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.white10),
       ),
@@ -305,10 +322,10 @@ class _CartPageState extends State<CartPage> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.shopping_basket_outlined, size: 100, color: Colors.white.withValues(alpha: 0.2)),
+        Icon(Icons.shopping_basket_outlined, size: 100, color: Colors.white.withOpacity(0.2)),
         const SizedBox(height: 24),
         Text(
-          'سلة التسوق فارغة',
+          context.tr('cart_empty'),
           style: GoogleFonts.cairo(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
         ),
         const SizedBox(height: 32),
@@ -324,7 +341,7 @@ class _CartPageState extends State<CartPage> {
               elevation: 0,
             ),
             child: Text(
-              'ابدأ التسوق الآن',
+              context.tr('cart_shop_now'),
               style: GoogleFonts.cairo(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),

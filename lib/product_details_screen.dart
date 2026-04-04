@@ -139,7 +139,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E5BB3).withValues(alpha: 0.2),
+                      color: const Color(0xFF1E5BB3).withOpacity(0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -197,7 +197,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF00D1FF).withValues(alpha: 0.2),
+                  color: const Color(0xFF00D1FF).withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -226,7 +226,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withValues(alpha: 0.1),
+        color: const Color(0xFF1E5BB3).withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white10),
       ),
@@ -262,7 +262,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             margin: const EdgeInsets.only(left: 12),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
             decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFF1E5BB3) : Colors.white.withValues(alpha: 0.05),
+              color: isSelected ? const Color(0xFF1E5BB3) : Colors.white.withOpacity(0.05),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: isSelected ? Colors.blueAccent : Colors.white10),
             ),
@@ -289,7 +289,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             margin: const EdgeInsets.only(left: 12),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFF1E5BB3) : Colors.white.withValues(alpha: 0.05),
+              color: isSelected ? const Color(0xFF1E5BB3) : Colors.white.withOpacity(0.05),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: isSelected ? Colors.blueAccent : Colors.white10),
             ),
@@ -309,7 +309,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   Widget _buildQuantitySelector() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white10),
       ),
@@ -361,7 +361,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       behavior: SnackBarBehavior.floating,
-                      backgroundColor: const Color(0xFF1E5BB3).withValues(alpha: 0.9),
+                      backgroundColor: const Color(0xFF1E5BB3).withOpacity(0.9),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       margin: EdgeInsets.only(
                         bottom: MediaQuery.of(context).size.height - 100,
@@ -432,7 +432,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   behavior: SnackBarBehavior.floating,
-                  backgroundColor: const Color(0xFF1E5BB3).withValues(alpha: 0.9),
+                  backgroundColor: const Color(0xFF1E5BB3).withOpacity(0.9),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   margin: EdgeInsets.only(
                     bottom: MediaQuery.of(context).size.height - 100,
@@ -458,7 +458,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isFav ? const Color(0xFF1E5BB3) : Colors.white.withValues(alpha: 0.05),
+              color: isFav ? const Color(0xFF1E5BB3) : Colors.white.withOpacity(0.05),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: isFav ? Colors.blueAccent : Colors.white10),
             ),

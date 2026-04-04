@@ -98,7 +98,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E5BB3).withValues(alpha: 0.3),
+            color: const Color(0xFF1E5BB3).withOpacity(0.3),
             borderRadius: BorderRadius.circular(10),
           ),
           child: const Row(
@@ -125,7 +125,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withValues(alpha: 0.1),
+        color: const Color(0xFF1E5BB3).withOpacity(0.1),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white10),
       ),
@@ -135,7 +135,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
+              color: Colors.white.withOpacity(0.05),
               borderRadius: BorderRadius.circular(20),
             ),
             child: const Icon(
@@ -304,7 +304,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
         hintText: hint,
         hintStyle: const TextStyle(color: Colors.white24, fontSize: 13),
         filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.03),
+        fillColor: Colors.white.withOpacity(0.03),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -330,7 +330,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
+        color: Colors.white.withOpacity(0.03),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white10),
       ),

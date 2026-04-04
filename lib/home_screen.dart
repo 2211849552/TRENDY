@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'complaints_screen.dart';
@@ -10,8 +11,12 @@ import 'models/cart_manager.dart';
 import 'models/cart_item.dart';
 import 'models/order.dart';
 import 'models/orders_manager.dart';
+import 'models/wallet_manager.dart';
+import 'models/notification_manager.dart';
 import 'orders_page.dart';
 import 'settings_page.dart';
+import 'locale/app_locale.dart';
+import 'l10n/app_strings.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool isGuest;
@@ -28,8 +33,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final OrdersManager _ordersManager = OrdersManager();
   int _selectedIndex = 0;
   String _searchQuery = "";
-  String _selectedCategory = "جميع المتاجر";
-  String _selectedSort = "الأقرب";
+  /// مفاتيح داخلية ثابتة — التسميات تُعرَض عبر [tr] حسب اللغة.
+  String _selectedCategoryKey = 'all';
+  String _selectedSortKey = 'nearest';
 
   final List<Map<String, dynamic>> _stores = [
     {
@@ -86,12 +92,12 @@ class _HomeScreenState extends State<HomeScreen> {
     List<Map<String, dynamic>> filtered = _stores.where((store) {
       final nameMatches = store['name'].toLowerCase().contains(_searchQuery.toLowerCase());
       
-      bool categoryMatches = _selectedCategory == "جميع المتاجر";
-      if (_selectedCategory == "رجالي") {
+      bool categoryMatches = _selectedCategoryKey == 'all';
+      if (_selectedCategoryKey == 'men') {
         categoryMatches = store['category'].toString().contains("رجالية") || store['category'].toString().contains("رجالي");
-      } else if (_selectedCategory == "نسائي") {
+      } else if (_selectedCategoryKey == 'women') {
         categoryMatches = store['category'].toString().contains("فساتين") || store['category'].toString().contains("نسائي");
-      } else if (_selectedCategory == "أطفال") {
+      } else if (_selectedCategoryKey == 'kids') {
         categoryMatches = store['category'].toString().contains("أطفال");
       }
       
@@ -99,15 +105,15 @@ class _HomeScreenState extends State<HomeScreen> {
     }).toList();
 
     // Apply Sorting
-    if (_selectedSort == "الأعلى تقييماً") {
+    if (_selectedSortKey == 'rating') {
       filtered.sort((a, b) => b['rating'].compareTo(a['rating']));
-    } else if (_selectedSort == "العروض أولاً") {
+    } else if (_selectedSortKey == 'offers') {
       filtered.sort((a, b) {
         if (a['discount'] != null && b['discount'] == null) return -1;
         if (a['discount'] == null && b['discount'] != null) return 1;
         return 0;
       });
-    } else if (_selectedSort == "الأقرب") {
+    } else if (_selectedSortKey == 'nearest') {
       filtered.sort((a, b) {
         double distA = double.tryParse(a['distance'].split(' ')[0]) ?? 99.0;
         double distB = double.tryParse(b['distance'].split(' ')[0]) ?? 99.0;
@@ -120,6 +126,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onWalletCheckout() {
     if (_cartManager.items.isEmpty) return;
+    final total = _cartManager.totalPrice;
+    final orderId = DateTime.now().millisecondsSinceEpoch.toString();
+    if (!WalletManager().payOrderFromWallet(orderId: orderId, amount: total)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.tr('wallet_insufficient'),
+            style: GoogleFonts.cairo(),
+          ),
+          backgroundColor: Colors.redAccent.shade700,
+        ),
+      );
+      return;
+    }
     final items = _cartManager.items
         .map(
           (e) => CartItem(
@@ -130,10 +151,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         )
         .toList();
-    final total = _cartManager.totalPrice;
     _ordersManager.addOrder(
       Order(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: orderId,
         date: DateTime.now(),
         items: items,
         totalPrice: total,
@@ -146,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'تم تأكيد الطلب بنجاح',
+          context.tr('order_confirmed'),
           style: GoogleFonts.cairo(),
         ),
         backgroundColor: const Color(0xFF1E5BB3),
@@ -211,8 +231,8 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 32),
               // Stores Section Title
               Text(
-                'المتاجر المتوفرة (${_filteredStores.length})',
-                textAlign: TextAlign.right,
+                '${context.tr('stores_available')} (${_filteredStores.length})',
+                textAlign: context.isRtl ? TextAlign.right : TextAlign.left,
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -238,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E5BB3).withValues(alpha: 0.3),
+          color: const Color(0xFF1E5BB3).withOpacity(0.3),
           borderRadius: BorderRadius.circular(12),
         ),
         child: const Row(
@@ -277,25 +297,27 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'مرحباً بك في متجري',
-                  style: TextStyle(
+                Text(
+                  context.tr('home_welcome'),
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'اكتشف أفضل المتاجر والمنتجات في ليبيا',
-                  style: TextStyle(
+                Text(
+                  context.tr('home_sub'),
+                  style: const TextStyle(
                     fontSize: 14,
                     color: Colors.white70,
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  widget.isGuest ? 'أهلاً بك (زائر)' : 'أهلاً ${widget.userName}',
+                  widget.isGuest
+                      ? context.tr('home_guest')
+                      : '${context.tr('home_hello_user')} ${widget.userName}',
                   style: const TextStyle(
                     fontSize: 16,
                     color: Colors.white,
@@ -325,7 +347,42 @@ class _HomeScreenState extends State<HomeScreen> {
                     MaterialPageRoute(builder: (context) => const NotificationsScreen()),
                   );
                 },
-                child: _buildBannerIcon(Icons.notifications_none),
+                child: ListenableBuilder(
+                  listenable: NotificationManager(),
+                  builder: (context, _) {
+                    final unread = NotificationManager().unreadCount;
+                    return Stack(
+                      children: [
+                        _buildBannerIcon(Icons.notifications_none),
+                        if (unread > 0)
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Colors.redAccent,
+                                shape: BoxShape.circle,
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 16,
+                                minHeight: 16,
+                              ),
+                              child: Text(
+                                '$unread',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -338,7 +395,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
+        color: Colors.white.withOpacity(0.1),
         shape: BoxShape.circle,
       ),
       child: Icon(icon, color: Colors.white, size: 20),
@@ -350,14 +407,14 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         // Search Bar
         TextField(
-          textAlign: TextAlign.right,
+          textAlign: context.isRtl ? TextAlign.right : TextAlign.left,
           onChanged: (value) => setState(() => _searchQuery = value),
           decoration: InputDecoration(
-            hintText: '...ابحث عن متجر',
+            hintText: context.tr('search_store'),
             hintStyle: GoogleFonts.cairo(color: Colors.white30, fontSize: 13),
             prefixIcon: const Icon(Icons.search, color: Colors.white30),
             filled: true,
-            fillColor: const Color(0xFF1E5BB3).withValues(alpha: 0.2),
+            fillColor: const Color(0xFF1E5BB3).withOpacity(0.2),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
               borderSide: BorderSide.none,
@@ -370,17 +427,43 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Expanded(
               child: _buildModernDropdown(
-                value: _selectedSort,
-                items: ['الأقرب', 'الأعلى تقييماً', 'العروض أولاً'],
-                onChanged: (val) => setState(() => _selectedSort = val!),
+                value: _selectedSortKey,
+                itemKeys: const ['nearest', 'rating', 'offers'],
+                labelForKey: (k) {
+                  switch (k) {
+                    case 'nearest':
+                      return context.tr('sort_nearest');
+                    case 'rating':
+                      return context.tr('sort_rating');
+                    case 'offers':
+                      return context.tr('sort_offers');
+                    default:
+                      return k;
+                  }
+                },
+                onChanged: (val) => setState(() => _selectedSortKey = val!),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _buildModernDropdown(
-                value: _selectedCategory,
-                items: ['جميع المتاجر', 'رجالي', 'نسائي', 'أطفال'],
-                onChanged: (val) => setState(() => _selectedCategory = val!),
+                value: _selectedCategoryKey,
+                itemKeys: const ['all', 'men', 'women', 'kids'],
+                labelForKey: (k) {
+                  switch (k) {
+                    case 'all':
+                      return context.tr('cat_all');
+                    case 'men':
+                      return context.tr('cat_men');
+                    case 'women':
+                      return context.tr('cat_women');
+                    case 'kids':
+                      return context.tr('cat_kids');
+                    default:
+                      return k;
+                  }
+                },
+                onChanged: (val) => setState(() => _selectedCategoryKey = val!),
               ),
             ),
           ],
@@ -391,13 +474,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildModernDropdown({
     required String value,
-    required List<String> items,
+    required List<String> itemKeys,
+    required String Function(String key) labelForKey,
     required void Function(String?) onChanged,
   }) {
+    final align = context.isRtl ? Alignment.centerRight : Alignment.centerLeft;
+    final tAlign = context.isRtl ? TextAlign.right : TextAlign.left;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withValues(alpha: 0.2),
+        color: const Color(0xFF1E5BB3).withOpacity(0.2),
         borderRadius: BorderRadius.circular(12),
       ),
       child: DropdownButtonHideUnderline(
@@ -411,14 +497,16 @@ class _HomeScreenState extends State<HomeScreen> {
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
-          items: items
-              .map((item) => DropdownMenuItem(
-                    value: item,
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: Text(item, textAlign: TextAlign.right),
-                    ),
-                  ))
+          items: itemKeys
+              .map(
+                (key) => DropdownMenuItem(
+                  value: key,
+                  child: Align(
+                    alignment: align,
+                    child: Text(labelForKey(key), textAlign: tAlign),
+                  ),
+                ),
+              )
               .toList(),
           onChanged: onChanged,
         ),
@@ -480,7 +568,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withValues(alpha: 0.15),
+        color: const Color(0xFF1E5BB3).withOpacity(0.15),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white10),
       ),
@@ -527,7 +615,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF00D1FF).withValues(alpha: 0.8), // Cyan/Light Blue
+                        color: const Color(0xFF00D1FF).withOpacity(0.8), // Cyan/Light Blue
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -580,7 +668,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBottomNav() {
     return ListenableBuilder(
-      listenable: Listenable.merge([_favoritesManager, _cartManager, _ordersManager]),
+      listenable: Listenable.merge([
+        _favoritesManager,
+        _cartManager,
+        _ordersManager,
+        AppLocale.instance,
+      ]),
       builder: (context, _) {
         return BottomNavigationBar(
           currentIndex: _selectedIndex,
@@ -592,37 +685,30 @@ class _HomeScreenState extends State<HomeScreen> {
           selectedLabelStyle: GoogleFonts.cairo(fontSize: 11, fontWeight: FontWeight.bold),
           unselectedLabelStyle: GoogleFonts.cairo(fontSize: 11),
           items: [
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined), 
-              activeIcon: Icon(Icons.home), 
-              label: 'الرئيسية'
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.home_outlined),
+              activeIcon: const Icon(Icons.home),
+              label: context.tr('nav_home'),
             ),
-            
-            // Favorites with Badge
             BottomNavigationBarItem(
               icon: _buildBadgeIcon(Icons.favorite_outline, _favoritesManager.count),
               activeIcon: _buildBadgeIcon(Icons.favorite, _favoritesManager.count),
-              label: 'المفضلة',
+              label: context.tr('nav_favorites'),
             ),
-            
-            // Cart with Badge
             BottomNavigationBarItem(
               icon: _buildBadgeIcon(Icons.shopping_basket_outlined, _cartManager.totalItems),
               activeIcon: _buildBadgeIcon(Icons.shopping_basket, _cartManager.totalItems),
-              label: 'السلة',
+              label: context.tr('nav_cart'),
             ),
-
-            // Orders
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.inventory_2_outlined), 
-              activeIcon: Icon(Icons.inventory_2), 
-              label: 'الطلبات'
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.inventory_2_outlined),
+              activeIcon: const Icon(Icons.inventory_2),
+              label: context.tr('nav_orders'),
             ),
-            
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined), 
-              activeIcon: Icon(Icons.settings), 
-              label: 'الإعدادات'
+            BottomNavigationBarItem(
+              icon: const Icon(Icons.settings_outlined),
+              activeIcon: const Icon(Icons.settings),
+              label: context.tr('nav_settings'),
             ),
           ],
         );

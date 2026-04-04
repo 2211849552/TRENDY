@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'models/notification_manager.dart';
+import 'models/notification_item.dart';
+import 'locale/app_locale.dart';
+import 'l10n/app_strings.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -8,43 +13,61 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  int _selectedIndex = 0; // Keeping home as selected index for now or adjusting as needed
+  final NotificationManager _manager = NotificationManager();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A1931), // Matching app theme
+      backgroundColor: const Color(0xFF0A1931),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Directionality(
-            textDirection: TextDirection.rtl,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 10),
-                // Custom Header
-                _buildHeader(context),
-                const SizedBox(height: 30),
-                // Title
-                const Text(
-                  'الإشعارات',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+        child: Directionality(
+          textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
+          child: ListenableBuilder(
+            listenable: _manager,
+            builder: (context, _) {
+              final notifications = _manager.notifications;
+              return Column(
+                children: [
+                  const SizedBox(height: 10),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _buildHeader(context),
                   ),
-                ),
-                const SizedBox(height: 50),
-                // Empty State Section
-                _buildEmptyState(),
-                const SizedBox(height: 40),
-              ],
-            ),
+                  const SizedBox(height: 30),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          context.tr('notifications'),
+                          style: GoogleFonts.cairo(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        if (notifications.isNotEmpty)
+                          TextButton(
+                            onPressed: () => _manager.markAllAsRead(),
+                            child: Text(
+                              context.tr('mark_all_read'),
+                              style: GoogleFonts.cairo(color: Colors.blueAccent, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Expanded(
+                    child: notifications.isEmpty ? _buildEmptyState() : _buildNotificationsList(notifications),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
@@ -52,41 +75,29 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // Back Button
         InkWell(
           onTap: () => Navigator.pop(context),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 16),
-              SizedBox(width: 4),
+              Icon(context.isRtl ? Icons.arrow_forward_ios_rounded : Icons.arrow_back_ios_rounded, color: Colors.white70, size: 16),
+              const SizedBox(width: 4),
               Text(
-                'رجوع',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
-                ),
+                context.tr('back'),
+                style: const TextStyle(color: Colors.white70, fontSize: 16),
               ),
             ],
           ),
         ),
-        // Trendy Logo
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E5BB3).withValues(alpha: 0.3),
+            color: const Color(0xFF1E5BB3).withOpacity(0.3),
             borderRadius: BorderRadius.circular(10),
           ),
           child: const Row(
             children: [
-              Text(
-                'Trendy',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              SizedBox(width: 6),
+              Text('Trendy', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+              SizedBox(width: 8),
               Icon(Icons.checkroom_rounded, color: Colors.blueAccent, size: 20),
             ],
           ),
@@ -95,71 +106,105 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(20),
+  Widget _buildNotificationsList(List<NotificationItem> list) {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      itemCount: list.length,
+      itemBuilder: (context, index) {
+        final item = list[index];
+        return _buildNotificationCard(item);
+      },
+    );
+  }
+
+  Widget _buildNotificationCard(NotificationItem item) {
+    return GestureDetector(
+      onTap: () => _manager.markAsRead(item.id),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: item.isRead ? Colors.white.withOpacity(0.03) : const Color(0xFF1E5BB3).withOpacity(0.12),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: item.isRead ? Colors.white10 : Colors.blueAccent.withOpacity(0.3)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: _getIconColor(item.type).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(_getIconData(item.type), color: _getIconColor(item.type), size: 22),
             ),
-            child: const Icon(
-              Icons.notifications_none_outlined,
-              size: 60,
-              color: Colors.white30,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(item.title, style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                      if (!item.isRead)
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(color: Colors.blueAccent, shape: BoxShape.circle),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(item.message, style: GoogleFonts.cairo(color: Colors.white70, fontSize: 13, height: 1.4)),
+                  const SizedBox(height: 8),
+                  Text(item.formattedTime, style: GoogleFonts.cairo(color: Colors.white30, fontSize: 11)),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'لا توجد إشعارات',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'ستظهر هنا جميع إشعاراتك الجديدة',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.white54,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildBottomNav() {
-    return BottomNavigationBar(
-      currentIndex: _selectedIndex,
-      onTap: (index) {
-        setState(() => _selectedIndex = index);
-        if (index == 0) Navigator.pop(context); // Go back home
-      },
-      type: BottomNavigationBarType.fixed,
-      backgroundColor: const Color(0xFF0A1931),
-      selectedItemColor: Colors.blueAccent,
-      unselectedItemColor: Colors.white54,
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'الرئيسية'),
-        BottomNavigationBarItem(icon: Icon(Icons.storefront_outlined), activeIcon: Icon(Icons.storefront), label: 'المتجر'),
-        BottomNavigationBarItem(icon: Icon(Icons.favorite_outline), activeIcon: Icon(Icons.favorite), label: 'المفضلة'),
-        BottomNavigationBarItem(icon: Icon(Icons.shopping_basket_outlined), activeIcon: Icon(Icons.shopping_basket), label: 'السلة'),
-        BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), activeIcon: Icon(Icons.settings), label: 'الإعدادات'),
-      ],
+  IconData _getIconData(NotificationType type) {
+    switch (type) {
+      case NotificationType.orderPending: return Icons.access_time_rounded;
+      case NotificationType.orderReady: return Icons.check_circle_outline_rounded;
+      case NotificationType.orderCompleted: return Icons.shopping_bag_outlined;
+      case NotificationType.walletUpdate: return Icons.account_balance_wallet_outlined;
+      default: return Icons.notifications_none_rounded;
+    }
+  }
+
+  Color _getIconColor(NotificationType type) {
+    switch (type) {
+      case NotificationType.orderPending: return Colors.orangeAccent;
+      case NotificationType.orderReady: return Colors.greenAccent;
+      case NotificationType.orderCompleted: return Colors.blueAccent;
+      case NotificationType.walletUpdate: return Colors.pinkAccent;
+      default: return Colors.white54;
+    }
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), shape: BoxShape.circle),
+            child: const Icon(Icons.notifications_none_outlined, size: 64, color: Colors.white24),
+          ),
+          const SizedBox(height: 24),
+          Text(context.tr('notifications'), style: GoogleFonts.cairo(fontSize: 18, color: Colors.white70, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          const Text('لا توجد إشعارات حالياً', style: TextStyle(fontSize: 14, color: Colors.white30)),
+        ],
+      ),
     );
   }
 }

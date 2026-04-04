@@ -1,45 +1,54 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'login_screen.dart'; // استدعاء شاشة تسجيل الدخول
+import 'login_screen.dart';
+import 'locale/app_locale.dart';
+import 'l10n/app_strings.dart';
 
 void main() {
-  runApp(const MatajariApp());
+  runApp(const AppRoot());
 }
 
-class MatajariApp extends StatelessWidget {
-  const MatajariApp({super.key});
+class AppRoot extends StatelessWidget {
+  const AppRoot({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'متجري',
-      debugShowCheckedModeBanner: false,
-      // Dark Theme Configuration
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF0B1220),
-        primaryColor: const Color(0xFF3B82F6),
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF3B82F6),
-          brightness: Brightness.dark,
-        ),
-        textTheme: GoogleFonts.cairoTextTheme(
-          ThemeData.dark().textTheme,
-        ),
-        useMaterial3: true,
-      ),
-      // RTL Support
-      locale: const Locale('ar', 'AE'),
-      supportedLocales: const [
-        Locale('ar', 'AE'),
-      ],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      home: const SplashScreen(),
+    return ListenableBuilder(
+      listenable: AppLocale.instance,
+      builder: (context, _) {
+        final locale = AppLocale.instance.locale;
+        final isAr = locale.languageCode == 'ar';
+        final baseDark = ThemeData.dark();
+        return MaterialApp(
+          title: isAr ? 'متجري' : 'Matajari',
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            brightness: Brightness.dark,
+            scaffoldBackgroundColor: const Color(0xFF0B1220),
+            primaryColor: const Color(0xFF3B82F6),
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF3B82F6),
+              brightness: Brightness.dark,
+            ),
+            textTheme: isAr
+                ? GoogleFonts.cairoTextTheme(baseDark.textTheme)
+                : GoogleFonts.interTextTheme(baseDark.textTheme),
+            useMaterial3: true,
+          ),
+          locale: locale,
+          supportedLocales: const [
+            Locale('ar'),
+            Locale('en'),
+          ],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          home: const SplashScreen(),
+        );
+      },
     );
   }
 }
@@ -55,7 +64,6 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // الانتقال بعد 3 ثواني إلى شاشة تسجيل الدخول
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(
@@ -68,7 +76,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0061FF), 
+      backgroundColor: const Color(0xFF0061FF),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -84,7 +92,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 alignment: Alignment.center,
                 children: [
                   Icon(
-                    Icons.checkroom_rounded, // T-shirt icon
+                    Icons.checkroom_rounded,
                     size: 80,
                     color: Color(0xFF0061FF),
                   ),
@@ -94,7 +102,7 @@ class _SplashScreenState extends State<SplashScreen> {
                     child: Icon(
                       Icons.star,
                       size: 20,
-                      color: Colors.amber, 
+                      color: Colors.amber,
                     ),
                   )
                 ],
@@ -111,9 +119,9 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             ),
             const SizedBox(height: 5),
-            const Text(
-              'الموضة في متناول يدك',
-              style: TextStyle(
+            Text(
+              context.tr('splash_tagline'),
+              style: const TextStyle(
                 fontSize: 18,
                 color: Colors.white,
                 fontWeight: FontWeight.w500,
@@ -141,7 +149,7 @@ class _SplashScreenState extends State<SplashScreen> {
       width: 8,
       height: 8,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.9),
+        color: Colors.white.withOpacity(0.9),
         shape: BoxShape.circle,
       ),
     );
