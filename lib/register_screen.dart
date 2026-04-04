@@ -1,19 +1,37 @@
 import 'package:flutter/material.dart';
-import 'home_screen.dart'; // Add this import
+import 'home_screen.dart';
 
-class RegisterScreen extends StatelessWidget {
+class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
+
+  @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A1931), // Dark blue background
+      backgroundColor: const Color(0xFF0A1931),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             children: [
               const SizedBox(height: 40),
-              // Logo and Title Section
               Center(
                 child: Column(
                   children: [
@@ -50,12 +68,11 @@ class RegisterScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 40),
-              // Register Card Section
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E5BB3), // Lighter blue card
+                  color: const Color(0xFF1E5BB3),
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Directionality(
@@ -81,44 +98,42 @@ class RegisterScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 32),
                       
-                      // Full Name Field
                       _buildTextFieldTitle('الاسم الكامل'),
                       const SizedBox(height: 8),
-                      _buildTextField(hint: 'أحمد محمد', icon: Icons.person_outline),
+                      _buildTextField(hint: 'أحمد محمد', icon: Icons.person_outline, controller: _nameController),
                       const SizedBox(height: 20),
                       
-                      // Email Field
                       _buildTextFieldTitle('البريد الإلكتروني'),
                       const SizedBox(height: 8),
                       _buildTextField(
                         hint: 'example@mail.com', 
                         icon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
+                        controller: _emailController,
                       ),
                       const SizedBox(height: 20),
 
-                      // Phone Field
                       _buildTextFieldTitle('رقم الهاتف'),
                       const SizedBox(height: 8),
                       _buildTextField(
                         hint: '05X XXX XXXX', 
                         icon: Icons.phone_outlined,
                         keyboardType: TextInputType.phone,
+                        controller: _phoneController,
                       ),
                       const SizedBox(height: 20),
                       
-                      // Password Field
                       _buildTextFieldTitle('كلمة المرور'),
                       const SizedBox(height: 8),
                       _buildTextField(
                         hint: '••••••••', 
                         icon: Icons.lock_outline,
                         obscureText: true,
+                        controller: _passwordController,
                       ),
                       
                       const SizedBox(height: 32),
                       
-                      // Register Button
                       SizedBox(
                         width: double.infinity,
                         height: 50,
@@ -126,11 +141,15 @@ class RegisterScreen extends StatelessWidget {
                           onPressed: () {
                             Navigator.pushReplacement(
                               context,
-                              MaterialPageRoute(builder: (context) => const HomeScreen()),
+                              MaterialPageRoute(
+                                builder: (context) => HomeScreen(
+                                  userName: _nameController.text.isNotEmpty ? _nameController.text : 'أحمد محمد',
+                                ),
+                              ),
                             );
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF00D1FF), // Cyan/Light Blue
+                            backgroundColor: const Color(0xFF00D1FF),
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -149,7 +168,6 @@ class RegisterScreen extends StatelessWidget {
                       
                       const SizedBox(height: 24),
                       
-                      // Back to Login Text
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -200,8 +218,10 @@ class RegisterScreen extends StatelessWidget {
     required IconData icon,
     bool obscureText = false,
     TextInputType? keyboardType,
+    required TextEditingController controller,
   }) {
     return TextField(
+      controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
       style: const TextStyle(color: Colors.white),

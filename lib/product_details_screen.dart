@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'favorites_page.dart';
 import 'models/product.dart';
 import 'models/favorites_manager.dart';
 import 'models/cart_manager.dart';

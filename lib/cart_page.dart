@@ -305,13 +305,22 @@ class _CartPageState extends State<CartPage> {
           style: GoogleFonts.cairo(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
         ),
         const SizedBox(height: 32),
-        ElevatedButton(
-          onPressed: widget.onBrowseStores,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF1E5BB3),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        SizedBox(
+          width: 180,
+          height: 50,
+          child: ElevatedButton(
+            onPressed: widget.onBrowseStores,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1E5BB3),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              elevation: 0,
+            ),
+            child: Text(
+              'ابدأ التسوق الآن',
+              style: GoogleFonts.cairo(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
           ),
-          child: Text('ابدأ التسوق الآن', style: GoogleFonts.cairo()),
         ),
       ],
     );

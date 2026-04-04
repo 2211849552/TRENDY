@@ -453,9 +453,13 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
       bool priceMatch = p.price >= _priceRange.start && p.price <= _priceRange.end;
       
       double minRating = 0;
-      if (_selectedRating == '4.5+ نجوم') minRating = 4.5;
-      else if (_selectedRating == '4.0+ نجوم') minRating = 4.0;
-      else if (_selectedRating == '3.5+ نجوم') minRating = 3.5;
+      if (_selectedRating == '4.5+ نجوم') {
+        minRating = 4.5;
+      } else if (_selectedRating == '4.0+ نجوم') {
+        minRating = 4.0;
+      } else if (_selectedRating == '3.5+ نجوم') {
+        minRating = 3.5;
+      }
       bool ratingMatch = p.rating >= minRating;
 
       return catMatch && priceMatch && ratingMatch;

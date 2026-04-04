@@ -7,10 +7,13 @@ import 'favorites_page.dart';
 import 'cart_page.dart';
 import 'models/favorites_manager.dart';
 import 'models/cart_manager.dart';
+import 'models/orders_manager.dart';
+import 'orders_page.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool isGuest;
-  const HomeScreen({super.key, this.isGuest = false});
+  final String userName;
+  const HomeScreen({super.key, this.isGuest = false, this.userName = 'hajer'});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -19,6 +22,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final FavoritesManager _favoritesManager = FavoritesManager();
   final CartManager _cartManager = CartManager();
+  final OrdersManager _ordersManager = OrdersManager();
   int _selectedIndex = 0;
   String _searchQuery = "";
   String _selectedCategory = "جميع المتاجر";
@@ -126,20 +130,24 @@ class _HomeScreenState extends State<HomeScreen> {
     switch (_selectedIndex) {
       case 0:
         return _buildHomeContent();
-      case 2:
+      case 1:
         return FavoritesPage(
           onBrowseStores: () => setState(() => _selectedIndex = 0),
         );
-      case 3:
+      case 2:
         return CartPage(
           isGuest: widget.isGuest,
           onBrowseStores: () => setState(() => _selectedIndex = 0),
         );
+      case 3:
+        return OrdersPage(
+          onBrowseStores: () => setState(() => _selectedIndex = 0),
+        );
       default:
-        // Placeholder for other tabs (Store, Settings)
+        // Settings or placeholders
         return Center(
           child: Text(
-            'واجهة قيد التطوير',
+            'الإعدادات قيد التطوير',
             style: GoogleFonts.cairo(color: Colors.white70, fontSize: 18),
           ),
         );
@@ -249,7 +257,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  widget.isGuest ? 'أهلاً بك (زائر)' : 'أهلاً hajer',
+                  widget.isGuest ? 'أهلاً بك (زائر)' : 'أهلاً ${widget.userName}',
                   style: const TextStyle(
                     fontSize: 16,
                     color: Colors.white,
@@ -533,7 +541,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBottomNav() {
     return ListenableBuilder(
-      listenable: Listenable.merge([_favoritesManager, _cartManager]),
+      listenable: Listenable.merge([_favoritesManager, _cartManager, _ordersManager]),
       builder: (context, _) {
         return BottomNavigationBar(
           currentIndex: _selectedIndex,
@@ -542,9 +550,14 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: const Color(0xFF0A1931),
           selectedItemColor: Colors.blueAccent,
           unselectedItemColor: Colors.white54,
+          selectedLabelStyle: GoogleFonts.cairo(fontSize: 11, fontWeight: FontWeight.bold),
+          unselectedLabelStyle: GoogleFonts.cairo(fontSize: 11),
           items: [
-            const BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'الرئيسية'),
-            const BottomNavigationBarItem(icon: Icon(Icons.storefront_outlined), activeIcon: Icon(Icons.storefront), label: 'المتجر'),
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.home_outlined), 
+              activeIcon: Icon(Icons.home), 
+              label: 'الرئيسية'
+            ),
             
             // Favorites with Badge
             BottomNavigationBarItem(
@@ -559,8 +572,19 @@ class _HomeScreenState extends State<HomeScreen> {
               activeIcon: _buildBadgeIcon(Icons.shopping_basket, _cartManager.totalItems),
               label: 'السلة',
             ),
+
+            // Orders
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.inventory_2_outlined), 
+              activeIcon: Icon(Icons.inventory_2), 
+              label: 'الطلبات'
+            ),
             
-            const BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), activeIcon: Icon(Icons.settings), label: 'الإعدادات'),
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.settings_outlined), 
+              activeIcon: Icon(Icons.settings), 
+              label: 'الإعدادات'
+            ),
           ],
         );
       },
