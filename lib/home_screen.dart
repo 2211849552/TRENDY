@@ -9,7 +9,8 @@ import 'models/favorites_manager.dart';
 import 'models/cart_manager.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final bool isGuest;
+  const HomeScreen({super.key, this.isGuest = false});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -131,6 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       case 3:
         return CartPage(
+          isGuest: widget.isGuest,
           onBrowseStores: () => setState(() => _selectedIndex = 0),
         );
       default:
@@ -246,9 +248,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  'أهلاً hajer',
-                  style: TextStyle(
+                Text(
+                  widget.isGuest ? 'أهلاً بك (زائر)' : 'أهلاً hajer',
+                  style: const TextStyle(
                     fontSize: 16,
                     color: Colors.white,
                     fontWeight: FontWeight.w500,

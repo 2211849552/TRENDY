@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'models/cart_manager.dart';
 import 'models/cart_item.dart';
+import 'login_screen.dart';
 
 class CartPage extends StatefulWidget {
   final VoidCallback onBrowseStores;
+  final bool isGuest;
 
-  const CartPage({super.key, required this.onBrowseStores});
+  const CartPage({super.key, required this.onBrowseStores, this.isGuest = false});
 
   @override
   State<CartPage> createState() => _CartPageState();
@@ -136,21 +138,35 @@ class _CartPageState extends State<CartPage> {
           const SizedBox(height: 16),
           _buildSummaryRow('الإجمالي', '${_cartManager.totalPrice} د.ل', valueColor: Colors.blueAccent),
           const Divider(color: Colors.white10, height: 40),
-          _buildSummaryRow('رصيد المحفظة: 100 د.ل', '', fontSize: 14, color: Colors.white54),
-          const SizedBox(height: 24),
+          if (!widget.isGuest) ...[
+            _buildSummaryRow('رصيد المحفظة: 100 د.ل', '', fontSize: 14, color: Colors.white54),
+            const SizedBox(height: 24),
+          ] else ...[
+            const SizedBox(height: 16),
+          ],
           
           SizedBox(
             width: double.infinity,
             height: 54,
             child: ElevatedButton(
-              onPressed: () {},
+              onPressed: () {
+                if (widget.isGuest) {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                    (route) => false,
+                  );
+                } else {
+                  // TODO: Implement regular checkout
+                }
+              },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1E5BB3),
+                backgroundColor: widget.isGuest ? Colors.blueAccent : const Color(0xFF1E5BB3),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
               child: Text(
-                'الدفع عبر المحفظة',
+                widget.isGuest ? 'تسجيل الدخول لإتمام الطلب' : 'الدفع عبر المحفظة',
                 style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ),
