@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'models/cart_manager.dart';
+import 'models/cart_item.dart';
+import 'models/order.dart';
 import 'models/orders_manager.dart';
 
 class OrdersPage extends StatefulWidget {
@@ -13,13 +16,97 @@ class OrdersPage extends StatefulWidget {
 
 class _OrdersPageState extends State<OrdersPage> {
   final OrdersManager _ordersManager = OrdersManager();
+  final CartManager _cartManager = CartManager();
+
+  /// يطابق قيم `Order.status` المعروضة في القائمة المنسدلة
+  String _filterLabel = 'جميع الطلبات';
+
+  static const _monthNamesAr = [
+    'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+  ];
+
+  String _formatDateAr(DateTime d) {
+    final day = d.day.toString().padLeft(2, '0');
+    return '$day ${_monthNamesAr[d.month - 1]} ${d.year}';
+  }
+
+  List<Order> get _visibleOrders {
+    if (_filterLabel == 'جميع الطلبات') {
+      return _ordersManager.orders;
+    }
+    return _ordersManager.orders.where((o) => o.status == _filterLabel).toList();
+  }
+
+  Color _statusBackground(String status) {
+    switch (status) {
+      case 'قيد الانتظار':
+        return const Color(0xFFE6B422).withValues(alpha: 0.25);
+      case 'جاهز للاستلام':
+        return Colors.green.withValues(alpha: 0.25);
+      case 'تم التوصيل':
+        return Colors.blueAccent.withValues(alpha: 0.2);
+      default:
+        return Colors.white.withValues(alpha: 0.1);
+    }
+  }
+
+  Color _statusForeground(String status) {
+    switch (status) {
+      case 'قيد الانتظار':
+        return const Color(0xFFFFE082);
+      case 'جاهز للاستلام':
+        return Colors.lightGreenAccent;
+      case 'تم التوصيل':
+        return Colors.lightBlueAccent;
+      default:
+        return Colors.white70;
+    }
+  }
+
+  void _simulateReady(Order order) {
+    if (order.status != 'قيد الانتظار') return;
+    _ordersManager.updateOrderStatus(order.id, 'جاهز للاستلام');
+  }
+
+  void _reorder(Order order) {
+    try {
+      for (final line in order.items) {
+        _cartManager.addToCart(
+          line.product,
+          color: line.selectedColor,
+          size: line.selectedSize,
+          quantity: line.quantity,
+        );
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تمت إضافة المنتجات إلى السلة', style: GoogleFonts.cairo()),
+          backgroundColor: const Color(0xFF1E5BB3),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString().replaceFirst('Exception: ', ''),
+            style: GoogleFonts.cairo(),
+          ),
+          backgroundColor: Colors.redAccent.shade700,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: _ordersManager,
       builder: (context, _) {
-        bool isEmpty = _ordersManager.count == 0;
+        final isEmpty = _ordersManager.count == 0;
+        final list = _visibleOrders;
 
         return Container(
           color: const Color(0xFF0A1931),
@@ -29,17 +116,20 @@ class _OrdersPageState extends State<OrdersPage> {
             child: Column(
               children: [
                 const SizedBox(height: 20),
-                // Header (Branding)
                 _buildHeader(),
                 const SizedBox(height: 32),
-                
-                // Content Title and Back Button
                 _buildSubHeader(isEmpty),
-                
+                if (!isEmpty) ...[
+                  const SizedBox(height: 16),
+                  _buildFilterBar(),
+                ],
                 const SizedBox(height: 24),
-                
                 Expanded(
-                  child: isEmpty ? _buildEmptyState() : _buildOrdersList(),
+                  child: isEmpty
+                      ? _buildEmptyState()
+                      : list.isEmpty
+                          ? _buildNoMatchesState()
+                          : _buildOrdersList(list),
                 ),
               ],
             ),
@@ -82,76 +172,252 @@ class _OrdersPageState extends State<OrdersPage> {
       children: [
         TextButton.icon(
           onPressed: widget.onBrowseStores,
-          icon: const Icon(Icons.arrow_forward, color: Colors.white70, size: 18),
+          icon: const Icon(Icons.arrow_back, color: Colors.white70, size: 18),
           label: const Text(
             'رجوع',
             style: TextStyle(color: Colors.white70, fontSize: 16),
           ),
           style: TextButton.styleFrom(padding: EdgeInsets.zero),
         ),
-        Text(
-          'الطلبات (${_ordersManager.count})',
-          style: GoogleFonts.cairo(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              'سجل الطلبات',
+              style: GoogleFonts.cairo(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            if (!isEmpty)
+              Text(
+                '${_ordersManager.count} طلب',
+                style: GoogleFonts.cairo(fontSize: 14, color: Colors.white54),
+              ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildOrdersList() {
-    return ListView.builder(
-      itemCount: _ordersManager.count,
-      itemBuilder: (context, index) {
-        final order = _ordersManager.orders[index];
-        return _buildOrderCard(order);
-      },
+  Widget _buildFilterBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E5BB3).withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _filterLabel,
+          isExpanded: true,
+          dropdownColor: const Color(0xFF152a45),
+          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white70),
+          style: GoogleFonts.cairo(color: Colors.white, fontSize: 16),
+          items: const [
+            DropdownMenuItem(value: 'جميع الطلبات', child: Text('جميع الطلبات')),
+            DropdownMenuItem(value: 'قيد الانتظار', child: Text('قيد الانتظار')),
+            DropdownMenuItem(value: 'جاهز للاستلام', child: Text('جاهز للاستلام')),
+            DropdownMenuItem(value: 'تم التوصيل', child: Text('تم التوصيل')),
+          ],
+          onChanged: (v) {
+            if (v != null) setState(() => _filterLabel = v);
+          },
+        ),
+      ),
     );
   }
 
-  Widget _buildOrderCard(dynamic order) {
+  Widget _buildOrdersList(List<Order> orders) {
+    return ListView.builder(
+      itemCount: orders.length,
+      itemBuilder: (context, index) => _buildOrderCard(orders[index]),
+    );
+  }
+
+  Widget _buildOrderLine(CartItem line) {
+    final detail = '${line.selectedColor} • ${line.selectedSize} • الكمية: ${line.quantity}';
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  line.product.name,
+                  style: GoogleFonts.cairo(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  detail,
+                  style: GoogleFonts.cairo(fontSize: 13, color: Colors.white54),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${line.totalPrice.toStringAsFixed(0)} د.ل',
+                  style: GoogleFonts.cairo(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blueAccent,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.network(
+              line.product.imageUrl,
+              width: 88,
+              height: 88,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                width: 88,
+                height: 88,
+                color: Colors.white10,
+                child: const Icon(Icons.image_not_supported_outlined, color: Colors.white24),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrderCard(Order order) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withValues(alpha: 0.1),
+        color: const Color(0xFF1E5BB3).withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: Colors.white12),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'الطلب #${order.id}',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                'طلب #${order.id}',
+                style: GoogleFonts.cairo(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                  color: Colors.white,
+                ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.orangeAccent.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(10),
+                  color: _statusBackground(order.status),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   order.status,
-                  style: const TextStyle(color: Colors.orangeAccent, fontSize: 12),
+                  style: GoogleFonts.cairo(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: _statusForeground(order.status),
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            'التاريخ: ${order.date.day}/${order.date.month}/${order.date.year}',
-            style: const TextStyle(color: Colors.white54, fontSize: 13),
-          ),
           const SizedBox(height: 8),
           Text(
-            'المجموع: ${order.totalPrice} د.ل',
-            style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold),
+            _formatDateAr(order.date),
+            style: GoogleFonts.cairo(fontSize: 14, color: Colors.white60),
+          ),
+          for (final item in order.items) _buildOrderLine(item),
+          const SizedBox(height: 16),
+          const Divider(color: Colors.white12, height: 1),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'الإجمالي',
+                style: GoogleFonts.cairo(fontSize: 16, color: Colors.white70),
+              ),
+              Text(
+                '${order.totalPrice.toStringAsFixed(0)} د.ل',
+                style: GoogleFonts.cairo(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: order.status == 'قيد الانتظار' ? () => _simulateReady(order) : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.white10,
+                    disabledForegroundColor: Colors.white38,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text(
+                    'محاكاة: جاهز للاستلام',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _reorder(order),
+                  icon: const Icon(Icons.refresh_rounded, size: 20),
+                  label: Text('إعادة الطلب', style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white70,
+                    side: const BorderSide(color: Colors.white24),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoMatchesState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.filter_alt_off_outlined, size: 64, color: Colors.white.withValues(alpha: 0.35)),
+          const SizedBox(height: 16),
+          Text(
+            'لا توجد طلبات في هذا التصنيف',
+            style: GoogleFonts.cairo(fontSize: 18, color: Colors.white70),
+          ),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: () => setState(() => _filterLabel = 'جميع الطلبات'),
+            child: Text('عرض جميع الطلبات', style: GoogleFonts.cairo(color: Colors.blueAccent)),
           ),
         ],
       ),

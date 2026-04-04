@@ -7,6 +7,8 @@ import 'favorites_page.dart';
 import 'cart_page.dart';
 import 'models/favorites_manager.dart';
 import 'models/cart_manager.dart';
+import 'models/cart_item.dart';
+import 'models/order.dart';
 import 'models/orders_manager.dart';
 import 'orders_page.dart';
 
@@ -115,6 +117,42 @@ class _HomeScreenState extends State<HomeScreen> {
     return filtered;
   }
 
+  void _onWalletCheckout() {
+    if (_cartManager.items.isEmpty) return;
+    final items = _cartManager.items
+        .map(
+          (e) => CartItem(
+            product: e.product,
+            selectedColor: e.selectedColor,
+            selectedSize: e.selectedSize,
+            quantity: e.quantity,
+          ),
+        )
+        .toList();
+    final total = _cartManager.totalPrice;
+    _ordersManager.addOrder(
+      Order(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        date: DateTime.now(),
+        items: items,
+        totalPrice: total,
+        status: 'قيد الانتظار',
+      ),
+    );
+    setState(() => _selectedIndex = 3);
+    _cartManager.clearCart();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'تم تأكيد الطلب بنجاح',
+          style: GoogleFonts.cairo(),
+        ),
+        backgroundColor: const Color(0xFF1E5BB3),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -138,6 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return CartPage(
           isGuest: widget.isGuest,
           onBrowseStores: () => setState(() => _selectedIndex = 0),
+          onWalletPay: _onWalletCheckout,
         );
       case 3:
         return OrdersPage(

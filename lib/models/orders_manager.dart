@@ -21,4 +21,12 @@ class OrdersManager extends ChangeNotifier {
     _orders.clear();
     notifyListeners();
   }
+
+  void updateOrderStatus(String orderId, String newStatus) {
+    final i = _orders.indexWhere((o) => o.id == orderId);
+    if (i >= 0) {
+      _orders[i] = _orders[i].copyWith(status: newStatus);
+      notifyListeners();
+    }
+  }
 }
