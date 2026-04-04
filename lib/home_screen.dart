@@ -3,6 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'complaints_screen.dart';
 import 'notifications_screen.dart';
 import 'store_details_screen.dart';
+import 'favorites_page.dart';
+import 'cart_page.dart';
+import 'models/favorites_manager.dart';
+import 'models/cart_manager.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,6 +16,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final FavoritesManager _favoritesManager = FavoritesManager();
+  final CartManager _cartManager = CartManager();
   int _selectedIndex = 0;
   String _searchQuery = "";
   String _selectedCategory = "جميع المتاجر";
@@ -107,48 +113,75 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A1931), // Matching Dark Blue Background
+      backgroundColor: const Color(0xFF0A1931),
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  const SizedBox(height: 10),
-                  // Header
-                  _buildHeader(),
-                  const SizedBox(height: 20),
-                  // Welcome Banner
-                  _buildWelcomeBanner(),
-                  const SizedBox(height: 24),
-                  // Search and Filter
-                  _buildSearchSection(),
-                  const SizedBox(height: 32),
-                  // Stores Section Title
-                  Text(
-                    'المتاجر المتوفرة (${_filteredStores.length})',
-                    textAlign: TextAlign.right,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ]),
-              ),
-            ),
-            // Stores Grid
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              sliver: _buildStoreGrid(),
-            ),
-            const SliverToBoxAdapter(child: SizedBox(height: 30)),
-          ],
-        ),
+        child: _buildBody(),
       ),
       bottomNavigationBar: _buildBottomNav(),
+    );
+  }
+
+  Widget _buildBody() {
+    switch (_selectedIndex) {
+      case 0:
+        return _buildHomeContent();
+      case 2:
+        return FavoritesPage(
+          onBrowseStores: () => setState(() => _selectedIndex = 0),
+        );
+      case 3:
+        return CartPage(
+          onBrowseStores: () => setState(() => _selectedIndex = 0),
+        );
+      default:
+        // Placeholder for other tabs (Store, Settings)
+        return Center(
+          child: Text(
+            'واجهة قيد التطوير',
+            style: GoogleFonts.cairo(color: Colors.white70, fontSize: 18),
+          ),
+        );
+    }
+  }
+
+  Widget _buildHomeContent() {
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              const SizedBox(height: 10),
+              // Header
+              _buildHeader(),
+              const SizedBox(height: 20),
+              // Welcome Banner
+              _buildWelcomeBanner(),
+              const SizedBox(height: 24),
+              // Search and Filter
+              _buildSearchSection(),
+              const SizedBox(height: 32),
+              // Stores Section Title
+              Text(
+                'المتاجر المتوفرة (${_filteredStores.length})',
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 20),
+            ]),
+          ),
+        ),
+        // Stores Grid
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          sliver: _buildStoreGrid(),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 30)),
+      ],
     );
   }
 
@@ -497,19 +530,62 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildBottomNav() {
-    return BottomNavigationBar(
-      currentIndex: _selectedIndex,
-      onTap: (index) => setState(() => _selectedIndex = index),
-      type: BottomNavigationBarType.fixed,
-      backgroundColor: const Color(0xFF0A1931),
-      selectedItemColor: Colors.blueAccent,
-      unselectedItemColor: Colors.white54,
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'الرئيسية'),
-        BottomNavigationBarItem(icon: Icon(Icons.storefront_outlined), activeIcon: Icon(Icons.storefront), label: 'المتجر'),
-        BottomNavigationBarItem(icon: Icon(Icons.favorite_outline), activeIcon: Icon(Icons.favorite), label: 'المفضلة'),
-        BottomNavigationBarItem(icon: Icon(Icons.shopping_basket_outlined), activeIcon: Icon(Icons.shopping_basket), label: 'السلة'),
-        BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), activeIcon: Icon(Icons.settings), label: 'الإعدادات'),
+    return ListenableBuilder(
+      listenable: Listenable.merge([_favoritesManager, _cartManager]),
+      builder: (context, _) {
+        return BottomNavigationBar(
+          currentIndex: _selectedIndex,
+          onTap: (index) => setState(() => _selectedIndex = index),
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: const Color(0xFF0A1931),
+          selectedItemColor: Colors.blueAccent,
+          unselectedItemColor: Colors.white54,
+          items: [
+            const BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'الرئيسية'),
+            const BottomNavigationBarItem(icon: Icon(Icons.storefront_outlined), activeIcon: Icon(Icons.storefront), label: 'المتجر'),
+            
+            // Favorites with Badge
+            BottomNavigationBarItem(
+              icon: _buildBadgeIcon(Icons.favorite_outline, _favoritesManager.count),
+              activeIcon: _buildBadgeIcon(Icons.favorite, _favoritesManager.count),
+              label: 'المفضلة',
+            ),
+            
+            // Cart with Badge
+            BottomNavigationBarItem(
+              icon: _buildBadgeIcon(Icons.shopping_basket_outlined, _cartManager.totalItems),
+              activeIcon: _buildBadgeIcon(Icons.shopping_basket, _cartManager.totalItems),
+              label: 'السلة',
+            ),
+            
+            const BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), activeIcon: Icon(Icons.settings), label: 'الإعدادات'),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildBadgeIcon(IconData icon, int count) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Icon(icon),
+        if (count > 0)
+          Positioned(
+            top: -4,
+            right: -4,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: const BoxDecoration(
+                color: Colors.blueAccent,
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                '$count',
+                style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
       ],
     );
   }
