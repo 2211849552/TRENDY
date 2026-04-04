@@ -6,9 +6,16 @@ import 'login_screen.dart';
 
 class CartPage extends StatefulWidget {
   final VoidCallback onBrowseStores;
+  /// يُنفَّذ من الشاشة الأم لضمان التبديل إلى تبويب الطلبات مباشرة بعد الدفع.
+  final VoidCallback onWalletPay;
   final bool isGuest;
 
-  const CartPage({super.key, required this.onBrowseStores, this.isGuest = false});
+  const CartPage({
+    super.key,
+    required this.onBrowseStores,
+    required this.onWalletPay,
+    this.isGuest = false,
+  });
 
   @override
   State<CartPage> createState() => _CartPageState();
@@ -157,7 +164,7 @@ class _CartPageState extends State<CartPage> {
                     (route) => false,
                   );
                 } else {
-                  // TODO: Implement regular checkout
+                  widget.onWalletPay();
                 }
               },
               style: ElevatedButton.styleFrom(
