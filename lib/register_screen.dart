@@ -16,6 +16,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
 
   @override
   void dispose() {
@@ -23,6 +24,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -132,13 +134,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       const SizedBox(height: 20),
                       
-                      _buildTextFieldTitle(context.tr('confirm_password')),
+                      _buildTextFieldTitle(context.tr('login_password')),
                       const SizedBox(height: 8),
                       _buildTextField(
                         hint: context.tr('hint_password'), 
                         icon: Icons.lock_outline,
                         obscureText: true,
                         controller: _passwordController,
+                      ),
+                      const SizedBox(height: 20),
+
+                      _buildTextFieldTitle(context.tr('confirm_password')),
+                      const SizedBox(height: 8),
+                      _buildTextField(
+                        hint: context.tr('hint_password'), 
+                        icon: Icons.lock_reset_outlined,
+                        obscureText: true,
+                        controller: _confirmPasswordController,
                       ),
                       
                       const SizedBox(height: 32),
@@ -148,6 +160,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         height: 50,
                         child: ElevatedButton(
                           onPressed: () {
+                            if (_nameController.text.isEmpty || 
+                                _emailController.text.isEmpty || 
+                                _phoneController.text.isEmpty || 
+                                _passwordController.text.isEmpty || 
+                                _confirmPasswordController.text.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(context.tr('pwd_fill_all'), style: const TextStyle(fontFamily: 'Cairo')),
+                                  backgroundColor: Colors.redAccent.shade700,
+                                ),
+                              );
+                              return;
+                            }
+                            if (_passwordController.text != _confirmPasswordController.text) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(context.tr('pwd_mismatch'), style: const TextStyle(fontFamily: 'Cairo')),
+                                  backgroundColor: Colors.redAccent.shade700,
+                                ),
+                              );
+                              return;
+                            }
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
