@@ -9,6 +9,7 @@ import 'wallet_screen.dart';
 import 'models/wallet_manager.dart';
 import 'locale/app_locale.dart';
 import 'l10n/app_strings.dart';
+import 'login_screen.dart';
 
 class SettingsPage extends StatefulWidget {
   final VoidCallback onBrowseStores;
@@ -20,7 +21,7 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  bool notificationsEnabled = true;
+  bool _notificationsEnabled = NotificationManager().isEnabled;
 
   late final TextEditingController _fullName;
   late final TextEditingController _email;
@@ -320,8 +321,21 @@ class _SettingsPageState extends State<SettingsPage> {
                         ],
                       ),
                       Switch(
-                        value: notificationsEnabled,
-                        onChanged: (val) => setState(() => notificationsEnabled = val),
+                        value: _notificationsEnabled,
+                        onChanged: (val) {
+                          setState(() => _notificationsEnabled = val);
+                          NotificationManager().setEnabled(val); // This actually disables incoming notifications
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                val ? context.tr('notifications_enabled') : context.tr('notifications_disabled'),
+                                style: GoogleFonts.cairo(),
+                              ),
+                              backgroundColor: val ? const Color(0xFF1E5BB3) : Colors.grey.shade800,
+                              duration: const Duration(seconds: 1),
+                            ),
+                          );
+                        },
                         activeColor: const Color(0xFF3B82F6),
                       ),
                     ],
@@ -393,7 +407,30 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   ElevatedButton.icon(
                     onPressed: () {
-                      // Handled in main navigation or state
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          backgroundColor: const Color(0xFF1E5BB3),
+                          title: Text(context.tr('logout_confirm_title'), style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold)),
+                          content: Text(context.tr('logout_confirm_desc'), style: GoogleFonts.cairo(color: Colors.white70)),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: Text(context.tr('cancel'), style: GoogleFonts.cairo(color: Colors.white70)),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.pop(context); // Close dialog
+                                Navigator.of(context).pushAndRemoveUntil(
+                                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                                  (route) => false,
+                                );
+                              },
+                              child: Text(context.tr('logout'), style: GoogleFonts.cairo(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      );
                     },
                     icon: const Icon(Icons.exit_to_app, color: Colors.white, size: 20),
                     label: Text(context.tr('logout_btn'), style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold)),

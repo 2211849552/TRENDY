@@ -267,6 +267,11 @@ class AppStrings {
       'categories_label': 'التصنيفات:',
       'price_range': 'نطاق السعر:',
       'special_offers': 'عروض خاصة',
+      'notifications_enabled': 'تم تفعيل الإشعارات',
+      'notifications_disabled': 'تم إيقاف الإشعارات',
+      'logout_confirm_title': 'تأكيد تسجيل الخروج',
+      'logout_confirm_desc': 'هل أنت متأكد أنك تريد تسجيل الخروج؟',
+      'cancel': 'إلغاء',
     },
     'en': {
       'splash_tagline': 'Fashion at your fingertips',
@@ -490,6 +495,11 @@ class AppStrings {
       'categories_label': 'Categories:',
       'price_range': 'Price Range:',
       'special_offers': 'Special Offers',
+      'notifications_enabled': 'Notifications enabled',
+      'notifications_disabled': 'Notifications disabled',
+      'logout_confirm_title': 'Logout Confirmation',
+      'logout_confirm_desc': 'Are you sure you want to log out?',
+      'cancel': 'Cancel',
     },
   };
 
