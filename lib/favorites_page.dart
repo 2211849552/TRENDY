@@ -84,14 +84,12 @@ class _FavoritesPageState extends State<FavoritesPage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        TextButton.icon(
-          onPressed: widget.onBrowseStores,
-          icon: const Icon(Icons.arrow_forward, color: Colors.white70, size: 18),
-          label: Text(
-            context.tr('back'),
-            style: const TextStyle(color: Colors.white70, fontSize: 16),
+        CircleAvatar(
+          backgroundColor: Colors.black38,
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: widget.onBrowseStores,
           ),
-          style: TextButton.styleFrom(padding: EdgeInsets.zero),
         ),
         Text(
           '${context.tr('nav_favorites')} (${_favoritesManager.count})',

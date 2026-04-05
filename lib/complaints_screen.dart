@@ -17,10 +17,10 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0A1931), // Matching Home Screen dark blue
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Directionality(
-            textDirection: TextDirection.rtl,
+        child: Directionality(
+          textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -84,7 +84,14 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
           onTap: () => Navigator.pop(context),
           child: Row(
             children: [
-              const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 16),
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: Icon(
+                  context.isRtl ? Icons.arrow_forward_ios_rounded : Icons.arrow_back_ios_rounded,
+                  color: Colors.white70,
+                  size: 16,
+                ),
+              ),
               const SizedBox(width: 4),
               Text(
                 context.tr('back'),
@@ -184,7 +191,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
               backgroundColor: const Color(0xFF121E36),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               child: Directionality(
-                textDirection: TextDirection.rtl,
+                textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(24),
                   child: Column(
