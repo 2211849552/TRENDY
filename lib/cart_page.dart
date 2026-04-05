@@ -237,11 +237,11 @@ class _CartPageState extends State<CartPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item.product.name,
+                  context.tr(item.product.name),
                   style: GoogleFonts.cairo(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
                 Text(
-                  'اللون: ${item.selectedColor}، المقاس: ${item.selectedSize}',
+                  '${context.tr('color')}: ${item.selectedColor}, ${context.tr('size')}: ${item.selectedSize}',
                   style: const TextStyle(color: Colors.white38, fontSize: 12),
                 ),
                 const SizedBox(height: 16),

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'models/favorites_manager.dart';
 import 'models/cart_manager.dart';
 import 'models/product.dart';
+import 'l10n/app_strings.dart';
 
 class FavoritesPage extends StatefulWidget {
   final VoidCallback onBrowseStores;
@@ -28,7 +29,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
           color: const Color(0xFF0A1931),
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Directionality(
-            textDirection: TextDirection.rtl,
+            textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
             child: Column(
               children: [
                 const SizedBox(height: 20),
@@ -86,14 +87,14 @@ class _FavoritesPageState extends State<FavoritesPage> {
         TextButton.icon(
           onPressed: widget.onBrowseStores,
           icon: const Icon(Icons.arrow_forward, color: Colors.white70, size: 18),
-          label: const Text(
-            'رجوع',
-            style: TextStyle(color: Colors.white70, fontSize: 16),
+          label: Text(
+            context.tr('back'),
+            style: const TextStyle(color: Colors.white70, fontSize: 16),
           ),
           style: TextButton.styleFrom(padding: EdgeInsets.zero),
         ),
         Text(
-          'المفضلة (${_favoritesManager.count})',
+          '${context.tr('nav_favorites')} (${_favoritesManager.count})',
           style: GoogleFonts.cairo(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -141,7 +142,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  p.name,
+                  context.tr(p.name),
                   style: GoogleFonts.cairo(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -150,7 +151,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${p.price} د.ل',
+                  '${p.price}${context.tr('currency_suffix')}',
                   style: GoogleFonts.cairo(
                     fontSize: 18,
                     color: Colors.blueAccent,
@@ -159,15 +160,10 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 ),
                 const SizedBox(height: 20),
                 
-                // Transfer to Cart Button
                 SizedBox(
                   width: double.infinity,
                   height: 50,
-                  child: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E5BB3),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ).child(
+                  child: ElevatedButton(
                     onPressed: () {
                       try {
                         _cartManager.addToCart(p);
@@ -176,10 +172,11 @@ class _FavoritesPageState extends State<FavoritesPage> {
                           SnackBar(
                             behavior: SnackBarBehavior.floating,
                             backgroundColor: const Color(0xFF1E5BB3),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             content: Text(
-                              'تم نقل المنتج للسلة',
+                              context.tr('added_to_cart'),
                               style: GoogleFonts.cairo(color: Colors.white),
-                              textAlign: TextAlign.right,
+                              textAlign: context.isRtl ? TextAlign.right : TextAlign.left,
                             ),
                           ),
                         );
@@ -198,12 +195,17 @@ class _FavoritesPageState extends State<FavoritesPage> {
                         );
                       }
                     },
-                    child: const Row(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1E5BB3),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.shopping_basket_outlined, size: 20),
-                        SizedBox(width: 8),
-                        Text('نقل للسلة', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const Icon(Icons.shopping_basket_outlined, size: 20),
+                        const SizedBox(width: 8),
+                        Text(context.tr('move_to_cart'), style: const TextStyle(fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ),
@@ -216,9 +218,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
                   child: TextButton.icon(
                     onPressed: () => _favoritesManager.remove(p),
                     icon: const Icon(Icons.delete_outline, color: Colors.white54, size: 18),
-                    label: const Text(
-                      'إزالة',
-                      style: TextStyle(color: Colors.white54, fontWeight: FontWeight.normal),
+                    label: Text(
+                      context.tr('remove'),
+                      style: const TextStyle(color: Colors.white54, fontWeight: FontWeight.normal),
                     ),
                   ),
                 ),
@@ -241,7 +243,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
         ),
         const SizedBox(height: 32),
         Text(
-          'قائمة المفضلة فارغة',
+          context.tr('favorites_empty'),
           style: GoogleFonts.cairo(
             fontSize: 26,
             fontWeight: FontWeight.bold,
@@ -250,7 +252,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
         ),
         const SizedBox(height: 12),
         Text(
-          'ابدأ بإضافة المنتجات التي تعجبك إلى المفضلة',
+          context.tr('favorites_empty_sub'),
           textAlign: TextAlign.center,
           style: GoogleFonts.cairo(
             fontSize: 16,
@@ -269,7 +271,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
             child: Text(
-              'تصفح المتاجر',
+              context.tr('browse_stores'),
               style: GoogleFonts.cairo(fontSize: 14, fontWeight: FontWeight.bold),
             ),
           ),
@@ -279,12 +281,3 @@ class _FavoritesPageState extends State<FavoritesPage> {
   }
 }
 
-extension ElevatedButtonExtension on ButtonStyle {
-  Widget child({required VoidCallback onPressed, required Widget child}) {
-    return ElevatedButton(
-      onPressed: onPressed,
-      style: this,
-      child: child,
-    );
-  }
-}

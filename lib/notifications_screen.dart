@@ -202,7 +202,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           const SizedBox(height: 24),
           Text(context.tr('notifications'), style: GoogleFonts.cairo(fontSize: 18, color: Colors.white70, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          const Text('لا توجد إشعارات حالياً', style: TextStyle(fontSize: 14, color: Colors.white30)),
+          Text(context.tr('notifications_empty'), style: const TextStyle(fontSize: 14, color: Colors.white30)),
         ],
       ),
     );

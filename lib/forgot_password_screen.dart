@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'l10n/app_strings.dart';
 
 class ForgotPasswordScreen extends StatelessWidget {
   const ForgotPasswordScreen({super.key});
@@ -29,18 +30,18 @@ class ForgotPasswordScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'متجري',
-                      style: TextStyle(
+                    Text(
+                      context.tr('login_brand'),
+                      style: const TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'منصة التسوق الإلكتروني',
-                      style: TextStyle(
+                    Text(
+                      context.tr('login_subtitle'),
+                      style: const TextStyle(
                         fontSize: 16,
                         color: Colors.white70,
                       ),
@@ -62,18 +63,18 @@ class ForgotPasswordScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'استعادة كلمة المرور',
-                        style: TextStyle(
+                      Text(
+                        context.tr('forgot_pwd_title'),
+                        style: const TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
                       ),
                       const SizedBox(height: 12),
-                      const Text(
-                        'أدخل بريدك الإلكتروني وسنرسل لك رابط لإعادة تعيين كلمة المرور',
-                        style: TextStyle(
+                      Text(
+                        context.tr('forgot_pwd_subtitle'),
+                        style: const TextStyle(
                           fontSize: 14,
                           color: Colors.white70,
                           height: 1.5,
@@ -82,9 +83,9 @@ class ForgotPasswordScreen extends StatelessWidget {
                       const SizedBox(height: 32),
                       
                       // Email Field
-                      const Text(
-                        'البريد الإلكتروني',
-                        style: TextStyle(
+                      Text(
+                        context.tr('email'),
+                        style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
@@ -95,7 +96,7 @@ class ForgotPasswordScreen extends StatelessWidget {
                         keyboardType: TextInputType.emailAddress,
                         style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
-                          hintText: 'example@mail.com',
+                          hintText: context.tr('hint_email'),
                           hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
                           filled: true,
                           fillColor: Colors.black.withOpacity(0.05),
@@ -123,9 +124,8 @@ class ForgotPasswordScreen extends StatelessWidget {
                         height: 50,
                         child: ElevatedButton(
                           onPressed: () {
-                            // TODO: Implement send link logic
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('تم إرسال رابط استعادة كلمة المرور بنجاح')),
+                              SnackBar(content: Text(context.tr('link_sent_msg'))),
                             );
                           },
                           style: ElevatedButton.styleFrom(
@@ -136,9 +136,9 @@ class ForgotPasswordScreen extends StatelessWidget {
                             ),
                             elevation: 0,
                           ),
-                          child: const Text(
-                            'إرسال رابط الاستعادة',
-                            style: TextStyle(
+                          child: Text(
+                            context.tr('send_link_btn'),
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
@@ -154,9 +154,9 @@ class ForgotPasswordScreen extends StatelessWidget {
                           onPressed: () {
                             Navigator.pop(context);
                           },
-                          child: const Text(
-                            'العودة لتسجيل الدخول',
-                            style: TextStyle(
+                          child: Text(
+                            context.tr('back_to_login'),
+                            style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
                               fontSize: 14,

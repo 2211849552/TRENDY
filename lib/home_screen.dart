@@ -39,66 +39,66 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Map<String, dynamic>> _stores = [
     {
-      'name': 'متجر الأناقة',
-      'category': 'فساتين',
+      'name': 'store_elegance',
+      'category': 'cat_women',
       'rating': 4.8,
-      'distance': '2.5 كم',
+      'distance': '2.5',
       'imageUrl': 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&q=80&w=800',
-      'discount': 'تخفيضات حتى 40%',
+      'discount': '40%',
     },
     {
-      'name': 'بوتيك الموضة',
-      'category': 'ملابس رجالية',
+      'name': 'store_fashion',
+      'category': 'cat_men',
       'rating': 4.5,
-      'distance': '1.2 كم',
+      'distance': '1.2',
       'imageUrl': 'https://images.unsplash.com/photo-1490114538077-0a7f8cb49891?auto=format&fit=crop&q=80&w=800',
       'discount': null,
     },
     {
-      'name': 'الرجل الأنيق',
-      'category': 'بدل رجالية',
+      'name': 'store_gentle',
+      'category': 'cat_men',
       'rating': 4.6,
-      'distance': '0.8 كم',
+      'distance': '0.8',
       'imageUrl': 'https://images.unsplash.com/photo-1593032465175-481ac7f401a0?auto=format&fit=crop&q=80&w=800',
-      'discount': 'تخفيضات حتى 30%',
+      'discount': '30%',
     },
     {
-      'name': 'متجر الفخامة',
-      'category': 'فساتين سهرة',
+      'name': 'store_luxury',
+      'category': 'cat_women',
       'rating': 4.7,
-      'distance': '5 كم',
+      'distance': '5.0',
       'imageUrl': 'https://images.unsplash.com/photo-1566174053879-31528523f8ae?auto=format&fit=crop&q=80&w=800',
       'discount': null,
     },
     {
-      'name': 'عالم الأطفال',
-      'category': 'ملابس أطفال',
+      'name': 'store_kids',
+      'category': 'cat_kids',
       'rating': 4.9,
-      'distance': '3.8 كم',
+      'distance': '3.8',
       'imageUrl': 'https://images.unsplash.com/photo-1621451537084-482c73073a0f?auto=format&fit=crop&q=80&w=800',
-      'discount': 'تخفيضات حتى 25%',
+      'discount': '25%',
     },
     {
-      'name': 'توب فاشن',
-      'category': 'ملابس شتوية',
+      'name': 'store_top',
+      'category': 'cat_men',
       'rating': 4.9,
-      'distance': '2.1 كم',
+      'distance': '2.1',
       'imageUrl': 'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=800',
       'discount': null,
     },
   ];
 
   List<Map<String, dynamic>> get _filteredStores {
-    List<Map<String, dynamic>> filtered = _stores.where((store) {
-      final nameMatches = store['name'].toLowerCase().contains(_searchQuery.toLowerCase());
+      final translatedName = context.tr(store['name']).toLowerCase();
+      final nameMatches = translatedName.contains(_searchQuery.toLowerCase());
       
       bool categoryMatches = _selectedCategoryKey == 'all';
       if (_selectedCategoryKey == 'men') {
-        categoryMatches = store['category'].toString().contains("رجالية") || store['category'].toString().contains("رجالي");
+        categoryMatches = store['category'] == 'cat_men';
       } else if (_selectedCategoryKey == 'women') {
-        categoryMatches = store['category'].toString().contains("فساتين") || store['category'].toString().contains("نسائي");
+        categoryMatches = store['category'] == 'cat_women';
       } else if (_selectedCategoryKey == 'kids') {
-        categoryMatches = store['category'].toString().contains("أطفال");
+        categoryMatches = store['category'] == 'cat_kids';
       }
       
       return nameMatches && categoryMatches;
@@ -115,8 +115,8 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     } else if (_selectedSortKey == 'nearest') {
       filtered.sort((a, b) {
-        double distA = double.tryParse(a['distance'].split(' ')[0]) ?? 99.0;
-        double distB = double.tryParse(b['distance'].split(' ')[0]) ?? 99.0;
+        double distA = double.tryParse(a['distance'].toString()) ?? 99.0;
+        double distB = double.tryParse(b['distance'].toString()) ?? 99.0;
         return distA.compareTo(distB);
       });
     }
@@ -619,7 +619,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        discount,
+                        '${context.tr('sort_offers').split(' ')[0]} $discount', // Simple workaround for "Discount 40%"
                         style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -634,12 +634,12 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  category,
+                  context.tr(category),
                   style: const TextStyle(color: Colors.blueAccent, fontSize: 11, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  name,
+                  context.tr(name),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
@@ -655,7 +655,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  distance,
+                  '$distance${context.tr('km_suffix')}',
                   style: const TextStyle(color: Colors.white70, fontSize: 11),
                 ),
               ],

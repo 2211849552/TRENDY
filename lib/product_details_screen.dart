@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'models/product.dart';
 import 'models/favorites_manager.dart';
 import 'models/cart_manager.dart';
+import 'l10n/app_strings.dart';
+import 'locale/app_locale.dart';
 
 class ProductDetailsScreen extends StatefulWidget {
   final Product product;
@@ -16,11 +18,11 @@ class ProductDetailsScreen extends StatefulWidget {
 class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   final FavoritesManager _favoritesManager = FavoritesManager();
   final CartManager _cartManager = CartManager();
-  String _selectedColor = 'أسود';
+  String _selectedColor = 'black';
   String _selectedSize = 'M';
   int _quantity = 1;
 
-  final List<String> _colors = ['أسود', 'كحلي', 'رمادي'];
+  final List<String> _colors = ['black', 'navy', 'grey'];
   final List<String> _sizes = ['S', 'M', 'L', 'XL', 'XXL'];
 
   @override
@@ -30,7 +32,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Directionality(
-            textDirection: TextDirection.rtl,
+            textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -55,19 +57,19 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       const SizedBox(height: 32),
                       
                       // Color Selection
-                      _buildSelectionLabel('اللون'),
+                      _buildSelectionLabel(context.tr('color')),
                       const SizedBox(height: 16),
                       _buildColorSelector(),
                       const SizedBox(height: 32),
                       
                       // Size Selection
-                      _buildSelectionLabel('المقاس'),
+                      _buildSelectionLabel(context.tr('size')),
                       const SizedBox(height: 16),
                       _buildSizeSelector(),
                       const SizedBox(height: 32),
                       
                       // Quantity Selection
-                      _buildSelectionLabel('الكمية'),
+                      _buildSelectionLabel(context.tr('quantity')),
                       const SizedBox(height: 16),
                       _buildQuantitySelector(),
                       
@@ -143,7 +145,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      widget.product.category,
+                      context.tr(widget.product.category),
                       style: GoogleFonts.cairo(
                         color: Colors.blueAccent,
                         fontSize: 12,
@@ -174,7 +176,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         Row(
           children: [
              Text(
-              '${widget.product.price} د.ل',
+              '${widget.product.price}${context.tr('currency_suffix')}',
               style: GoogleFonts.cairo(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
@@ -184,7 +186,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             if (widget.product.originalPrice != null) ...[
               const SizedBox(width: 16),
               Text(
-                '${widget.product.originalPrice} د.ل',
+                '${widget.product.originalPrice}${context.tr('currency_suffix')}',
                 style: const TextStyle(
                   fontSize: 18,
                   color: Colors.white24,
@@ -201,7 +203,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '${widget.product.discount} خصم',
+                  '${widget.product.discount} ${context.tr('sort_offers').split(' ')[0]}',
                   style: const TextStyle(color: Color(0xFF00D1FF), fontSize: 12, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -210,7 +212,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         ),
         const SizedBox(height: 12),
         Text(
-          widget.product.isOutOfStock ? 'نفدت الكمية' : 'متوفر',
+          widget.product.isOutOfStock ? context.tr('out_of_stock') : context.tr('available'),
           style: TextStyle(
             color: widget.product.isOutOfStock ? Colors.redAccent : Colors.greenAccent, 
             fontWeight: FontWeight.bold, 
@@ -231,7 +233,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         border: Border.all(color: Colors.white10),
       ),
       child: Text(
-        '${widget.product.name} هو خيار مثالي للمظهر العصري والأنيق. مصنوع من خامات عالية الجودة لضمان الراحة طوال اليوم، مع تصميم كلاسيكي يناسب جميع المناسبات الرسمية والاجتماعية.',
+        context.tr('product_description_placeholder'),
         style: GoogleFonts.cairo(
           fontSize: 15,
           color: Colors.white70,
@@ -259,7 +261,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         return GestureDetector(
           onTap: () => setState(() => _selectedColor = color),
           child: Container(
-            margin: const EdgeInsets.only(left: 12),
+            margin: EdgeInsets.only(left: context.isRtl ? 0 : 12, right: context.isRtl ? 12 : 0),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
             decoration: BoxDecoration(
               color: isSelected ? const Color(0xFF1E5BB3) : Colors.white.withOpacity(0.05),
@@ -267,10 +269,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               border: Border.all(color: isSelected ? Colors.blueAccent : Colors.white10),
             ),
             child: Text(
-              color,
+              context.tr(color),
               style: GoogleFonts.cairo(
                 color: isSelected ? Colors.white : Colors.white70,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontSize: 14,
               ),
             ),
           ),
@@ -374,7 +377,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                           const Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
                           const SizedBox(width: 12),
                           Text(
-                            'تم إضافة المنتج للسلة',
+                            context.tr('added_to_cart_msg'),
                             style: GoogleFonts.cairo(fontWeight: FontWeight.bold, color: Colors.white),
                           ),
                         ],
@@ -410,7 +413,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   const Icon(Icons.shopping_basket_outlined, size: 22),
                   const SizedBox(width: 12),
                   Text(
-                    'إضافة للسلة',
+                    context.tr('nav_cart'),
                     style: GoogleFonts.cairo(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -445,7 +448,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       const Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
                       const SizedBox(width: 12),
                       Text(
-                        'تم الإضافة للمفضلة',
+                        context.tr('added_to_fav'),
                         style: GoogleFonts.cairo(fontWeight: FontWeight.bold, color: Colors.white),
                       ),
                     ],

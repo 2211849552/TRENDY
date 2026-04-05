@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'models/notification_manager.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'notifications_screen.dart';
 import 'complaints_screen.dart';
@@ -157,7 +159,9 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   _buildQuickLink(
                     title: context.tr('notifications'),
-                    subtitle: context.tr('notifications_sub'),
+                    subtitle: AppStrings.format(context, 'notifications_unread', params: {
+                      'count': NotificationManager().unreadCount.toString(),
+                    }),
                     icon: Icons.notifications_none_rounded,
                     onTap: () {
                       Navigator.push(
@@ -217,6 +221,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           hint: context.tr('hint_phone'),
                           controller: _phoneField,
                           keyboardType: TextInputType.phone,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -522,6 +527,7 @@ class _SettingsPageState extends State<SettingsPage> {
     required TextEditingController controller,
     bool obscureText = false,
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -532,6 +538,7 @@ class _SettingsPageState extends State<SettingsPage> {
           controller: controller,
           obscureText: obscureText,
           keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
           style: const TextStyle(color: Colors.white, fontSize: 14),
           decoration: InputDecoration(
             hintText: hint,

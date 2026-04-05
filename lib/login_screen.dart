@@ -98,7 +98,7 @@ class LoginScreen extends StatelessWidget {
                         keyboardType: TextInputType.emailAddress,
                         style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
-                          hintText: 'example@mail.com',
+                          hintText: context.tr('hint_email'),
                           hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
                           filled: true,
                           fillColor: Colors.black.withOpacity(0.05),
@@ -133,7 +133,7 @@ class LoginScreen extends StatelessWidget {
                         obscureText: true,
                         style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
-                          hintText: '••••••••',
+                          hintText: context.tr('hint_password'),
                           hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
                           filled: true,
                           fillColor: Colors.black.withOpacity(0.05),
@@ -191,7 +191,12 @@ class LoginScreen extends StatelessWidget {
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const HomeScreen(userName: 'hajer'),
+                                builder: (context) => HomeScreen(
+                                  onLogout: () => Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                                  ),
+                                ),
                               ),
                             );
                           },
@@ -223,7 +228,15 @@ class LoginScreen extends StatelessWidget {
                           onPressed: () {
                             Navigator.pushReplacement(
                               context,
-                              MaterialPageRoute(builder: (context) => const HomeScreen(isGuest: true)),
+                              MaterialPageRoute(
+                                builder: (context) => HomeScreen(
+                                  isGuest: true,
+                                  onLogout: () => Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                                  ),
+                                ),
+                              ),
                             );
                           },
                           style: OutlinedButton.styleFrom(

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'login_screen.dart';
 import 'home_screen.dart';
+import 'l10n/app_strings.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -48,18 +51,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'إنشاء حساب',
-                      style: TextStyle(
+                    Text(
+                      context.tr('register_title'),
+                      style: const TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'سجل الآن للبدء في التسوق',
-                      style: TextStyle(
+                    Text(
+                      context.tr('register_subtitle'),
+                      style: const TextStyle(
                         fontSize: 16,
                         color: Colors.white70,
                       ),
@@ -80,53 +83,59 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'حساب جديد',
-                        style: TextStyle(
+                      Text(
+                        context.tr('register_card_title'),
+                        style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'أدخل بياناتك لإنشاء حساب',
-                        style: TextStyle(
+                      Text(
+                        context.tr('register_card_subtitle'),
+                        style: const TextStyle(
                           fontSize: 14,
                           color: Colors.white70,
                         ),
                       ),
                       const SizedBox(height: 32),
                       
-                      _buildTextFieldTitle('الاسم الكامل'),
-                      const SizedBox(height: 8),
-                      _buildTextField(hint: 'أحمد محمد', icon: Icons.person_outline, controller: _nameController),
-                      const SizedBox(height: 20),
-                      
-                      _buildTextFieldTitle('البريد الإلكتروني'),
+                      _buildTextFieldTitle(context.tr('full_name')),
                       const SizedBox(height: 8),
                       _buildTextField(
-                        hint: 'example@mail.com', 
+                        hint: context.tr('hint_name'), 
+                        icon: Icons.person_outline, 
+                        controller: _nameController,
+                        keyboardType: TextInputType.name,
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      _buildTextFieldTitle(context.tr('email')),
+                      const SizedBox(height: 8),
+                      _buildTextField(
+                        hint: context.tr('hint_email'), 
                         icon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
                         controller: _emailController,
                       ),
                       const SizedBox(height: 20),
-
-                      _buildTextFieldTitle('رقم الهاتف'),
+                      
+                      _buildTextFieldTitle(context.tr('phone')),
                       const SizedBox(height: 8),
                       _buildTextField(
-                        hint: '05X XXX XXXX', 
+                        hint: context.tr('hint_phone'), 
                         icon: Icons.phone_outlined,
                         keyboardType: TextInputType.phone,
                         controller: _phoneController,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       ),
                       const SizedBox(height: 20),
                       
-                      _buildTextFieldTitle('كلمة المرور'),
+                      _buildTextFieldTitle(context.tr('confirm_password')),
                       const SizedBox(height: 8),
                       _buildTextField(
-                        hint: '••••••••', 
+                        hint: context.tr('hint_password'), 
                         icon: Icons.lock_outline,
                         obscureText: true,
                         controller: _passwordController,
@@ -143,7 +152,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               context,
                               MaterialPageRoute(
                                 builder: (context) => HomeScreen(
-                                  userName: _nameController.text.isNotEmpty ? _nameController.text : 'أحمد محمد',
+                                  onLogout: () => Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                                  ),
                                 ),
                               ),
                             );
@@ -156,9 +168,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                             elevation: 0,
                           ),
-                          child: const Text(
-                            'إنشاء الحساب',
-                            style: TextStyle(
+                          child: Text(
+                            context.tr('register_btn'),
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
@@ -171,17 +183,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text(
-                            'لديك حساب بالفعل؟ ',
-                            style: TextStyle(color: Colors.white70),
+                          Text(
+                            context.tr('already_have_account'),
+                            style: const TextStyle(color: Colors.white70),
                           ),
                           GestureDetector(
                             onTap: () {
                               Navigator.pop(context);
                             },
-                            child: const Text(
-                              'تسجيل الدخول',
-                              style: TextStyle(
+                            child: Text(
+                              context.tr('login_title'),
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -219,11 +231,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     bool obscureText = false,
     TextInputType? keyboardType,
     required TextEditingController controller,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextField(
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         hintText: hint,

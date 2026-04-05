@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'models/cart_manager.dart';
 import 'models/cart_item.dart';
+import 'models/cart_manager.dart';
 import 'models/order.dart';
 import 'models/orders_manager.dart';
+import 'locale/app_locale.dart';
+import 'l10n/app_strings.dart';
 
 class OrdersPage extends StatefulWidget {
   final VoidCallback onBrowseStores;
@@ -19,20 +21,21 @@ class _OrdersPageState extends State<OrdersPage> {
   final CartManager _cartManager = CartManager();
 
   /// يطابق قيم `Order.status` المعروضة في القائمة المنسدلة
-  String _filterLabel = 'جميع الطلبات';
+  String _filterLabel = 'status_all';
 
-  static const _monthNamesAr = [
-    'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
-  ];
-
-  String _formatDateAr(DateTime d) {
-    final day = d.day.toString().padLeft(2, '0');
-    return '$day ${_monthNamesAr[d.month - 1]} ${d.year}';
+  String _formatDate(BuildContext context, DateTime d) {
+    if (context.isRtl) {
+      final day = d.day.toString().padLeft(2, '0');
+      final month = AppStrings.of(context, 'month_${d.month}');
+      return '$day $month ${d.year}';
+    }
+    final day = d.day.toString();
+    final month = AppStrings.of(context, 'month_${d.month}');
+    return '$month $day, ${d.year}';
   }
 
   List<Order> get _visibleOrders {
-    if (_filterLabel == 'جميع الطلبات') {
+    if (_filterLabel == 'status_all') {
       return _ordersManager.orders;
     }
     return _ordersManager.orders.where((o) => o.status == _filterLabel).toList();
@@ -40,11 +43,11 @@ class _OrdersPageState extends State<OrdersPage> {
 
   Color _statusBackground(String status) {
     switch (status) {
-      case 'قيد الانتظار':
+      case 'status_pending':
         return const Color(0xFFE6B422).withOpacity(0.25);
-      case 'جاهز للاستلام':
+      case 'status_ready':
         return Colors.green.withOpacity(0.25);
-      case 'تم التوصيل':
+      case 'status_delivered':
         return Colors.blueAccent.withOpacity(0.2);
       default:
         return Colors.white.withOpacity(0.1);
@@ -53,11 +56,11 @@ class _OrdersPageState extends State<OrdersPage> {
 
   Color _statusForeground(String status) {
     switch (status) {
-      case 'قيد الانتظار':
+      case 'status_pending':
         return const Color(0xFFFFE082);
-      case 'جاهز للاستلام':
+      case 'status_ready':
         return Colors.lightGreenAccent;
-      case 'تم التوصيل':
+      case 'status_delivered':
         return Colors.lightBlueAccent;
       default:
         return Colors.white70;
@@ -65,8 +68,8 @@ class _OrdersPageState extends State<OrdersPage> {
   }
 
   void _simulateReady(Order order) {
-    if (order.status != 'قيد الانتظار') return;
-    _ordersManager.updateOrderStatus(order.id, 'جاهز للاستلام');
+    if (order.status != 'status_pending') return;
+    _ordersManager.updateOrderStatus(order.id, 'status_ready');
   }
 
   void _reorder(Order order) {
@@ -82,7 +85,7 @@ class _OrdersPageState extends State<OrdersPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('تمت إضافة المنتجات إلى السلة', style: GoogleFonts.cairo()),
+          content: Text(context.tr('added_to_cart'), style: GoogleFonts.cairo()),
           backgroundColor: const Color(0xFF1E5BB3),
         ),
       );
@@ -112,7 +115,7 @@ class _OrdersPageState extends State<OrdersPage> {
           color: const Color(0xFF0A1931),
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Directionality(
-            textDirection: TextDirection.rtl,
+            textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
             child: Column(
               children: [
                 const SizedBox(height: 20),
@@ -173,9 +176,9 @@ class _OrdersPageState extends State<OrdersPage> {
         TextButton.icon(
           onPressed: widget.onBrowseStores,
           icon: const Icon(Icons.arrow_back, color: Colors.white70, size: 18),
-          label: const Text(
-            'رجوع',
-            style: TextStyle(color: Colors.white70, fontSize: 16),
+          label: Text(
+            context.tr('back'),
+            style: const TextStyle(color: Colors.white70, fontSize: 16),
           ),
           style: TextButton.styleFrom(padding: EdgeInsets.zero),
         ),
@@ -183,7 +186,7 @@ class _OrdersPageState extends State<OrdersPage> {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              'سجل الطلبات',
+              context.tr('order_history'),
               style: GoogleFonts.cairo(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -192,7 +195,7 @@ class _OrdersPageState extends State<OrdersPage> {
             ),
             if (!isEmpty)
               Text(
-                '${_ordersManager.count} طلب',
+                '${_ordersManager.count} ${context.tr('orders_count')}',
                 style: GoogleFonts.cairo(fontSize: 14, color: Colors.white54),
               ),
           ],
@@ -216,11 +219,11 @@ class _OrdersPageState extends State<OrdersPage> {
           dropdownColor: const Color(0xFF152a45),
           icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white70),
           style: GoogleFonts.cairo(color: Colors.white, fontSize: 16),
-          items: const [
-            DropdownMenuItem(value: 'جميع الطلبات', child: Text('جميع الطلبات')),
-            DropdownMenuItem(value: 'قيد الانتظار', child: Text('قيد الانتظار')),
-            DropdownMenuItem(value: 'جاهز للاستلام', child: Text('جاهز للاستلام')),
-            DropdownMenuItem(value: 'تم التوصيل', child: Text('تم التوصيل')),
+          items: [
+            DropdownMenuItem(value: 'status_all', child: Text(context.tr('status_all'))),
+            DropdownMenuItem(value: 'status_pending', child: Text(context.tr('status_pending'))),
+            DropdownMenuItem(value: 'status_ready', child: Text(context.tr('status_ready'))),
+            DropdownMenuItem(value: 'status_delivered', child: Text(context.tr('status_delivered'))),
           ],
           onChanged: (v) {
             if (v != null) setState(() => _filterLabel = v);
@@ -238,7 +241,7 @@ class _OrdersPageState extends State<OrdersPage> {
   }
 
   Widget _buildOrderLine(CartItem line) {
-    final detail = '${line.selectedColor} • ${line.selectedSize} • الكمية: ${line.quantity}';
+    final detail = '${context.tr(line.selectedColor)} • ${line.selectedSize} • ${context.tr('quantity')}: ${line.quantity}';
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Row(
@@ -249,7 +252,7 @@ class _OrdersPageState extends State<OrdersPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  line.product.name,
+                  context.tr(line.product.name),
                   style: GoogleFonts.cairo(
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
@@ -311,7 +314,7 @@ class _OrdersPageState extends State<OrdersPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'طلب #${order.id}',
+                '${context.tr('order_hashtag')}#${order.id}',
                 style: GoogleFonts.cairo(
                   fontWeight: FontWeight.bold,
                   fontSize: 15,
@@ -325,7 +328,7 @@ class _OrdersPageState extends State<OrdersPage> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  order.status,
+                  context.tr(order.status),
                   style: GoogleFonts.cairo(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -337,7 +340,7 @@ class _OrdersPageState extends State<OrdersPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            _formatDateAr(order.date),
+            _formatDate(context, order.date),
             style: GoogleFonts.cairo(fontSize: 14, color: Colors.white60),
           ),
           for (final item in order.items) _buildOrderLine(item),
@@ -348,7 +351,7 @@ class _OrdersPageState extends State<OrdersPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'الإجمالي',
+                context.tr('cart_total'),
                 style: GoogleFonts.cairo(fontSize: 16, color: Colors.white70),
               ),
               Text(
@@ -376,7 +379,7 @@ class _OrdersPageState extends State<OrdersPage> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: Text(
-                    'محاكاة: جاهز للاستلام',
+                    context.tr('simulate_ready'),
                     textAlign: TextAlign.center,
                     style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
@@ -387,7 +390,7 @@ class _OrdersPageState extends State<OrdersPage> {
                 child: OutlinedButton.icon(
                   onPressed: () => _reorder(order),
                   icon: const Icon(Icons.refresh_rounded, size: 20),
-                  label: Text('إعادة الطلب', style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
+                  label: Text(context.tr('reorder'), style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white70,
                     side: const BorderSide(color: Colors.white24),
@@ -411,13 +414,13 @@ class _OrdersPageState extends State<OrdersPage> {
           Icon(Icons.filter_alt_off_outlined, size: 64, color: Colors.white.withOpacity(0.35)),
           const SizedBox(height: 16),
           Text(
-            'لا توجد طلبات في هذا التصنيف',
+            context.tr('no_orders_filter'),
             style: GoogleFonts.cairo(fontSize: 18, color: Colors.white70),
           ),
           const SizedBox(height: 12),
           TextButton(
-            onPressed: () => setState(() => _filterLabel = 'جميع الطلبات'),
-            child: Text('عرض جميع الطلبات', style: GoogleFonts.cairo(color: Colors.blueAccent)),
+            onPressed: () => setState(() => _filterLabel = 'status_all'),
+            child: Text(context.tr('view_all_orders'), style: GoogleFonts.cairo(color: Colors.blueAccent)),
           ),
         ],
       ),
@@ -442,7 +445,7 @@ class _OrdersPageState extends State<OrdersPage> {
         ),
         const SizedBox(height: 32),
         Text(
-          'لا توجد طلبات',
+          context.tr('orders_empty'),
           style: GoogleFonts.cairo(
             fontSize: 26,
             fontWeight: FontWeight.bold,
@@ -451,7 +454,7 @@ class _OrdersPageState extends State<OrdersPage> {
         ),
         const SizedBox(height: 12),
         Text(
-          'لم تقم بأي طلبات بعد',
+          context.tr('orders_empty_sub'),
           textAlign: TextAlign.center,
           style: GoogleFonts.cairo(
             fontSize: 16,
@@ -471,7 +474,7 @@ class _OrdersPageState extends State<OrdersPage> {
               elevation: 0,
             ),
             child: Text(
-              'ابدأ التسوق',
+              context.tr('start_shopping'),
               style: GoogleFonts.cairo(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),

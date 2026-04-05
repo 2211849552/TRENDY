@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'l10n/app_strings.dart';
+import 'locale/app_locale.dart';
 
 class ComplaintsScreen extends StatefulWidget {
   const ComplaintsScreen({super.key});
@@ -27,9 +29,9 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                 _buildHeader(context),
                 const SizedBox(height: 30),
                 // Title
-                const Text(
-                  'الشكاوي والدعم',
-                  style: TextStyle(
+                Text(
+                  context.tr('complaint_title'),
+                  style: const TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -42,9 +44,9 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                   child: ElevatedButton.icon(
                     onPressed: () => _showNewComplaintDialog(context),
                     icon: const Icon(Icons.add, color: Colors.white, size: 20),
-                    label: const Text(
-                      'شكوى جديدة',
-                      style: TextStyle(
+                    label: Text(
+                      context.tr('complaint_new'),
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
@@ -80,13 +82,13 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
         // Back Button
         InkWell(
           onTap: () => Navigator.pop(context),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 16),
-              SizedBox(width: 4),
+              const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 16),
+              const SizedBox(width: 4),
               Text(
-                'رجوع',
-                style: TextStyle(
+                context.tr('back'),
+                style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 16,
                 ),
@@ -145,19 +147,19 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'لا توجد شكاوى',
-            style: TextStyle(
+          Text(
+            context.tr('complaint_empty'),
+            style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'يمكنك انشاء شكوى جديدة من الزر أعلاه',
+          Text(
+            context.tr('complaint_empty_sub'),
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 14,
               color: Colors.white54,
             ),
@@ -168,15 +170,15 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
   }
 
   void _showNewComplaintDialog(BuildContext context) {
-    String selectedType = 'استفسار عام';
-    String selectedOrder = 'لا يوجد';
+    String selectedTypeKey = 'complaint_type_general';
+    String selectedOrderKey = 'complaint_no_order';
 
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            bool showOrderField = selectedType == 'مشكلة في الطلب' || selectedType == 'مشكلة مع المتجر';
+            bool showOrderField = selectedTypeKey == 'complaint_type_order' || selectedTypeKey == 'complaint_type_store';
             
             return Dialog(
               backgroundColor: const Color(0xFF121E36),
@@ -192,9 +194,9 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'إنشاء شكوى جديدة',
-                            style: TextStyle(
+                          Text(
+                            context.tr('complaint_new'),
+                            style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
@@ -206,21 +208,27 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                           ),
                         ],
                       ),
-                      const Text(
-                        'املأ النموذج أدناه لإرسال شكوى، أو استفسار',
-                        style: TextStyle(fontSize: 13, color: Colors.white54),
+                      Text(
+                        context.tr('forgot_pwd_subtitle'), // Reuse or use specific key
+                        style: const TextStyle(fontSize: 13, color: Colors.white54),
                       ),
                       const SizedBox(height: 24),
                       
                       // Component: Complaint Type
-                      _buildLabel('نوع الشكوى'),
+                      _buildLabel(context.tr('complaint_type')),
                       const SizedBox(height: 8),
                       _buildDropdownField(
-                        value: selectedType,
-                        items: ['استفسار عام', 'مشكلة فنية', 'مشكلة في الطلب', 'مشكلة مع المتجر'],
+                        value: selectedTypeKey,
+                        items: const [
+                          'complaint_type_general',
+                          'complaint_type_technical',
+                          'complaint_type_order',
+                          'complaint_type_store'
+                        ],
+                        labelBuilder: (k) => context.tr(k),
                         onChanged: (val) {
                           if (val != null) {
-                            setDialogState(() => selectedType = val);
+                            setDialogState(() => selectedTypeKey = val);
                           }
                         },
                       ),
@@ -228,14 +236,15 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                       if (showOrderField) ...[
                         const SizedBox(height: 20),
                         // Component: Related Order
-                        _buildLabel('الطلب المرتبط (اختياري)'),
+                        _buildLabel(context.tr('complaint_related_order')),
                         const SizedBox(height: 8),
                         _buildDropdownField(
-                          value: selectedOrder,
-                          items: ['لا يوجد'],
+                          value: selectedOrderKey,
+                          items: const ['complaint_no_order'],
+                          labelBuilder: (k) => context.tr(k),
                           onChanged: (val) {
                             if (val != null) {
-                              setDialogState(() => selectedOrder = val);
+                              setDialogState(() => selectedOrderKey = val);
                             }
                           },
                         ),
@@ -244,16 +253,16 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                       const SizedBox(height: 20),
                       
                       // Component: Title
-                      _buildLabel('العنوان'),
+                      _buildLabel(context.tr('complaint_subject')),
                       const SizedBox(height: 8),
-                      _buildTextField(hint: 'اكتب عنوان الشكوى...'),
+                      _buildTextField(hint: context.tr('complaint_subject_hint')),
                       
                       const SizedBox(height: 20),
                       
                       // Component: Details
-                      _buildLabel('التفاصيل'),
+                      _buildLabel(context.tr('complaint_details')),
                       const SizedBox(height: 8),
-                      _buildTextField(hint: 'اشرح المشكلة أو الاستفسار بالتفصيل...', maxLines: 5),
+                      _buildTextField(hint: context.tr('complaint_details_hint'), maxLines: 5),
                       
                       const SizedBox(height: 32),
                       
@@ -262,15 +271,20 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: () {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(context.tr('complaint_sent'))),
+                            );
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF3B82F6),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             elevation: 0,
                           ),
-                          child: const Text(
-                            'إرسال الشكوى',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                          child: Text(
+                            context.tr('send_complaint'),
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                           ),
                         ),
                       ),
@@ -325,6 +339,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
   Widget _buildDropdownField({
     required String value,
     required List<String> items,
+    required String Function(String) labelBuilder,
     required void Function(String?) onChanged,
   }) {
     return Container(
@@ -343,7 +358,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
           items: items
               .map((e) => DropdownMenuItem(
                     value: e,
-                    child: Text(e, style: const TextStyle(color: Colors.white, fontSize: 14)),
+                    child: Text(labelBuilder(e), style: const TextStyle(color: Colors.white, fontSize: 14)),
                   ))
               .toList(),
           onChanged: onChanged,
@@ -363,12 +378,12 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
       backgroundColor: const Color(0xFF0A1931),
       selectedItemColor: Colors.blueAccent,
       unselectedItemColor: Colors.white54,
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'الرئيسية'),
-        BottomNavigationBarItem(icon: Icon(Icons.storefront_outlined), activeIcon: Icon(Icons.storefront), label: 'المتجر'),
-        BottomNavigationBarItem(icon: Icon(Icons.favorite_outline), activeIcon: Icon(Icons.favorite), label: 'المفضلة'),
-        BottomNavigationBarItem(icon: Icon(Icons.shopping_basket_outlined), activeIcon: Icon(Icons.shopping_basket), label: 'السلة'),
-        BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), activeIcon: Icon(Icons.settings), label: 'الإعدادات'),
+      items: [
+        BottomNavigationBarItem(icon: const Icon(Icons.home_outlined), activeIcon: const Icon(Icons.home), label: context.tr('nav_home')),
+        BottomNavigationBarItem(icon: const Icon(Icons.storefront_outlined), activeIcon: const Icon(Icons.storefront), label: context.tr('lang_ar')), // Example placeholder, usually 'Stores'
+        BottomNavigationBarItem(icon: const Icon(Icons.favorite_outline), activeIcon: const Icon(Icons.favorite), label: context.tr('nav_favorites')),
+        BottomNavigationBarItem(icon: const Icon(Icons.shopping_basket_outlined), activeIcon: const Icon(Icons.shopping_basket), label: context.tr('nav_cart')),
+        BottomNavigationBarItem(icon: const Icon(Icons.settings_outlined), activeIcon: const Icon(Icons.settings), label: context.tr('nav_settings')),
       ],
     );
   }

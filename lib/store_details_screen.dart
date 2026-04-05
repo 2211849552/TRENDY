@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'l10n/app_strings.dart';
+import 'locale/app_locale.dart';
 import 'models/product.dart';
 import 'product_details_screen.dart';
 
@@ -26,9 +28,9 @@ class StoreDetailsScreen extends StatefulWidget {
 }
 
 class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
-  String _selectedCategory = 'الكل';
+  String _selectedCategory = 'cat_all';
   RangeValues _priceRange = const RangeValues(0, 1500);
-  String _selectedRating = 'جميع التقييمات';
+  String _selectedRating = 'all_ratings';
   late final List<Product> _allProducts;
 
   @override
@@ -37,8 +39,8 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
     _allProducts = _getMockProducts(widget.storeCategory, widget.storeName, widget.storeDiscount != null);
   }
 
-  List<Product> _getMockProducts(String storeCat, String storeName, bool hasStoreDiscount) {
-    List<Product> products = _generateRawProducts(storeCat, storeName);
+  List<Product> _getMockProducts(String storeCat, String storeNameKey, bool hasStoreDiscount) {
+    List<Product> products = _generateRawProducts(storeCat, storeNameKey);
     
     if (!hasStoreDiscount) {
       return products.map((p) => Product(
@@ -56,439 +58,253 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
     return products;
   }
 
-  List<Product> _generateRawProducts(String storeCat, String storeName) {
+  List<Product> _generateRawProducts(String storeCat, String storeNameKey) {
     // 1. متجر الأناقة (Casual/Mainstream Women)
-    if (storeName.contains('الأناقة')) {
+    if (storeNameKey == 'store_elegance') {
       return [
         Product(
-          name: 'فستان صيفي مشجر',
-          category: 'فستان',
+          name: 'prod_summer_dress',
+          category: 'cat_dress',
           price: 180,
           originalPrice: 250,
           rating: 4.8,
           imageUrl: 'https://images.unsplash.com/photo-1585116462102-bb34469ca436?auto=format&fit=crop&q=80&w=400',
           discount: '-%28',
-          storeName: storeName,
+          storeName: storeNameKey,
         ),
         Product(
-          name: 'بلوزة قطنية أنيقة',
-          category: 'قميص',
+          name: 'prod_cotton_blouse',
+          category: 'cat_shirt',
           price: 95,
           originalPrice: null,
           rating: 4.6,
           imageUrl: 'https://images.unsplash.com/photo-1485960994840-00aa453e0f2d?auto=format&fit=crop&q=80&w=400',
           discount: null,
-          storeName: storeName,
+          storeName: storeNameKey,
         ),
         Product(
-          name: 'حقيبة كتف يومية',
-          category: 'إكسسوارات',
+          name: 'prod_shoulder_bag',
+          category: 'cat_accessories',
           price: 140,
           originalPrice: 200,
           rating: 4.7,
           imageUrl: 'https://images.unsplash.com/photo-1591561954557-26941169b49e?auto=format&fit=crop&q=80&w=400',
           discount: '-%30',
-          storeName: storeName,
+          storeName: storeNameKey,
           isOutOfStock: true,
         ),
         Product(
-          name: 'تنورة جينز عصرية',
-          category: 'أخرى',
+          name: 'prod_denim_skirt',
+          category: 'cat_other',
           price: 115,
           originalPrice: 160,
           rating: 3.5,
           imageUrl: 'https://images.unsplash.com/photo-1541333323-24842353b221?auto=format&fit=crop&q=80&w=400',
           discount: '-%28',
-          storeName: storeName,
+          storeName: storeNameKey,
           isOutOfStock: true,
         ),
         Product(
-          name: 'صندل صيفي مريح',
-          category: 'حذاء',
+          name: 'prod_summer_sandal',
+          category: 'cat_shoe',
           price: 130,
           originalPrice: 190,
           rating: 4.0,
           imageUrl: 'https://images.unsplash.com/photo-1560343770-ebe30209e41d?auto=format&fit=crop&q=80&w=400',
           discount: '-%31',
-          storeName: storeName,
+          storeName: storeNameKey,
         ),
         Product(
-          name: 'وشاح وردي ناعم',
-          category: 'إكسسوارات',
+          name: 'prod_pink_scarf',
+          category: 'cat_accessories',
           price: 45,
           originalPrice: 70,
           rating: 4.8,
           imageUrl: 'https://images.unsplash.com/photo-1494913148679-221656f70b27?auto=format&fit=crop&q=80&w=400',
           discount: '-%35',
-          storeName: storeName,
+          storeName: storeNameKey,
         ),
       ];
     }
     // 2. متجر الفخامة (High-end Evening Wear)
-    if (storeName.contains('الفخامة')) {
+    if (storeNameKey == 'store_luxury') {
       return [
         Product(
-          name: 'فستان سهرة ملكي',
-          category: 'فستان',
+          name: 'prod_royal_dress',
+          category: 'cat_dress',
           price: 850,
           originalPrice: 1200,
           rating: 4.0,
           imageUrl: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&q=80&w=400',
           discount: '-%30',
-          storeName: storeName,
+          storeName: storeNameKey,
           isOutOfStock: true,
         ),
         Product(
-          name: 'طقم مجوهرات فاخر',
-          category: 'إكسسوارات',
+          name: 'prod_luxury_jewelry',
+          category: 'cat_accessories',
           price: 550,
           originalPrice: 800,
           rating: 5.0,
           imageUrl: 'https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&q=80&w=400',
           discount: '-%30',
-          storeName: storeName,
+          storeName: storeNameKey,
         ),
         Product(
-          name: 'حذاء مخملي للسهرة',
-          category: 'حذاء',
+          name: 'prod_velvet_clutch',
+          category: 'cat_accessories',
           price: 320,
           originalPrice: 450,
           rating: 3.5,
           imageUrl: 'https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?auto=format&fit=crop&q=80&w=400',
           discount: '-%30',
-          storeName: storeName,
+          storeName: storeNameKey,
           isOutOfStock: true,
         ),
         Product(
-          name: 'حقيبة يد مرصعة',
-          category: 'إكسسوارات',
+          name: 'prod_gold_heels',
+          category: 'cat_shoe',
           price: 420,
           originalPrice: 600,
           rating: 4.9,
           imageUrl: 'https://images.unsplash.com/photo-1585145029026-c2770d188688?auto=format&fit=crop&q=80&w=400',
           discount: '-%30',
-          storeName: storeName,
-        ),
-        Product(
-          name: 'وشاح حريري فاخر',
-          category: 'إكسسوارات',
-          price: 180,
-          originalPrice: 260,
-          rating: 4.7,
-          imageUrl: 'https://images.unsplash.com/photo-1584917865442-de89df147d5e?auto=format&fit=crop&q=80&w=400',
-          discount: '-%30',
-          storeName: storeName,
-        ),
-        Product(
-          name: 'كيب سهرة أنيق',
-          category: 'أخرى',
-          price: 350,
-          originalPrice: 500,
-          rating: 4.8,
-          imageUrl: 'https://images.unsplash.com/photo-1566174053879-31528523f8ae?auto=format&fit=crop&q=80&w=400',
-          discount: '-%30',
-          storeName: storeName,
+          storeName: storeNameKey,
         ),
       ];
     }
     // 3. الرجل الأنيق (Formal Men)
-    if (storeName.contains('الرجل الأنيق')) {
+    if (storeNameKey == 'store_gentle') {
       return [
         Product(
-          name: 'بدلة توسيدو سوداء',
-          category: 'بدلة',
+          name: 'prod_formal_suit',
+          category: 'cat_other',
           price: 550,
           originalPrice: 750,
           rating: 4.0,
           imageUrl: 'https://images.unsplash.com/photo-1594932224520-2f9caaf8ca8c?auto=format&fit=crop&q=80&w=400',
           discount: '-%25',
-          storeName: storeName,
+          storeName: storeNameKey,
           isOutOfStock: true,
         ),
         Product(
-          name: 'قميص أكسفورد أبيض',
-          category: 'قميص',
+          name: 'prod_silk_tie',
+          category: 'cat_accessories',
           price: 180,
           originalPrice: 250,
           rating: 4.8,
           imageUrl: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&q=80&w=400',
           discount: '-%28',
-          storeName: storeName,
+          storeName: storeNameKey,
         ),
         Product(
-          name: 'حذاء أوكسفورد جلدي',
-          category: 'حذاء',
+          name: 'prod_classic_shoe',
+          category: 'cat_shoe',
           price: 280,
           originalPrice: 400,
           rating: 4.8,
           imageUrl: 'https://images.unsplash.com/photo-1614252235316-8c857d38b5f4?auto=format&fit=crop&q=80&w=400',
           discount: '-%30',
-          storeName: storeName,
-        ),
-        Product(
-          name: 'رابطة عنق حريرية',
-          category: 'إكسسوارات',
-          price: 75,
-          originalPrice: 110,
-          rating: 3.5,
-          imageUrl: 'https://images.unsplash.com/photo-1589756818134-d07949511b2f?auto=format&fit=crop&q=60&w=300',
-          discount: '-%31',
-          storeName: storeName,
-        ),
-        Product(
-          name: 'ساعة يد كلاسيكية',
-          category: 'إكسسوارات',
-          price: 450,
-          originalPrice: 650,
-          rating: 4.9,
-          imageUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&q=60&w=300',
-          discount: '-%30',
-          storeName: storeName,
-        ),
-        Product(
-          name: 'حزام جلد طبيعي',
-          category: 'إكسسوارات',
-          price: 95,
-          originalPrice: 140,
-          rating: 3.5,
-          imageUrl: 'https://images.unsplash.com/photo-1614165939016-566b69ce5d77?auto=format&fit=crop&q=60&w=300',
-          discount: '-%32',
-          storeName: storeName,
+          storeName: storeNameKey,
         ),
       ];
     }
     // 4. بوتيك الموضة (Casual/Streetwear Men)
-    if (storeName.contains('الموضة')) {
+    if (storeNameKey == 'store_fashion') {
       return [
         Product(
-          name: 'جاكيت جينز عصري',
-          category: 'جاكيت',
+          name: 'prod_casual_shirt',
+          category: 'cat_shirt',
           price: 220,
           originalPrice: 300,
           rating: 4.7,
           imageUrl: 'https://images.unsplash.com/photo-1551537482-f2075a1d41f2?auto=format&fit=crop&q=80&w=400',
           discount: '-%25',
-          storeName: storeName,
+          storeName: storeNameKey,
         ),
         Product(
-          name: 'تيشيرت مطبوع',
-          category: 'قميص',
-          price: 85,
-          originalPrice: 120,
-          rating: 4.6,
-          imageUrl: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&q=80&w=400',
-          discount: '-%30',
-          storeName: storeName,
-        ),
-        Product(
-          name: 'حذاء سنيكرز أنيق',
-          category: 'حذاء',
+          name: 'prod_sport_sneakers',
+          category: 'cat_shoe',
           price: 195,
           originalPrice: 280,
           rating: 4.8,
           imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=400',
           discount: '-%30',
-          storeName: storeName,
-        ),
-        Product(
-          name: 'هودي قطني مريح',
-          category: 'قميص',
-          price: 145,
-          originalPrice: 210,
-          rating: 4.7,
-          imageUrl: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&q=80&w=400',
-          discount: '-%31',
-          storeName: storeName,
-        ),
-        Product(
-          name: 'قبعة بيسبول عصرية',
-          category: 'إكسسوارات',
-          price: 55,
-          originalPrice: 80,
-          rating: 4.5,
-          imageUrl: 'https://images.unsplash.com/photo-1521369909029-2afed882baee?auto=format&fit=crop&q=60&w=300',
-          discount: '-%31',
-          storeName: storeName,
-        ),
-        Product(
-          name: 'شورت كاجوال مريح',
-          category: 'بنطال',
-          price: 110,
-          originalPrice: 160,
-          rating: 4.6,
-          imageUrl: 'https://images.unsplash.com/photo-1591195853828-11db59a44f6b?auto=format&fit=crop&q=80&w=400',
-          discount: '-%31',
-          storeName: storeName,
+          storeName: storeNameKey,
         ),
       ];
     }
     // 5. عالم الأطفال
-    if (storeCat.contains('أطفال')) {
+    if (storeNameKey == 'store_kids') {
       return [
         Product(
-          name: 'طقم رياضي للأطفال',
-          category: 'أخرى',
+          name: 'prod_baby_set',
+          category: 'cat_other',
           price: 110,
           originalPrice: 160,
           rating: 4.9,
           imageUrl: 'https://images.unsplash.com/photo-1519457431373-ca7a72bb9c9a?auto=format&fit=crop&q=80&w=400',
           discount: '-%30',
-          storeName: storeName,
+          storeName: storeNameKey,
         ),
         Product(
-          name: 'فستان بناتي وردي',
-          category: 'فستان',
+          name: 'prod_girl_dress',
+          category: 'cat_dress',
           price: 95,
           originalPrice: 140,
           rating: 4.8,
           imageUrl: 'https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?auto=format&fit=crop&q=80&w=400',
           discount: '-%32',
-          storeName: storeName,
-        ),
-        Product(
-          name: 'حقيبة ظهر مدرسية',
-          category: 'إكسسوارات',
-          price: 75,
-          originalPrice: 110,
-          rating: 4.7,
-          imageUrl: 'https://images.unsplash.com/photo-1587585520892-0b2f51f156d6?auto=format&fit=crop&q=80&w=400',
-          discount: '-%30',
-          storeName: storeName,
-        ),
-        Product(
-          name: 'بيجامة نوم مريحة',
-          category: 'أخرى',
-          price: 65,
-          originalPrice: 100,
-          rating: 4.8,
-          imageUrl: 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&q=80&w=400',
-          discount: '-%35',
-          storeName: storeName,
-        ),
-        Product(
-          name: 'حذاء رياضي ملون',
-          category: 'حذاء',
-          price: 125,
-          originalPrice: 180,
-          rating: 4.7,
-          imageUrl: 'https://images.unsplash.com/photo-1514989940723-e8e51635b782?auto=format&fit=crop&q=80&w=400',
-          discount: '-%30',
-          storeName: storeName,
-        ),
-        Product(
-          name: 'لعبة دب قطني',
-          category: 'أخرى',
-          price: 45,
-          originalPrice: 70,
-          rating: 4.9,
-          imageUrl: 'https://images.unsplash.com/photo-1559410123921-21ca2b065f1f?auto=format&fit=crop&q=80&w=400',
-          discount: '-%35',
-          storeName: storeName,
+          storeName: storeNameKey,
         ),
       ];
     }
-    // 6. توب فاشن (Winter Items)
-    if (storeCat.contains('شتوية')) {
+    // 6. توب فاشن
+    if (storeNameKey == 'store_top') {
       return [
         Product(
-          name: 'معطف صوف شتوي',
-          category: 'جاكيت',
-          price: 380,
-          originalPrice: 550,
-          rating: 4.9,
-          imageUrl: 'https://images.unsplash.com/photo-1544022613-e87ca75a784a?auto=format&fit=crop&q=60&w=300',
-          discount: '-%30',
-          storeName: storeName,
-        ),
-        Product(
-          name: 'كنزة صوفية سميكة',
-          category: 'قميص',
-          price: 155,
-          originalPrice: 220,
-          rating: 4.8,
-          imageUrl: 'https://images.unsplash.com/photo-1520638029751-09017ae247f9?auto=format&fit=crop&q=60&w=300',
-          discount: '-%30',
-          storeName: storeName,
-        ),
-        Product(
-          name: 'بلوفر هاي كول',
-          category: 'قميص',
-          price: 130,
-          originalPrice: 190,
-          rating: 4.8,
-          imageUrl: 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?auto=format&fit=crop&q=60&w=300',
-          discount: '-%30',
-          storeName: storeName,
-        ),
-        Product(
-          name: 'بوت شتوي ووتربرووف',
-          category: 'حذاء',
+          name: 'prod_winter_boots',
+          category: 'cat_shoe',
           price: 245,
           originalPrice: 350,
           rating: 4.8,
           imageUrl: 'https://images.unsplash.com/photo-1608256246200-53e635b5b65f?auto=format&fit=crop&q=60&w=300',
           discount: '-%30',
-          storeName: storeName,
+          storeName: storeNameKey,
         ),
         Product(
-          name: 'وشاح صوفي دافئ',
-          category: 'إكسسوارات',
-          price: 75,
-          originalPrice: 110,
-          rating: 4.7,
-          imageUrl: 'https://images.unsplash.com/photo-1520903074185-8eca362b3dce?auto=format&fit=crop&q=60&w=300',
-          discount: '-%32',
-          storeName: storeName,
-        ),
-        Product(
-          name: 'جاكيت مبطن فاخر',
-          category: 'جاكيت',
+          name: 'prod_long_coat',
+          category: 'cat_other',
           price: 420,
           originalPrice: 600,
           rating: 4.9,
           imageUrl: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&q=60&w=300',
           discount: '-%30',
-          storeName: storeName,
+          storeName: storeNameKey,
         ),
       ];
     }
-    // Fallback default
-    return [
-      Product(
-        name: 'منتج عصري',
-        category: 'أخرى',
-        price: 100,
-        originalPrice: 150,
-        rating: 4.5,
-        imageUrl: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=80&w=400',
-        discount: '-%33',
-        storeName: storeName,
-      ),
-    ];
+    return [];
   }
 
   List<String> _getStoreTags() {
-    // Dynamically get unique categories from the store's products
-    return _allProducts.map((p) => p.category).toSet().toList();
+    return ['cat_all', ..._allProducts.map((p) => p.category).toSet().toList()];
   }
 
   List<Product> get _filteredProducts {
-    return _allProducts.where((p) {
-      bool catMatch = _selectedCategory == 'الكل' || p.category == _selectedCategory;
-      bool priceMatch = p.price >= _priceRange.start && p.price <= _priceRange.end;
-      
+    List<Product> filtered = _allProducts;
+    if (_selectedCategory != 'cat_all') {
+      filtered = filtered.where((p) => p.category == _selectedCategory).toList();
+    }
+    filtered = filtered.where((p) => p.price >= _priceRange.start && p.price <= _priceRange.end).toList();
+    if (_selectedRating != 'all_ratings') {
       double minRating = 0;
-      if (_selectedRating == '4.5+ نجوم') {
-        minRating = 4.5;
-      } else if (_selectedRating == '4.0+ نجوم') {
-        minRating = 4.0;
-      } else if (_selectedRating == '3.5+ نجوم') {
-        minRating = 3.5;
-      }
-      bool ratingMatch = p.rating >= minRating;
-
-      return catMatch && priceMatch && ratingMatch;
-    }).toList();
+      if (_selectedRating == 'rating_4_5') minRating = 4.5;
+      else if (_selectedRating == 'rating_4_0') minRating = 4.0;
+      else if (_selectedRating == 'rating_3_5') minRating = 3.5;
+      filtered = filtered.where((p) => p.rating >= minRating).toList();
+    }
+    return filtered;
   }
 
   @override
@@ -502,55 +318,64 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Store Header Banner
                 _buildStoreHeader(),
-                
                 const SizedBox(height: 32),
-                
-                // Main Content (Products and Filters)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Right Side: Filtering (Desktop-like layout as shown in screenshot)
                       Expanded(
                         flex: 1,
                         child: _buildFilterSidebar(),
                       ),
-                      
                       const SizedBox(width: 24),
-
-                      // Left Side: Product List
                       Expanded(
                         flex: 2,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'المنتجات (${_filteredProducts.length})',
+                              context.tr('products'),
                               style: GoogleFonts.cairo(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
                             ),
+                            Text('${_filteredProducts.length} ${context.tr('products')}', style: GoogleFonts.cairo(fontSize: 14, color: Colors.white54)),
                             const SizedBox(height: 16),
-                            // Products Grid
-                            GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                mainAxisSpacing: 16,
-                                crossAxisSpacing: 16,
-                                mainAxisExtent: 280,
-                              ),
-                              itemCount: _filteredProducts.length,
-                              itemBuilder: (context, index) {
-                                return _buildProductCard(_filteredProducts[index]);
-                              },
-                            ),
+                            _filteredProducts.isEmpty 
+                              ? Center(
+                                  child: Column(
+                                    children: [
+                                      Text(context.tr('no_orders_filter'), style: GoogleFonts.cairo(fontSize: 18, color: Colors.white70)),
+                                      const SizedBox(height: 12),
+                                      TextButton(
+                                        onPressed: () => setState(() {
+                                          _selectedCategory = 'cat_all';
+                                          _selectedRating = 'all_ratings';
+                                          _priceRange = const RangeValues(0, 1500);
+                                        }),
+                                        child: Text(context.tr('view_all_orders'), style: GoogleFonts.cairo(color: Colors.blueAccent)),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : GridView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 3,
+                                    mainAxisSpacing: 12,
+                                    crossAxisSpacing: 12,
+                                    mainAxisExtent: 190,
+                                  ),
+                                  itemCount: _filteredProducts.length,
+                                  itemBuilder: (context, index) {
+                                    return _buildProductCard(_filteredProducts[index]);
+                                  },
+                                ),
                           ],
                         ),
                       ),
@@ -570,7 +395,6 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        // Banner Image
         Container(
           height: 220,
           width: double.infinity,
@@ -581,7 +405,6 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
             ),
           ),
         ),
-        // Back Button
         Positioned(
           top: 16,
           right: 16,
@@ -593,7 +416,6 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
             ),
           ),
         ),
-        // Store Info Overlay Card (matching the style in screenshots)
         Positioned(
           bottom: -20,
           left: 20,
@@ -700,7 +522,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'تصفية المنتجات',
+            context.tr('filter_products'),
             style: GoogleFonts.cairo(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
           ),
           const SizedBox(height: 24),
@@ -736,7 +558,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
           _buildModernDropdown(
             value: _selectedRating,
             items: ['جميع التقييمات', '4.5+ نجوم', '4.0+ نجوم', '3.5+ نجوم'],
-            onChanged: (val) => setState(() => _selectedRating = val!),
+            onChanged: (val) => setState(() => _selectedRating = val == context.tr('rating_4_5') ? 'rating_4_5' : val == context.tr('rating_4_0') ? 'rating_4_0' : val == context.tr('rating_3_5') ? 'rating_3_5' : 'all_ratings'),
           ),
         ],
       ),
