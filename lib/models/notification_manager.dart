@@ -7,12 +7,23 @@ class NotificationManager extends ChangeNotifier {
   NotificationManager._internal();
 
   final List<NotificationItem> _notifications = [];
+  bool _notificationsEnabled = true;
+
+  bool get notificationsEnabled => _notificationsEnabled;
+
+  void setNotificationsEnabled(bool value) {
+    if (_notificationsEnabled != value) {
+      _notificationsEnabled = value;
+      notifyListeners();
+    }
+  }
 
   List<NotificationItem> get notifications => List.unmodifiable(_notifications);
 
   int get unreadCount => _notifications.where((n) => !n.isRead).length;
 
   void addNotification(NotificationItem notification) {
+    if (!_notificationsEnabled) return; // Block if notifications disabled
     _notifications.insert(0, notification);
     notifyListeners();
   }

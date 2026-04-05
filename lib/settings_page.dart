@@ -9,6 +9,7 @@ import 'wallet_screen.dart';
 import 'models/wallet_manager.dart';
 import 'locale/app_locale.dart';
 import 'l10n/app_strings.dart';
+import 'login_screen.dart';
 
 class SettingsPage extends StatefulWidget {
   final VoidCallback onBrowseStores;
@@ -21,6 +22,8 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   bool notificationsEnabled = true;
+
+  final NotificationManager _notifManager = NotificationManager();
 
   late final TextEditingController _fullName;
   late final TextEditingController _email;
@@ -320,8 +323,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         ],
                       ),
                       Switch(
-                        value: notificationsEnabled,
-                        onChanged: (val) => setState(() => notificationsEnabled = val),
+                        value: _notifManager.notificationsEnabled,
+                        onChanged: (val) => _notifManager.setNotificationsEnabled(val),
                         activeColor: const Color(0xFF3B82F6),
                       ),
                     ],
@@ -393,7 +396,32 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   ElevatedButton.icon(
                     onPressed: () {
-                      // Handled in main navigation or state
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          backgroundColor: const Color(0xFF121E36),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          title: Text(context.tr('logout'), style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold)),
+                          content: Text(context.tr('logout_desc'), style: GoogleFonts.cairo(color: Colors.white70)),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: Text(context.tr('cancel'), style: GoogleFonts.cairo(color: Colors.white54)),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                Navigator.of(context).pushAndRemoveUntil(
+                                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                                  (route) => false,
+                                );
+                              },
+                              child: Text(context.tr('logout_btn'), style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      );
                     },
                     icon: const Icon(Icons.exit_to_app, color: Colors.white, size: 20),
                     label: Text(context.tr('logout_btn'), style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold)),
