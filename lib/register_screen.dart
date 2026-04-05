@@ -151,12 +151,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => HomeScreen(
-                                  onLogout: () => Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => const LoginScreen()),
-                                  ),
-                                ),
+                                builder: (context) => const HomeScreen(),
                               ),
                             );
                           },

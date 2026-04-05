@@ -89,6 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   List<Map<String, dynamic>> get _filteredStores {
+    List<Map<String, dynamic>> filtered = _stores.where((store) {
       final translatedName = context.tr(store['name']).toLowerCase();
       final nameMatches = translatedName.contains(_searchQuery.toLowerCase());
       
@@ -162,7 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
         date: DateTime.now(),
         items: items,
         totalPrice: total,
-        status: 'قيد الانتظار',
+        status: 'status_pending',
       ),
     );
     setState(() => _selectedIndex = 3);

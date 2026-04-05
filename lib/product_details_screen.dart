@@ -128,7 +128,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                widget.product.name,
+                context.tr(widget.product.name),
                 style: GoogleFonts.cairo(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,

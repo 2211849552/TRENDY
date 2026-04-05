@@ -79,7 +79,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           onTap: () => Navigator.pop(context),
           child: Row(
             children: [
-              Icon(context.isRtl ? Icons.arrow_forward_ios_rounded : Icons.arrow_back_ios_rounded, color: Colors.white70, size: 16),
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: Icon(
+                  context.isRtl ? Icons.arrow_forward_ios_rounded : Icons.arrow_back_ios_rounded,
+                  color: Colors.white70,
+                  size: 16,
+                ),
+              ),
               const SizedBox(width: 4),
               Text(
                 context.tr('back'),

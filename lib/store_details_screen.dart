@@ -171,6 +171,26 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
           discount: '-%30',
           storeName: storeNameKey,
         ),
+        Product(
+          name: 'prod_silk_robe',
+          category: 'cat_dress',
+          price: 250,
+          originalPrice: 350,
+          rating: 4.8,
+          imageUrl: 'https://images.unsplash.com/photo-1549444145-28564a51e605?auto=format&fit=crop&q=80&w=400',
+          discount: null,
+          storeName: storeNameKey,
+        ),
+        Product(
+          name: 'prod_diamond_earrings',
+          category: 'cat_accessories',
+          price: 1200,
+          originalPrice: 1500,
+          rating: 5.0,
+          imageUrl: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&q=80&w=400',
+          discount: '-%20',
+          storeName: storeNameKey,
+        ),
       ];
     }
     // 3. الرجل الأنيق (Formal Men)
@@ -207,6 +227,36 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
           discount: '-%30',
           storeName: storeNameKey,
         ),
+        Product(
+          name: 'prod_cufflinks',
+          category: 'cat_accessories',
+          price: 85,
+          originalPrice: 120,
+          rating: 4.5,
+          imageUrl: 'https://images.unsplash.com/photo-1620023440733-1466def565f4?auto=format&fit=crop&q=80&w=400',
+          discount: '-%29',
+          storeName: storeNameKey,
+        ),
+        Product(
+          name: 'prod_formal_watch',
+          category: 'cat_accessories',
+          price: 650,
+          originalPrice: 900,
+          rating: 4.9,
+          imageUrl: 'https://images.unsplash.com/photo-1524592094714-0f0654e20314?auto=format&fit=crop&q=80&w=400',
+          discount: '-%27',
+          storeName: storeNameKey,
+        ),
+        Product(
+          name: 'prod_wool_coat',
+          category: 'cat_other',
+          price: 450,
+          originalPrice: 650,
+          rating: 4.7,
+          imageUrl: 'https://images.unsplash.com/photo-1548883354-7622d03aca27?auto=format&fit=crop&q=80&w=400',
+          discount: '-%30',
+          storeName: storeNameKey,
+        ),
       ];
     }
     // 4. بوتيك الموضة (Casual/Streetwear Men)
@@ -231,6 +281,47 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
           imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=400',
           discount: '-%30',
           storeName: storeNameKey,
+        ),
+        Product(
+          name: 'prod_leather_belt',
+          category: 'cat_accessories',
+          price: 110,
+          originalPrice: 150,
+          rating: 4.6,
+          imageUrl: 'https://images.unsplash.com/photo-1624222247344-550fb60583dc?auto=format&fit=crop&q=80&w=400',
+          discount: '-%26',
+          storeName: storeNameKey,
+        ),
+        Product(
+          name: 'prod_cotton_tshirt',
+          category: 'cat_shirt',
+          price: 85,
+          originalPrice: null,
+          rating: 4.5,
+          imageUrl: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&q=80&w=400',
+          discount: null,
+          storeName: storeNameKey,
+        ),
+        Product(
+          name: 'prod_winter_jacket',
+          category: 'cat_other',
+          price: 320,
+          originalPrice: 450,
+          rating: 4.8,
+          imageUrl: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&q=80&w=400',
+          discount: '-%28',
+          storeName: storeNameKey,
+        ),
+        Product(
+          name: 'prod_slim_denim',
+          category: 'cat_other',
+          price: 180,
+          originalPrice: 240,
+          rating: 4.7,
+          imageUrl: 'https://images.unsplash.com/photo-1542272604-780c8d197621?auto=format&fit=crop&q=80&w=400',
+          discount: '-%25',
+          storeName: storeNameKey,
+          isOutOfStock: true,
         ),
       ];
     }
@@ -257,6 +348,46 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
           discount: '-%32',
           storeName: storeNameKey,
         ),
+        Product(
+          name: 'prod_kids_pajamas',
+          category: 'cat_other',
+          price: 65,
+          originalPrice: 90,
+          rating: 4.7,
+          imageUrl: 'https://images.unsplash.com/photo-1519241047957-be31d7379a5d?auto=format&fit=crop&q=80&w=400',
+          discount: '-%27',
+          storeName: storeNameKey,
+        ),
+        Product(
+          name: 'prod_school_bag',
+          category: 'cat_accessories',
+          price: 120,
+          originalPrice: 160,
+          rating: 4.6,
+          imageUrl: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&q=80&w=400',
+          discount: '-%25',
+          storeName: storeNameKey,
+        ),
+        Product(
+          name: 'prod_kids_toys',
+          category: 'cat_other',
+          price: 85,
+          originalPrice: null,
+          rating: 4.8,
+          imageUrl: 'https://images.unsplash.com/photo-1536640712-4d4c36ef0ee1?auto=format&fit=crop&q=80&w=400',
+          discount: null,
+          storeName: storeNameKey,
+        ),
+        Product(
+          name: 'prod_baby_shampoo',
+          category: 'cat_other',
+          price: 35,
+          originalPrice: 50,
+          rating: 4.9,
+          imageUrl: 'https://images.unsplash.com/photo-1583161099650-8bfa8314e365?auto=format&fit=crop&q=80&w=400',
+          discount: '-%30',
+          storeName: storeNameKey,
+        ),
       ];
     }
     // 6. توب فاشن
@@ -280,6 +411,46 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
           rating: 4.9,
           imageUrl: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&q=60&w=300',
           discount: '-%30',
+          storeName: storeNameKey,
+        ),
+        Product(
+          name: 'prod_woolen_hat',
+          category: 'cat_accessories',
+          price: 45,
+          originalPrice: 60,
+          rating: 4.5,
+          imageUrl: 'https://images.unsplash.com/photo-1576871337622-98d48d1cf531?auto=format&fit=crop&q=80&w=400',
+          discount: '-%25',
+          storeName: storeNameKey,
+        ),
+        Product(
+          name: 'prod_thermal_gloves',
+          category: 'cat_accessories',
+          price: 55,
+          originalPrice: 80,
+          rating: 4.6,
+          imageUrl: 'https://images.unsplash.com/photo-1544498308-620ce91079fa?auto=format&fit=crop&q=80&w=400',
+          discount: '-%31',
+          storeName: storeNameKey,
+        ),
+        Product(
+          name: 'prod_knitted_sweater',
+          category: 'cat_shirt',
+          price: 180,
+          originalPrice: 240,
+          rating: 4.8,
+          imageUrl: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&q=80&w=400',
+          discount: '-%25',
+          storeName: storeNameKey,
+        ),
+        Product(
+          name: 'prod_fleece_hoodie',
+          category: 'cat_shirt',
+          price: 140,
+          originalPrice: null,
+          rating: 4.7,
+          imageUrl: 'https://images.unsplash.com/photo-1556821840-7e48b8b9dc1e?auto=format&fit=crop&q=80&w=400',
+          discount: null,
           storeName: storeNameKey,
         ),
       ];
@@ -436,7 +607,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      widget.storeName,
+                      context.tr(widget.storeName),
                       style: GoogleFonts.cairo(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -451,7 +622,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          'عروض خاصة',
+                          context.tr('special_offers'),
                           style: GoogleFonts.cairo(color: Colors.pinkAccent, fontSize: 12, fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -473,10 +644,10 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                   children: [
                     const Icon(Icons.location_on_outlined, color: Colors.white54, size: 16),
                     const SizedBox(width: 4),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'طرابلس، شارع الجمهورية',
-                        style: TextStyle(color: Colors.white54, fontSize: 13),
+                        context.tr('store_address'),
+                        style: const TextStyle(color: Colors.white54, fontSize: 13),
                       ),
                     ),
                   ],
@@ -485,7 +656,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                 // Tags
                 Row(
                   children: [
-                    const Text('التصنيفات:', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 12)),
+                    Text(context.tr('categories_label'), style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 12)),
                     const SizedBox(width: 10),
                     ..._getStoreTags().map((tag) => _buildTag(tag)),
                   ],
@@ -528,18 +699,19 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
           const SizedBox(height: 24),
           
           // Category Select
-          _buildFilterLabel('تصنيف حسب الفئة'),
+          _buildFilterLabel(context.tr('filter_category') ?? 'تصنيف حسب الفئة'),
           const SizedBox(height: 12),
           _buildModernDropdown(
             value: _selectedCategory,
-            items: ['الكل', ..._getStoreTags()],
+            itemKeys: _getStoreTags(),
+            labelForKey: (k) => context.tr(k),
             onChanged: (val) => setState(() => _selectedCategory = val!),
           ),
           
           const SizedBox(height: 24),
           
           // Price Range
-          _buildFilterLabel('نطاق السعر: ${_priceRange.start.toInt()} - ${_priceRange.end.toInt()} د.ل'),
+          _buildFilterLabel('${context.tr('price_range')} ${_priceRange.start.toInt()} - ${_priceRange.end.toInt()}${context.tr('currency_suffix')}'),
           const SizedBox(height: 8),
           RangeSlider(
             values: _priceRange,
@@ -553,12 +725,13 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
           const SizedBox(height: 24),
           
           // Rating Select
-          _buildFilterLabel('التقييم'),
+          _buildFilterLabel(context.tr('rating') ?? 'التقييم'),
           const SizedBox(height: 12),
           _buildModernDropdown(
             value: _selectedRating,
-            items: ['جميع التقييمات', '4.5+ نجوم', '4.0+ نجوم', '3.5+ نجوم'],
-            onChanged: (val) => setState(() => _selectedRating = val == context.tr('rating_4_5') ? 'rating_4_5' : val == context.tr('rating_4_0') ? 'rating_4_0' : val == context.tr('rating_3_5') ? 'rating_3_5' : 'all_ratings'),
+            itemKeys: const ['all_ratings', 'rating_4_5', 'rating_4_0', 'rating_3_5'],
+            labelForKey: (k) => context.tr(k),
+            onChanged: (val) => setState(() => _selectedRating = val!),
           ),
         ],
       ),
@@ -649,7 +822,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(8)),
-                            child: const Text('نفدت الكمية', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                            child: Text(context.tr('out_of_stock'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                           ),
                         ),
                       ),
@@ -662,9 +835,9 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(p.category, style: const TextStyle(color: Colors.white30, fontSize: 10)),
+                  Text(context.tr(p.category), style: const TextStyle(color: Colors.white30, fontSize: 10)),
                   const SizedBox(height: 4),
-                  Text(p.name, style: GoogleFonts.cairo(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(context.tr(p.name), style: GoogleFonts.cairo(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -676,10 +849,10 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Text('${p.price} د.ل', style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 14)),
+                      Text('${p.price}${context.tr('currency_suffix')}', style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 14)),
                       const SizedBox(width: 8),
                       if (p.originalPrice != null)
-                        Text('${p.originalPrice} د.ل', style: const TextStyle(color: Colors.white24, fontSize: 11, decoration: TextDecoration.lineThrough)),
+                        Text('${p.originalPrice}${context.tr('currency_suffix')}', style: const TextStyle(color: Colors.white24, fontSize: 11, decoration: TextDecoration.lineThrough)),
                     ],
                   ),
                 ],
@@ -693,7 +866,8 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
 
   Widget _buildModernDropdown({
     required String value,
-    required List<String> items,
+    required List<String> itemKeys,
+    required String Function(String key) labelForKey,
     required void Function(String?) onChanged,
   }) {
     return Container(
@@ -710,10 +884,10 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
           icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white54, size: 18),
           isExpanded: true,
           style: GoogleFonts.cairo(color: Colors.white, fontSize: 13),
-          items: items
-              .map((item) => DropdownMenuItem(
-                    value: item,
-                    child: Text(item),
+          items: itemKeys
+              .map((key) => DropdownMenuItem(
+                    value: key,
+                    child: Text(labelForKey(key)),
                   ))
               .toList(),
           onChanged: onChanged,

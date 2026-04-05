@@ -42,7 +42,7 @@ class OrdersManager extends ChangeNotifier {
       _orders[i] = _orders[i].copyWith(status: newStatus);
 
       // Trigger notification based on status
-      if (newStatus == 'جاهز للاستلام') {
+      if (newStatus == 'status_ready') {
         NotificationManager().addNotification(
           NotificationItem(
             id: 'order_ready_${orderId}',
@@ -60,7 +60,7 @@ class OrdersManager extends ChangeNotifier {
 
   bool canCheckoutFromStore(String storeName) {
     // Orders that are not delivered yet are considered active
-    final activeOrders = _orders.where((o) => o.status != 'تم التوصيل');
+    final activeOrders = _orders.where((o) => o.status != 'status_delivered');
     
     // If there is an active order from a DIFFERENT store, prevent checkout
     for (final order in activeOrders) {

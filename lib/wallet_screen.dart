@@ -94,10 +94,13 @@ class _WalletScreenState extends State<WalletScreen> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                context.isRtl ? Icons.arrow_forward_ios_rounded : Icons.arrow_back_ios_rounded,
-                color: Colors.white70,
-                size: 16,
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: Icon(
+                  context.isRtl ? Icons.arrow_forward_ios_rounded : Icons.arrow_back_ios_rounded,
+                  color: Colors.white70,
+                  size: 16,
+                ),
               ),
               const SizedBox(width: 4),
               Text(
@@ -530,14 +533,37 @@ class _SadadTopUpDialogState extends State<_SadadTopUpDialog> {
                   context: context,
                   controller: _phone,
                   hint: context.tr('sadad_phone'),
-                  keyboardType: TextInputType.phone,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 ),
                 const SizedBox(height: 16),
                 _sadadField(
                   context: context,
                   controller: _birthYear,
                   hint: context.tr('sadad_year'),
-                  keyboardType: TextInputType.number,
+                  readOnly: true,
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime(2000),
+                      firstDate: DateTime(1920),
+                      lastDate: DateTime.now(),
+                      builder: (context, child) {
+                        return Theme(
+                          data: Theme.of(context).copyWith(
+                            colorScheme: const ColorScheme.dark(
+                              primary: Color(0xFF3B82F6),
+                              surface: Color(0xFF121E36),
+                            ),
+                          ),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (date != null) {
+                      _birthYear.text = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+                    }
+                  },
                 ),
                 const SizedBox(height: 16),
                 _sadadField(
@@ -545,6 +571,7 @@ class _SadadTopUpDialogState extends State<_SadadTopUpDialog> {
                   controller: _amount,
                   hint: context.tr('sadad_amount'),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
                 ),
                 const SizedBox(height: 32),
                 SizedBox(
@@ -576,10 +603,16 @@ class _SadadTopUpDialogState extends State<_SadadTopUpDialog> {
     required TextEditingController controller,
     required String hint,
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
+    bool readOnly = false,
+    VoidCallback? onTap,
   }) {
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
+      readOnly: readOnly,
+      onTap: onTap,
       textAlign: context.isRtl ? TextAlign.right : TextAlign.left,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(

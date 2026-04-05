@@ -419,18 +419,12 @@ class _SettingsPageState extends State<SettingsPage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        TextButton.icon(
-          onPressed: widget.onBrowseStores,
-          icon: Icon(
-            context.isRtl ? Icons.arrow_forward_ios_rounded : Icons.arrow_back_ios_rounded,
-            color: Colors.white70,
-            size: 16,
+        CircleAvatar(
+          backgroundColor: Colors.black38,
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: widget.onBrowseStores,
           ),
-          label: Text(
-            context.tr('back'),
-            style: const TextStyle(color: Colors.white70, fontSize: 16),
-          ),
-          style: TextButton.styleFrom(padding: EdgeInsets.zero),
         ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

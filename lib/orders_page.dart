@@ -138,6 +138,12 @@ class _OrdersPageState extends State<OrdersPage> {
             ),
           ),
         );
+
+
+
+
+
+
       },
     );
   }
@@ -177,14 +183,12 @@ class _OrdersPageState extends State<OrdersPage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        TextButton.icon(
-          onPressed: widget.onBrowseStores,
-          icon: const Icon(Icons.arrow_back, color: Colors.white70, size: 18),
-          label: Text(
-            context.tr('back'),
-            style: const TextStyle(color: Colors.white70, fontSize: 16),
+        CircleAvatar(
+          backgroundColor: Colors.black38,
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: widget.onBrowseStores,
           ),
-          style: TextButton.styleFrom(padding: EdgeInsets.zero),
         ),
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -359,7 +363,7 @@ class _OrdersPageState extends State<OrdersPage> {
                 style: GoogleFonts.cairo(fontSize: 16, color: Colors.white70),
               ),
               Text(
-                '${order.totalPrice.toStringAsFixed(0)} د.ل',
+                '${order.totalPrice.toStringAsFixed(0)}${context.tr('currency_suffix')}',
                 style: GoogleFonts.cairo(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -373,13 +377,13 @@ class _OrdersPageState extends State<OrdersPage> {
             children: [
               Expanded(
                 child: ElevatedButton(
-                  onPressed: order.status == 'قيد الانتظار' 
+                  onPressed: order.status == 'status_pending' 
                       ? () => _simulateReady(order)
-                      : order.status == 'جاهز للاستلام'
-                          ? () => _ordersManager.updateOrderStatus(order.id, 'تم التوصيل')
+                      : order.status == 'status_ready'
+                          ? () => _ordersManager.updateOrderStatus(order.id, 'status_delivered')
                           : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: order.status == 'جاهز للاستلام' ? Colors.green : const Color(0xFF2563EB),
+                    backgroundColor: order.status == 'status_ready' ? Colors.green : const Color(0xFF2563EB),
                     foregroundColor: Colors.white,
                     disabledBackgroundColor: Colors.white10,
                     disabledForegroundColor: Colors.white38,

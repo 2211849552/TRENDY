@@ -191,12 +191,7 @@ class LoginScreen extends StatelessWidget {
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => HomeScreen(
-                                  onLogout: () => Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => const LoginScreen()),
-                                  ),
-                                ),
+                                builder: (context) => const HomeScreen(),
                               ),
                             );
                           },
@@ -229,13 +224,7 @@ class LoginScreen extends StatelessWidget {
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => HomeScreen(
-                                  isGuest: true,
-                                  onLogout: () => Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => const LoginScreen()),
-                                  ),
-                                ),
+                                builder: (context) => const HomeScreen(isGuest: true),
                               ),
                             );
                           },

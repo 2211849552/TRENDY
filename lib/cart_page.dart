@@ -89,18 +89,12 @@ class _CartPageState extends State<CartPage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        TextButton.icon(
-          onPressed: widget.onBrowseStores,
-          icon: Icon(
-            context.isRtl ? Icons.arrow_forward : Icons.arrow_back,
-            color: Colors.white70,
-            size: 18,
+        CircleAvatar(
+          backgroundColor: Colors.black38,
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: widget.onBrowseStores,
           ),
-          label: Text(
-            context.tr('back'),
-            style: const TextStyle(color: Colors.white70, fontSize: 16),
-          ),
-          style: TextButton.styleFrom(padding: EdgeInsets.zero),
         ),
         Text(
           context.tr('cart_title'),
@@ -147,7 +141,7 @@ class _CartPageState extends State<CartPage> {
                   labelColor: Colors.white,
                   unselectedLabelColor: Colors.white54,
                   labelStyle: GoogleFonts.cairo(fontWeight: FontWeight.bold),
-                  tabs: storeNames.map((name) => Tab(text: name)).toList(),
+                  tabs: storeNames.map((name) => Tab(text: context.tr(name))).toList(),
                 ),
                 const SizedBox(height: 16),
                 Expanded(

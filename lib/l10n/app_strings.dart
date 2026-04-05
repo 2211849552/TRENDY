@@ -263,6 +263,10 @@ class AppStrings {
       'grey': 'رمادي',
       'multi_store_warning': 'لديك منتجات من متاجر مختلفة. يرجى إتمام الشراء لكل متجر على حدة.',
       'multi_store_error': 'لا يمكنك الطلب من متجر آخر حتى تستلم طلباتك الحالية.',
+      'store_address': 'طرابلس، شارع الجمهورية',
+      'categories_label': 'التصنيفات:',
+      'price_range': 'نطاق السعر:',
+      'special_offers': 'عروض خاصة',
     },
     'en': {
       'splash_tagline': 'Fashion at your fingertips',
@@ -482,6 +486,10 @@ class AppStrings {
       'grey': 'Grey',
       'multi_store_warning': 'You have items from different stores. Please complete checkout for each store separately.',
       'multi_store_error': 'You cannot order from another store until your current orders are received.',
+      'store_address': 'Tripoli, Al-Joumhouria Street',
+      'categories_label': 'Categories:',
+      'price_range': 'Price Range:',
+      'special_offers': 'Special Offers',
     },
   };
 
