@@ -6,12 +6,13 @@ import 'l10n/app_strings.dart';
 import 'models/cart_manager.dart';
 import 'models/cart_item.dart';
 import 'models/wallet_manager.dart';
+import 'models/orders_manager.dart';
 import 'login_screen.dart';
 
 class CartPage extends StatefulWidget {
   final VoidCallback onBrowseStores;
   /// يُنفَّذ من الشاشة الأم لضمان التبديل إلى تبويب الطلبات مباشرة بعد الدفع.
-  final VoidCallback onWalletPay;
+  final void Function(String) onWalletPay;
   final bool isGuest;
 
   const CartPage({
@@ -110,6 +111,61 @@ class _CartPageState extends State<CartPage> {
   }
 
   Widget _buildCartContent() {
+    Map<String, List<CartItem>> itemsByStore = {};
+    for (var item in _cartManager.items) {
+      itemsByStore.putIfAbsent(item.product.storeName, () => []).add(item);
+    }
+    final storeNames = itemsByStore.keys.toList();
+
+    if (storeNames.length == 1) {
+      return _buildStoreCartView(storeNames.first, itemsByStore[storeNames.first]!);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E5BB3).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            context.tr('multi_store_warning'),
+            style: GoogleFonts.cairo(color: Colors.amber, fontWeight: FontWeight.bold),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Expanded(
+          child: DefaultTabController(
+            length: storeNames.length,
+            child: Column(
+              children: [
+                TabBar(
+                  isScrollable: true,
+                  indicatorColor: Colors.blueAccent,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.white54,
+                  labelStyle: GoogleFonts.cairo(fontWeight: FontWeight.bold),
+                  tabs: storeNames.map((name) => Tab(text: name)).toList(),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: TabBarView(
+                    children: storeNames.map((name) {
+                      return _buildStoreCartView(name, itemsByStore[name]!);
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStoreCartView(String storeName, List<CartItem> storeItems) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -117,9 +173,9 @@ class _CartPageState extends State<CartPage> {
         Expanded(
           flex: 2,
           child: ListView.builder(
-            itemCount: _cartManager.items.length,
+            itemCount: storeItems.length,
             itemBuilder: (context, index) {
-              return _buildCartItemCard(_cartManager.items[index]);
+              return _buildCartItemCard(storeItems[index]);
             },
           ),
         ),
@@ -127,13 +183,16 @@ class _CartPageState extends State<CartPage> {
         // Order Summary on the LEFT (shown second in RTL Row)
         Expanded(
           flex: 1,
-          child: _buildOrderSummary(),
+          child: _buildOrderSummary(storeName, storeItems),
         ),
       ],
     );
   }
 
-  Widget _buildOrderSummary() {
+  Widget _buildOrderSummary(String storeName, List<CartItem> storeItems) {
+    int totalItems = storeItems.fold(0, (sum, item) => sum + item.quantity);
+    double totalPrice = storeItems.fold(0.0, (sum, item) => sum + item.totalPrice);
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -149,11 +208,11 @@ class _CartPageState extends State<CartPage> {
             style: GoogleFonts.cairo(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
           ),
           const SizedBox(height: 32),
-          _buildSummaryRow(context.tr('cart_items_count'), '${_cartManager.totalItems}'),
+          _buildSummaryRow(context.tr('cart_items_count'), '$totalItems'),
           const SizedBox(height: 16),
           _buildSummaryRow(
             context.tr('cart_total'),
-            '${_cartManager.totalPrice}${context.tr('currency_suffix')}',
+            '$totalPrice${context.tr('currency_suffix')}',
             valueColor: Colors.blueAccent,
           ),
           const Divider(color: Colors.white10, height: 40),
@@ -181,7 +240,19 @@ class _CartPageState extends State<CartPage> {
                     (route) => false,
                   );
                 } else {
-                  widget.onWalletPay();
+                  if (!OrdersManager().canCheckoutFromStore(storeName)) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          context.tr('multi_store_error'),
+                          style: GoogleFonts.cairo(),
+                        ),
+                        backgroundColor: Colors.redAccent.shade700,
+                      ),
+                    );
+                    return;
+                  }
+                  widget.onWalletPay(storeName);
                 }
               },
               style: ElevatedButton.styleFrom(

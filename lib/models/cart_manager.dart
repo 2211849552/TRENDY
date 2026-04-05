@@ -28,10 +28,8 @@ class CartManager extends ChangeNotifier {
       // Allow quantity increment again
       _items[index].quantity += quantity;
     } else {
-      // Check if trying to add from a different store
-      if (_items.isNotEmpty && _items.first.product.storeName != product.storeName) {
-        throw Exception('لا يمكنك إضافة منتجات من متجرين مختلفين في نفس الوقت. يرجى إتمام الطلب الحالي أو تفريغ السلة.');
-      }
+      // We allow adding from different stores now
+
 
       _items.add(CartItem(
         product: product,

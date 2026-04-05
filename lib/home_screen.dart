@@ -124,9 +124,14 @@ class _HomeScreenState extends State<HomeScreen> {
     return filtered;
   }
 
-  void _onWalletCheckout() {
+  void _onWalletCheckout(String storeName) {
     if (_cartManager.items.isEmpty) return;
-    final total = _cartManager.totalPrice;
+
+    final storeItems = _cartManager.items.where((item) => item.product.storeName == storeName).toList();
+    if (storeItems.isEmpty) return;
+
+    double total = storeItems.fold(0.0, (sum, item) => sum + item.totalPrice);
+    
     final orderId = DateTime.now().millisecondsSinceEpoch.toString();
     if (!WalletManager().payOrderFromWallet(orderId: orderId, amount: total)) {
       if (!mounted) return;
@@ -141,7 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       return;
     }
-    final items = _cartManager.items
+    final items = storeItems
         .map(
           (e) => CartItem(
             product: e.product,
@@ -161,7 +166,9 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
     setState(() => _selectedIndex = 3);
-    _cartManager.clearCart();
+    for (var item in storeItems) {
+      _cartManager.removeFromCart(item);
+    }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

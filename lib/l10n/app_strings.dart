@@ -231,6 +231,8 @@ class AppStrings {
       'status_delivered': 'تم التوصيل',
       'order_hashtag': 'طلب',
       'simulate_ready': 'محاكاة: جاهز للاستلام',
+      'confirm_delivery': 'تأكيد الاستلام',
+      'order_delivered_label': 'تم الاستلام',
       'reorder': 'إعادة الطلب',
       'no_orders_filter': 'لا توجد طلبات في هذا التصنيف',
       'view_all_orders': 'عرض جميع الطلبات',
@@ -259,6 +261,8 @@ class AppStrings {
       'black': 'أسود',
       'navy': 'كحلي',
       'grey': 'رمادي',
+      'multi_store_warning': 'لديك منتجات من متاجر مختلفة. يرجى إتمام الشراء لكل متجر على حدة.',
+      'multi_store_error': 'لا يمكنك الطلب من متجر آخر حتى تستلم طلباتك الحالية.',
     },
     'en': {
       'splash_tagline': 'Fashion at your fingertips',
@@ -446,6 +450,8 @@ class AppStrings {
       'status_delivered': 'Delivered',
       'order_hashtag': 'Order',
       'simulate_ready': 'Simulate: Ready',
+      'confirm_delivery': 'Confirm Receipt',
+      'order_delivered_label': 'Received',
       'reorder': 'Reorder',
       'no_orders_filter': 'No orders in this category',
       'view_all_orders': 'View all orders',
@@ -474,6 +480,8 @@ class AppStrings {
       'black': 'Black',
       'navy': 'Navy',
       'grey': 'Grey',
+      'multi_store_warning': 'You have items from different stores. Please complete checkout for each store separately.',
+      'multi_store_error': 'You cannot order from another store until your current orders are received.',
     },
   };
 
