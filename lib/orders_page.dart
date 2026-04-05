@@ -143,6 +143,10 @@ class _OrdersPageState extends State<OrdersPage> {
     return Center(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+
+
+
+
         decoration: BoxDecoration(
           color: const Color(0xFF1E5BB3).withOpacity(0.3),
           borderRadius: BorderRadius.circular(12),
@@ -366,9 +370,13 @@ class _OrdersPageState extends State<OrdersPage> {
             children: [
               Expanded(
                 child: ElevatedButton(
-                  onPressed: order.status == 'قيد الانتظار' ? () => _simulateReady(order) : null,
+                  onPressed: order.status == 'قيد الانتظار' 
+                      ? () => _simulateReady(order)
+                      : order.status == 'جاهز للاستلام'
+                          ? () => _ordersManager.updateOrderStatus(order.id, 'تم التوصيل')
+                          : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
+                    backgroundColor: order.status == 'جاهز للاستلام' ? Colors.green : const Color(0xFF2563EB),
                     foregroundColor: Colors.white,
                     disabledBackgroundColor: Colors.white10,
                     disabledForegroundColor: Colors.white38,
@@ -376,7 +384,11 @@ class _OrdersPageState extends State<OrdersPage> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: Text(
-                    'محاكاة: جاهز للاستلام',
+                    order.status == 'قيد الانتظار' 
+                        ? 'محاكاة: جاهز للاستلام' 
+                        : order.status == 'جاهز للاستلام'
+                            ? 'تأكيد الاستلام'
+                            : 'تم الاستلام',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
