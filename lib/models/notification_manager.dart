@@ -36,6 +36,14 @@ class NotificationManager extends ChangeNotifier {
     }
   }
 
+  void toggleRead(String id) {
+    final i = _notifications.indexWhere((n) => n.id == id);
+    if (i >= 0) {
+      _notifications[i].isRead = !_notifications[i].isRead;
+      notifyListeners();
+    }
+  }
+
   void markAllAsRead() {
     bool changed = false;
     for (var n in _notifications) {
@@ -49,6 +57,11 @@ class NotificationManager extends ChangeNotifier {
 
   void clearNotifications() {
     _notifications.clear();
+    notifyListeners();
+  }
+
+  void removeNotification(String id) {
+    _notifications.removeWhere((n) => n.id == id);
     notifyListeners();
   }
 }

@@ -17,6 +17,7 @@ class FavoritesPage extends StatefulWidget {
 class _FavoritesPageState extends State<FavoritesPage> {
   final FavoritesManager _favoritesManager = FavoritesManager();
   final CartManager _cartManager = CartManager();
+  String _search = '';
 
   @override
   Widget build(BuildContext context) {
@@ -42,9 +43,22 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 
                 const SizedBox(height: 24),
                 
-                Expanded(
-                  child: isEmpty ? _buildEmptyState() : _buildFavoritesList(),
-                ),
+                if (!isEmpty) ...[
+                  TextField(
+                    onChanged: (v) => setState(() => _search = v),
+                    style: GoogleFonts.cairo(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: context.tr('search_favorites'),
+                      hintStyle: GoogleFonts.cairo(color: Colors.white30),
+                      prefixIcon: const Icon(Icons.search, color: Colors.white54),
+                      filled: true,
+                      fillColor: const Color(0xFF1E5BB3).withOpacity(0.12),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                Expanded(child: isEmpty ? _buildEmptyState() : _buildFavoritesList()),
               ],
             ),
           ),
@@ -104,10 +118,16 @@ class _FavoritesPageState extends State<FavoritesPage> {
   }
 
   Widget _buildFavoritesList() {
+    final visible = _favoritesManager.favorites.where((p) {
+      if (_search.trim().isEmpty) return true;
+      final q = _search.trim().toLowerCase();
+      return context.tr(p.name).toLowerCase().contains(q) ||
+          (p.code ?? '').toLowerCase().contains(q);
+    }).toList();
     return ListView.builder(
-      itemCount: _favoritesManager.count,
+      itemCount: visible.length,
       itemBuilder: (context, index) {
-        final product = _favoritesManager.favorites[index];
+        final product = visible[index];
         return _buildFavoriteCard(product);
       },
     );

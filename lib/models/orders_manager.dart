@@ -25,6 +25,8 @@ class OrdersManager extends ChangeNotifier {
         message: 'طلبك رقم #${order.id} قيد الانتظار حالياً.',
         timestamp: DateTime.now(),
         type: NotificationType.orderPending,
+        targetTab: 'orders',
+        targetOrderId: order.id,
       ),
     );
     
@@ -50,6 +52,8 @@ class OrdersManager extends ChangeNotifier {
             message: 'طلبك رقم #$orderId جاهز للاستلام الآن.',
             timestamp: DateTime.now(),
             type: NotificationType.orderReady,
+            targetTab: 'orders',
+            targetOrderId: orderId,
           ),
         );
       }

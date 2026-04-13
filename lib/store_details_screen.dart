@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'l10n/app_strings.dart';
-import 'locale/app_locale.dart';
 import 'models/product.dart';
+import 'models/ratings_manager.dart';
 import 'product_details_screen.dart';
 
 class StoreDetailsScreen extends StatefulWidget {
@@ -28,9 +28,13 @@ class StoreDetailsScreen extends StatefulWidget {
 }
 
 class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
+  final RatingsManager _ratingsManager = RatingsManager();
   String _selectedCategory = 'cat_all';
   RangeValues _priceRange = const RangeValues(0, 1500);
   String _selectedRating = 'all_ratings';
+  String _selectedAvailability = 'all_availability';
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
   late final List<Product> _allProducts;
 
   @override
@@ -39,12 +43,19 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
     _allProducts = _getMockProducts(widget.storeCategory, widget.storeName, widget.storeDiscount != null);
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   List<Product> _getMockProducts(String storeCat, String storeNameKey, bool hasStoreDiscount) {
     List<Product> products = _generateRawProducts(storeCat, storeNameKey);
     
     if (!hasStoreDiscount) {
       return products.map((p) => Product(
         name: p.name,
+        code: p.code ?? _buildProductCode(p.name),
         category: p.category,
         price: p.price,
         originalPrice: null,
@@ -55,7 +66,26 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
         isOutOfStock: p.isOutOfStock,
       )).toList();
     }
-    return products;
+    return products
+        .map(
+          (p) => Product(
+            name: p.name,
+            code: p.code ?? _buildProductCode(p.name),
+            category: p.category,
+            price: p.price,
+            originalPrice: p.originalPrice,
+            rating: p.rating,
+            imageUrl: p.imageUrl,
+            discount: p.discount,
+            storeName: p.storeName,
+            isOutOfStock: p.isOutOfStock,
+          ),
+        )
+        .toList();
+  }
+
+  String _buildProductCode(String key) {
+    return key.replaceFirst('prod_', '').replaceAll('_', '-').toUpperCase();
   }
 
   List<Product> _generateRawProducts(String storeCat, String storeNameKey) {
@@ -459,78 +489,149 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
   }
 
   List<String> _getStoreTags() {
-    return ['cat_all', ..._allProducts.map((p) => p.category).toSet().toList()];
+    return ['cat_all', ..._allProducts.map((p) => p.category).toSet()];
   }
 
   List<Product> get _filteredProducts {
     List<Product> filtered = _allProducts;
+
+    // Search filter (by translated name OR product code key)
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      filtered = filtered.where((p) {
+        final translatedName = context.tr(p.name).toLowerCase();
+        final codeKey = (p.code ?? p.name).toLowerCase();
+        return translatedName.contains(q) || codeKey.contains(q);
+      }).toList();
+    }
+
     if (_selectedCategory != 'cat_all') {
       filtered = filtered.where((p) => p.category == _selectedCategory).toList();
+    }
+    if (_selectedAvailability == 'status_available') {
+      filtered = filtered.where((p) => !p.isOutOfStock).toList();
+    } else if (_selectedAvailability == 'status_out_of_stock') {
+      filtered = filtered.where((p) => p.isOutOfStock).toList();
     }
     filtered = filtered.where((p) => p.price >= _priceRange.start && p.price <= _priceRange.end).toList();
     if (_selectedRating != 'all_ratings') {
       double minRating = 0;
-      if (_selectedRating == 'rating_4_5') minRating = 4.5;
-      else if (_selectedRating == 'rating_4_0') minRating = 4.0;
-      else if (_selectedRating == 'rating_3_5') minRating = 3.5;
-      filtered = filtered.where((p) => p.rating >= minRating).toList();
+      if (_selectedRating == 'rating_4_5') {
+        minRating = 4.5;
+      } else if (_selectedRating == 'rating_4_0') {
+        minRating = 4.0;
+      } else if (_selectedRating == 'rating_3_5') {
+        minRating = 3.5;
+      }
+      filtered = filtered
+          .where(
+            (p) => _ratingsManager.productRatingOrBase(p.name, p.rating) >= minRating,
+          )
+          .toList();
     }
     return filtered;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0A1931),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Directionality(
-            textDirection: TextDirection.rtl,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildStoreHeader(),
-                const SizedBox(height: 32),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 1,
-                        child: _buildFilterSidebar(),
-                      ),
-                      const SizedBox(width: 24),
-                      Expanded(
-                        flex: 2,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              context.tr('products'),
-                              style: GoogleFonts.cairo(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
+    return ListenableBuilder(
+      listenable: _ratingsManager,
+      builder: (context, _) => Scaffold(
+        backgroundColor: const Color(0xFF0A1931),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildStoreHeader(),
+                  const SizedBox(height: 32),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 1,
+                          child: _buildFilterSidebar(),
+                        ),
+                        const SizedBox(width: 24),
+                        Expanded(
+                          flex: 2,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                            // ─── Header Row ───
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Text(
+                                  context.tr('products'),
+                                  style: GoogleFonts.cairo(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                Text(
+                                  '${_filteredProducts.length} ${context.tr('products')}',
+                                  style: GoogleFonts.cairo(fontSize: 13, color: Colors.white54),
+                                ),
+                              ],
                             ),
-                            Text('${_filteredProducts.length} ${context.tr('products')}', style: GoogleFonts.cairo(fontSize: 14, color: Colors.white54)),
+                            const SizedBox(height: 14),
+
+                            // ─── Search Bar ───
+                            _buildSearchBar(),
                             const SizedBox(height: 16),
-                            _filteredProducts.isEmpty 
+
+                            // ─── Products Grid or Empty State ───
+                            _filteredProducts.isEmpty
                               ? Center(
-                                  child: Column(
-                                    children: [
-                                      Text(context.tr('no_orders_filter'), style: GoogleFonts.cairo(fontSize: 18, color: Colors.white70)),
-                                      const SizedBox(height: 12),
-                                      TextButton(
-                                        onPressed: () => setState(() {
-                                          _selectedCategory = 'cat_all';
-                                          _selectedRating = 'all_ratings';
-                                          _priceRange = const RangeValues(0, 1500);
-                                        }),
-                                        child: Text(context.tr('view_all_orders'), style: GoogleFonts.cairo(color: Colors.blueAccent)),
-                                      ),
-                                    ],
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 32),
+                                    child: Column(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(20),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.05),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(Icons.search_off_rounded, color: Colors.white30, size: 40),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          _searchQuery.isNotEmpty
+                                            ? context.tr('search_no_result')
+                                            : context.tr('no_orders_filter'),
+                                          style: GoogleFonts.cairo(fontSize: 16, color: Colors.white70, fontWeight: FontWeight.bold),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          _searchQuery.isNotEmpty
+                                            ? context.tr('search_no_result_sub')
+                                            : '',
+                                          style: GoogleFonts.cairo(fontSize: 12, color: Colors.white38),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        TextButton.icon(
+                                          onPressed: () => setState(() {
+                                            _selectedCategory = 'cat_all';
+                                            _selectedRating = 'all_ratings';
+                                            _selectedAvailability = 'all_availability';
+                                            _priceRange = const RangeValues(0, 1500);
+                                            _searchQuery = '';
+                                            _searchController.clear();
+                                          }),
+                                          icon: const Icon(Icons.refresh_rounded, color: Colors.blueAccent, size: 16),
+                                          label: Text(context.tr('view_all_orders'), style: GoogleFonts.cairo(color: Colors.blueAccent, fontSize: 13)),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 )
                               : GridView.builder(
@@ -547,14 +648,15 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                                     return _buildProductCard(_filteredProducts[index]);
                                   },
                                 ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 40),
-              ],
+                  const SizedBox(height: 40),
+                ],
+              ),
             ),
           ),
         ),
@@ -654,11 +756,14 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                 ),
                 const SizedBox(height: 16),
                 // Tags
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     Text(context.tr('categories_label'), style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 12)),
-                    const SizedBox(width: 10),
-                    ..._getStoreTags().map((tag) => _buildTag(tag)),
+                    ..._getStoreTags()
+                        .where((tag) => tag != 'cat_all')
+                        .map((tag) => _buildTag(tag)),
                   ],
                 ),
               ],
@@ -677,7 +782,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
         color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+      child: Text(context.tr(label), style: const TextStyle(color: Colors.white70, fontSize: 11)),
     );
   }
 
@@ -699,7 +804,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
           const SizedBox(height: 24),
           
           // Category Select
-          _buildFilterLabel(context.tr('filter_category') ?? 'تصنيف حسب الفئة'),
+          _buildFilterLabel(context.tr('filter_category')),
           const SizedBox(height: 12),
           _buildModernDropdown(
             value: _selectedCategory,
@@ -725,13 +830,26 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
           const SizedBox(height: 24),
           
           // Rating Select
-          _buildFilterLabel(context.tr('rating') ?? 'التقييم'),
+          _buildFilterLabel(context.tr('rating')),
           const SizedBox(height: 12),
           _buildModernDropdown(
             value: _selectedRating,
             itemKeys: const ['all_ratings', 'rating_4_5', 'rating_4_0', 'rating_3_5'],
             labelForKey: (k) => context.tr(k),
             onChanged: (val) => setState(() => _selectedRating = val!),
+          ),
+          const SizedBox(height: 24),
+          _buildFilterLabel(context.tr('filter_status')),
+          const SizedBox(height: 12),
+          _buildModernDropdown(
+            value: _selectedAvailability,
+            itemKeys: const [
+              'all_availability',
+              'status_available',
+              'status_out_of_stock',
+            ],
+            labelForKey: (k) => context.tr(k),
+            onChanged: (val) => setState(() => _selectedAvailability = val!),
           ),
         ],
       ),
@@ -843,10 +961,20 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                     children: [
                       const Icon(Icons.star, color: Colors.amber, size: 14),
                       const SizedBox(width: 4),
-                      Text('${p.rating}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                      Text(
+                        _ratingsManager
+                            .productRatingOrBase(p.name, p.rating)
+                            .toStringAsFixed(1),
+                        style: const TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
+                  Text(
+                    p.code ?? _buildProductCode(p.name),
+                    style: const TextStyle(color: Colors.white30, fontSize: 10),
+                  ),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       Text('${p.price}${context.tr('currency_suffix')}', style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 14)),
@@ -859,6 +987,59 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _searchQuery.isNotEmpty
+              ? Colors.blueAccent.withOpacity(0.6)
+              : Colors.white.withOpacity(0.1),
+          width: 1.2,
+        ),
+        boxShadow: [
+          if (_searchQuery.isNotEmpty)
+            BoxShadow(
+              color: Colors.blueAccent.withOpacity(0.15),
+              blurRadius: 12,
+              spreadRadius: 1,
+            ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        style: GoogleFonts.cairo(color: Colors.white, fontSize: 14),
+        textDirection: TextDirection.rtl,
+        onChanged: (val) => setState(() => _searchQuery = val.trim()),
+        decoration: InputDecoration(
+          hintText: context.tr('search_product'),
+          hintStyle: GoogleFonts.cairo(color: Colors.white38, fontSize: 13),
+          prefixIcon: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            child: _searchQuery.isNotEmpty
+                ? IconButton(
+                    key: const ValueKey('clear'),
+                    icon: const Icon(Icons.close_rounded, color: Colors.white54, size: 18),
+                    onPressed: () => setState(() {
+                      _searchQuery = '';
+                      _searchController.clear();
+                    }),
+                  )
+                : const Icon(
+                    key: ValueKey('search'),
+                    Icons.search_rounded,
+                    color: Colors.white38,
+                    size: 20,
+                  ),
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
       ),
     );

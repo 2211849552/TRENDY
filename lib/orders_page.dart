@@ -4,7 +4,7 @@ import 'models/cart_item.dart';
 import 'models/cart_manager.dart';
 import 'models/order.dart';
 import 'models/orders_manager.dart';
-import 'locale/app_locale.dart';
+import 'models/ratings_manager.dart';
 import 'l10n/app_strings.dart';
 
 class OrdersPage extends StatefulWidget {
@@ -19,9 +19,13 @@ class OrdersPage extends StatefulWidget {
 class _OrdersPageState extends State<OrdersPage> {
   final OrdersManager _ordersManager = OrdersManager();
   final CartManager _cartManager = CartManager();
+  final RatingsManager _ratingsManager = RatingsManager();
 
-  /// يطابق قيم `Order.status` المعروضة في القائمة المنسدلة
-  String _filterLabel = 'status_all';
+  String _statusFilter = 'status_all';
+  String _storeFilter = 'all_stores';
+  String _paymentFilter = 'all_payments';
+  String _dateFilter = 'all_dates';
+  String _orderSearch = '';
 
   String _formatDate(BuildContext context, DateTime d) {
     if (context.isRtl) {
@@ -35,10 +39,29 @@ class _OrdersPageState extends State<OrdersPage> {
   }
 
   List<Order> get _visibleOrders {
-    if (_filterLabel == 'status_all') {
-      return _ordersManager.orders;
+    final q = _orderSearch.trim().toLowerCase();
+    return _ordersManager.orders.where((o) {
+      final statusMatch = _statusFilter == 'status_all' || o.status == _statusFilter;
+      final storeMatch = _storeFilter == 'all_stores' || o.storeName == _storeFilter;
+      final paymentMatch = _paymentFilter == 'all_payments' || o.paymentMethod == _paymentFilter;
+      final searchMatch = q.isEmpty || o.id.toLowerCase().contains(q);
+      final dateMatch = _matchesDateFilter(o.date);
+      return statusMatch && storeMatch && paymentMatch && searchMatch && dateMatch;
+    }).toList();
+  }
+
+  bool _matchesDateFilter(DateTime orderDate) {
+    final now = DateTime.now();
+    final d = DateTime(orderDate.year, orderDate.month, orderDate.day);
+    final today = DateTime(now.year, now.month, now.day);
+    if (_dateFilter == 'date_today') return d == today;
+    if (_dateFilter == 'date_last_7_days') {
+      return !d.isBefore(today.subtract(const Duration(days: 6))) && !d.isAfter(today);
     }
-    return _ordersManager.orders.where((o) => o.status == _filterLabel).toList();
+    if (_dateFilter == 'date_this_month') {
+      return d.year == now.year && d.month == now.month;
+    }
+    return true;
   }
 
   Color _statusBackground(String status) {
@@ -106,7 +129,7 @@ class _OrdersPageState extends State<OrdersPage> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: _ordersManager,
+      listenable: Listenable.merge([_ordersManager, _ratingsManager]),
       builder: (context, _) {
         final isEmpty = _ordersManager.count == 0;
         final list = _visibleOrders;
@@ -124,6 +147,8 @@ class _OrdersPageState extends State<OrdersPage> {
                 _buildSubHeader(isEmpty),
                 if (!isEmpty) ...[
                   const SizedBox(height: 16),
+                  _buildOrderSearch(),
+                  const SizedBox(height: 10),
                   _buildFilterBar(),
                 ],
                 const SizedBox(height: 24),
@@ -212,30 +237,83 @@ class _OrdersPageState extends State<OrdersPage> {
     );
   }
 
+  Widget _buildOrderSearch() {
+    return TextField(
+      onChanged: (v) => setState(() => _orderSearch = v),
+      style: GoogleFonts.cairo(color: Colors.white),
+      decoration: InputDecoration(
+        hintText: context.tr('search_order_id'),
+        hintStyle: GoogleFonts.cairo(color: Colors.white38),
+        prefixIcon: const Icon(Icons.search, color: Colors.white54),
+        filled: true,
+        fillColor: const Color(0xFF1E5BB3).withOpacity(0.15),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
   Widget _buildFilterBar() {
+    final storeValues = ['all_stores', ..._ordersManager.orders.map((o) => o.storeName).toSet()];
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _buildCompactDropdown(
+          value: _statusFilter,
+          values: const ['status_all', 'status_pending', 'status_ready', 'status_delivered'],
+          onChanged: (v) => setState(() => _statusFilter = v!),
+        ),
+        _buildCompactDropdown(
+          value: _storeFilter,
+          values: storeValues,
+          onChanged: (v) => setState(() => _storeFilter = v!),
+        ),
+        _buildCompactDropdown(
+          value: _paymentFilter,
+          values: const ['all_payments', 'wallet'],
+          onChanged: (v) => setState(() => _paymentFilter = v!),
+        ),
+        _buildCompactDropdown(
+          value: _dateFilter,
+          values: const ['all_dates', 'date_today', 'date_last_7_days', 'date_this_month'],
+          onChanged: (v) => setState(() => _dateFilter = v!),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCompactDropdown({
+    required String value,
+    required List<String> values,
+    required void Function(String?) onChanged,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      width: 165,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: const Color(0xFF1E5BB3).withOpacity(0.15),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white10),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: _filterLabel,
+          value: value,
           isExpanded: true,
           dropdownColor: const Color(0xFF152a45),
           icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white70),
-          style: GoogleFonts.cairo(color: Colors.white, fontSize: 16),
-          items: [
-            DropdownMenuItem(value: 'status_all', child: Text(context.tr('status_all'))),
-            DropdownMenuItem(value: 'status_pending', child: Text(context.tr('status_pending'))),
-            DropdownMenuItem(value: 'status_ready', child: Text(context.tr('status_ready'))),
-            DropdownMenuItem(value: 'status_delivered', child: Text(context.tr('status_delivered'))),
-          ],
-          onChanged: (v) {
-            if (v != null) setState(() => _filterLabel = v);
-          },
+          style: GoogleFonts.cairo(color: Colors.white, fontSize: 13),
+          items: values
+              .map(
+                (v) => DropdownMenuItem(
+                  value: v,
+                  child: Text(v.startsWith('store_') ? context.tr(v) : context.tr(v)),
+                ),
+              )
+              .toList(),
+          onChanged: onChanged,
         ),
       ),
     );
@@ -351,6 +429,16 @@ class _OrdersPageState extends State<OrdersPage> {
             _formatDate(context, order.date),
             style: GoogleFonts.cairo(fontSize: 14, color: Colors.white60),
           ),
+          const SizedBox(height: 4),
+          Text(
+            '${context.tr('store_label')}: ${context.tr(order.storeName)}',
+            style: GoogleFonts.cairo(fontSize: 13, color: Colors.white70),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '${context.tr('payment_method_label')}: ${context.tr(order.paymentMethod)}',
+            style: GoogleFonts.cairo(fontSize: 13, color: Colors.white54),
+          ),
           for (final item in order.items) _buildOrderLine(item),
           const SizedBox(height: 16),
           const Divider(color: Colors.white12, height: 1),
@@ -417,8 +505,111 @@ class _OrdersPageState extends State<OrdersPage> {
               ),
             ],
           ),
+          if (order.status == 'status_delivered') ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _ratingsManager.hasRatedStoreForOrder(order.id)
+                        ? null
+                        : () => _rateStore(order),
+                    icon: const Icon(Icons.storefront_outlined, size: 18),
+                    label: Text(
+                      _ratingsManager.hasRatedStoreForOrder(order.id)
+                          ? context.tr('store_rated_done')
+                          : context.tr('rate_store'),
+                      style: GoogleFonts.cairo(fontSize: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _ratingsManager.hasRatedAllProductsForOrder(
+                      order.id,
+                      order.items.map((e) => e.product.name).toList(),
+                    )
+                        ? null
+                        : () => _rateProducts(order),
+                    icon: const Icon(Icons.star_border_rounded, size: 18),
+                    label: Text(
+                      _ratingsManager.hasRatedAllProductsForOrder(
+                        order.id,
+                        order.items.map((e) => e.product.name).toList(),
+                      )
+                          ? context.tr('products_rated_done')
+                          : context.tr('rate_products'),
+                      style: GoogleFonts.cairo(fontSize: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
+    );
+  }
+
+  Future<void> _rateStore(Order order) async {
+    final selected = await _showRatingDialog(context.tr('rate_store'));
+    if (selected == null) return;
+    _ratingsManager.submitStoreRating(
+      orderId: order.id,
+      storeKey: order.storeName,
+      rating: selected,
+    );
+  }
+
+  Future<void> _rateProducts(Order order) async {
+    for (final item in order.items) {
+      if (_ratingsManager.hasRatedProductForOrder(order.id, item.product.name)) continue;
+      final selected = await _showRatingDialog(context.tr(item.product.name));
+      if (selected == null) return;
+      _ratingsManager.submitProductRating(
+        orderId: order.id,
+        productKey: item.product.name,
+        rating: selected,
+      );
+    }
+  }
+
+  Future<double?> _showRatingDialog(String title) async {
+    double value = 5;
+    return showDialog<double>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setInner) => AlertDialog(
+            backgroundColor: const Color(0xFF152a45),
+            title: Text(title, style: GoogleFonts.cairo(color: Colors.white)),
+            content: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(5, (i) {
+                final star = i + 1;
+                return IconButton(
+                  onPressed: () => setInner(() => value = star.toDouble()),
+                  icon: Icon(
+                    value >= star ? Icons.star : Icons.star_border,
+                    color: Colors.amber,
+                  ),
+                );
+              }),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(context.tr('cancel'), style: GoogleFonts.cairo(color: Colors.white70)),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, value),
+                child: Text(context.tr('save_changes'), style: GoogleFonts.cairo()),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -435,7 +626,13 @@ class _OrdersPageState extends State<OrdersPage> {
           ),
           const SizedBox(height: 12),
           TextButton(
-            onPressed: () => setState(() => _filterLabel = 'status_all'),
+            onPressed: () => setState(() {
+              _statusFilter = 'status_all';
+              _storeFilter = 'all_stores';
+              _paymentFilter = 'all_payments';
+              _dateFilter = 'all_dates';
+              _orderSearch = '';
+            }),
             child: Text(context.tr('view_all_orders'), style: GoogleFonts.cairo(color: Colors.blueAccent)),
           ),
         ],

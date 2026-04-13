@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'models/notification_manager.dart';
 import 'models/notification_item.dart';
-import 'locale/app_locale.dart';
 import 'l10n/app_strings.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -48,12 +47,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           ),
                         ),
                         if (notifications.isNotEmpty)
-                          TextButton(
-                            onPressed: () => _manager.markAllAsRead(),
-                            child: Text(
-                              context.tr('mark_all_read'),
-                              style: GoogleFonts.cairo(color: Colors.blueAccent, fontWeight: FontWeight.bold),
-                            ),
+                          Row(
+                            children: [
+                              TextButton(
+                                onPressed: () => _manager.markAllAsRead(),
+                                child: Text(
+                                  context.tr('mark_all_read'),
+                                  style: GoogleFonts.cairo(color: Colors.blueAccent, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => _manager.clearNotifications(),
+                                child: Text(
+                                  context.tr('clear_all_notifications'),
+                                  style: GoogleFonts.cairo(color: Colors.redAccent, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
                           ),
                       ],
                     ),
@@ -126,7 +136,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Widget _buildNotificationCard(NotificationItem item) {
     return GestureDetector(
-      onTap: () => _manager.markAsRead(item.id),
+      onTap: () {
+        _manager.markAsRead(item.id);
+        Navigator.pop(context, item);
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
@@ -154,7 +167,32 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(item.title, style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                      Expanded(
+                        child: Text(item.title, style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                      ),
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert, color: Colors.white54, size: 18),
+                        color: const Color(0xFF152a45),
+                        onSelected: (value) {
+                          if (value == 'toggle') {
+                            _manager.toggleRead(item.id);
+                          } else if (value == 'delete') {
+                            _manager.removeNotification(item.id);
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 'toggle',
+                            child: Text(
+                              item.isRead ? context.tr('mark_as_unread') : context.tr('mark_as_read'),
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Text(context.tr('delete_notification')),
+                          ),
+                        ],
+                      ),
                       if (!item.isRead)
                         Container(
                           width: 8,

@@ -1,5 +1,6 @@
 class Product {
   final String name;
+  final String? code;
   final String category;
   final double price;
   final double? originalPrice;
@@ -11,6 +12,7 @@ class Product {
 
   Product({
     required this.name,
+    this.code,
     required this.category,
     required this.price,
     this.originalPrice,

@@ -7,6 +7,8 @@ class Order {
   final double totalPrice;
   /// e.g. قيد الانتظار، جاهز للاستلام، تم التوصيل
   final String status;
+  final String storeName;
+  final String paymentMethod;
 
   Order({
     required this.id,
@@ -14,6 +16,8 @@ class Order {
     required this.items,
     required this.totalPrice,
     this.status = 'قيد الانتظار',
+    required this.storeName,
+    required this.paymentMethod,
   });
 
   Order copyWith({
@@ -22,6 +26,8 @@ class Order {
     List<CartItem>? items,
     double? totalPrice,
     String? status,
+    String? storeName,
+    String? paymentMethod,
   }) {
     return Order(
       id: id ?? this.id,
@@ -29,6 +35,8 @@ class Order {
       items: items ?? this.items,
       totalPrice: totalPrice ?? this.totalPrice,
       status: status ?? this.status,
+      storeName: storeName ?? this.storeName,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
     );
   }
 }

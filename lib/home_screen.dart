@@ -13,6 +13,8 @@ import 'models/order.dart';
 import 'models/orders_manager.dart';
 import 'models/wallet_manager.dart';
 import 'models/notification_manager.dart';
+import 'models/notification_item.dart';
+import 'models/ratings_manager.dart';
 import 'orders_page.dart';
 import 'settings_page.dart';
 import 'locale/app_locale.dart';
@@ -31,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final FavoritesManager _favoritesManager = FavoritesManager();
   final CartManager _cartManager = CartManager();
   final OrdersManager _ordersManager = OrdersManager();
+  final RatingsManager _ratingsManager = RatingsManager();
   int _selectedIndex = 0;
   String _searchQuery = "";
   /// مفاتيح داخلية ثابتة — التسميات تُعرَض عبر [tr] حسب اللغة.
@@ -90,8 +93,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Map<String, dynamic>> get _filteredStores {
     List<Map<String, dynamic>> filtered = _stores.where((store) {
+      final q = _searchQuery.toLowerCase();
       final translatedName = context.tr(store['name']).toLowerCase();
-      final nameMatches = translatedName.contains(_searchQuery.toLowerCase());
+      final translatedCategory = context.tr(store['category']).toLowerCase();
+      final nameMatches = translatedName.contains(q) || translatedCategory.contains(q);
       
       bool categoryMatches = _selectedCategoryKey == 'all';
       if (_selectedCategoryKey == 'men') {
@@ -107,7 +112,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Apply Sorting
     if (_selectedSortKey == 'rating') {
-      filtered.sort((a, b) => b['rating'].compareTo(a['rating']));
+      filtered.sort((a, b) {
+        final aRating = _ratingsManager.storeRatingOrBase(
+          a['name'].toString(),
+          (a['rating'] as num).toDouble(),
+        );
+        final bRating = _ratingsManager.storeRatingOrBase(
+          b['name'].toString(),
+          (b['rating'] as num).toDouble(),
+        );
+        return bRating.compareTo(aRating);
+      });
     } else if (_selectedSortKey == 'offers') {
       filtered.sort((a, b) {
         if (a['discount'] != null && b['discount'] == null) return -1;
@@ -125,10 +140,12 @@ class _HomeScreenState extends State<HomeScreen> {
     return filtered;
   }
 
-  void _onWalletCheckout(String storeName) {
+  void _onWalletCheckout(String storeName, [List<CartItem>? selectedItems]) {
     if (_cartManager.items.isEmpty) return;
 
-    final storeItems = _cartManager.items.where((item) => item.product.storeName == storeName).toList();
+    final storeItems = (selectedItems ?? _cartManager.items)
+        .where((item) => item.product.storeName == storeName)
+        .toList();
     if (storeItems.isEmpty) return;
 
     double total = storeItems.fold(0.0, (sum, item) => sum + item.totalPrice);
@@ -164,6 +181,8 @@ class _HomeScreenState extends State<HomeScreen> {
         items: items,
         totalPrice: total,
         status: 'status_pending',
+        storeName: storeName,
+        paymentMethod: 'wallet',
       ),
     );
     setState(() => _selectedIndex = 3);
@@ -349,11 +368,15 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(width: 12),
               GestureDetector(
-                onTap: () {
-                  Navigator.push(
+                onTap: () async {
+                  final tapped = await Navigator.push<NotificationItem?>(
                     context,
                     MaterialPageRoute(builder: (context) => const NotificationsScreen()),
                   );
+                  if (!mounted) return;
+                  if (tapped != null && tapped.targetTab == 'orders') {
+                    setState(() => _selectedIndex = 3);
+                  }
                 },
                 child: ListenableBuilder(
                   listenable: NotificationManager(),
@@ -554,7 +577,10 @@ class _HomeScreenState extends State<HomeScreen> {
             child: _buildStoreCard(
               name: store['name'],
               category: store['category'],
-              rating: store['rating'],
+              rating: _ratingsManager.storeRatingOrBase(
+                store['name'].toString(),
+                (store['rating'] as num).toDouble(),
+              ),
               distance: store['distance'],
               imageUrl: store['imageUrl'],
               discount: store['discount'],
@@ -680,6 +706,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _favoritesManager,
         _cartManager,
         _ordersManager,
+        _ratingsManager,
         AppLocale.instance,
       ]),
       builder: (context, _) {

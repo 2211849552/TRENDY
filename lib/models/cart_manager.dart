@@ -50,6 +50,12 @@ class CartManager extends ChangeNotifier {
     }
   }
 
+  void updateAttributes(CartItem item, {String? color, String? size}) {
+    if (color != null && color.isNotEmpty) item.selectedColor = color;
+    if (size != null && size.isNotEmpty) item.selectedSize = size;
+    notifyListeners();
+  }
+
   void removeFromCart(CartItem item) {
     _items.remove(item);
     notifyListeners();

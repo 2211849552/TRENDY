@@ -2,8 +2,8 @@ import 'product.dart';
 
 class CartItem {
   final Product product;
-  final String selectedColor;
-  final String selectedSize;
+  String selectedColor;
+  String selectedSize;
   int quantity;
 
   CartItem({

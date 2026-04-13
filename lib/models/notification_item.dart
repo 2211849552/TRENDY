@@ -5,6 +5,8 @@ class NotificationItem {
   final DateTime timestamp;
   bool isRead;
   final NotificationType type;
+  final String? targetTab;
+  final String? targetOrderId;
 
   NotificationItem({
     required this.id,
@@ -13,6 +15,8 @@ class NotificationItem {
     required this.timestamp,
     this.isRead = false,
     required this.type,
+    this.targetTab,
+    this.targetOrderId,
   });
 
   String get formattedTime {
