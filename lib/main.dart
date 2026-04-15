@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'login_screen.dart';
 import 'locale/app_locale.dart';
 import 'l10n/app_strings.dart';
+import 'services/firebase_bootstrap.dart';
+import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await const FirebaseBootstrap().init();
   runApp(const AppRoot());
 }
 
@@ -19,23 +22,10 @@ class AppRoot extends StatelessWidget {
       builder: (context, _) {
         final locale = AppLocale.instance.locale;
         final isAr = locale.languageCode == 'ar';
-        final baseDark = ThemeData.dark();
         return MaterialApp(
           title: isAr ? 'متجري' : 'Matajari',
           debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            brightness: Brightness.dark,
-            scaffoldBackgroundColor: const Color(0xFF0B1220),
-            primaryColor: const Color(0xFF3B82F6),
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFF3B82F6),
-              brightness: Brightness.dark,
-            ),
-            textTheme: isAr
-                ? GoogleFonts.cairoTextTheme(baseDark.textTheme)
-                : GoogleFonts.interTextTheme(baseDark.textTheme),
-            useMaterial3: true,
-          ),
+          theme: AppTheme.dark(isAr: isAr),
           locale: locale,
           supportedLocales: const [
             Locale('ar'),

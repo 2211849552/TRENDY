@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'login_screen.dart';
 import 'home_screen.dart';
 import 'l10n/app_strings.dart';
+import 'models/customer_profile.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -31,7 +31,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A1931),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -43,13 +42,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.1),
+                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
                         Icons.person_add_outlined,
                         size: 60,
-                        color: Colors.blueAccent,
+                        color: Colors.white,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -182,10 +181,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               );
                               return;
                             }
+                            CustomerProfileStore().setProfile(
+                              name: _nameController.text,
+                              email: _emailController.text,
+                              phone: _phoneController.text,
+                            );
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const HomeScreen(),
+                                builder: (context) => HomeScreen(
+                                  userName: _nameController.text.trim().isEmpty ? '—' : _nameController.text.trim(),
+                                ),
                               ),
                             );
                           },
@@ -270,10 +276,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
+        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
         prefixIcon: Icon(icon, color: Colors.white54),
         filled: true,
-        fillColor: Colors.black.withOpacity(0.05),
+        fillColor: Colors.black.withValues(alpha: 0.05),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

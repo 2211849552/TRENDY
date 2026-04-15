@@ -4,6 +4,7 @@ import 'models/favorites_manager.dart';
 import 'models/cart_manager.dart';
 import 'models/product.dart';
 import 'l10n/app_strings.dart';
+import 'widgets/app_back_button.dart';
 
 class FavoritesPage extends StatefulWidget {
   final VoidCallback onBrowseStores;
@@ -99,9 +100,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         CircleAvatar(
-          backgroundColor: Colors.black38,
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+          backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.65),
+          child: AppBackIconButton(
             onPressed: widget.onBrowseStores,
           ),
         ),

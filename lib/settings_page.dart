@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'models/notification_manager.dart';
@@ -10,6 +9,8 @@ import 'models/wallet_manager.dart';
 import 'locale/app_locale.dart';
 import 'l10n/app_strings.dart';
 import 'login_screen.dart';
+import 'widgets/app_back_button.dart';
+import 'models/customer_profile.dart';
 
 class SettingsPage extends StatefulWidget {
   final VoidCallback onBrowseStores;
@@ -24,6 +25,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool notificationsEnabled = true;
 
   final NotificationManager _notifManager = NotificationManager();
+  final CustomerProfileStore _profileStore = CustomerProfileStore();
 
   late final TextEditingController _fullName;
   late final TextEditingController _email;
@@ -45,6 +47,13 @@ class _SettingsPageState extends State<SettingsPage> {
     _currentPassword = TextEditingController();
     _newPassword = TextEditingController();
     _confirmPassword = TextEditingController();
+
+    final p = _profileStore.current;
+    if (p != null) {
+      _fullName.text = p.name;
+      _email.text = p.email;
+      _phoneField.text = p.phone;
+    }
   }
 
   @override
@@ -60,6 +69,11 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _saveProfile() {
+    _profileStore.setProfile(
+      name: _fullName.text,
+      email: _email.text,
+      phone: _phoneField.text,
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(context.tr('saved_ok'), style: GoogleFonts.cairo()),
@@ -137,6 +151,42 @@ class _SettingsPageState extends State<SettingsPage> {
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
+              ),
+              const SizedBox(height: 24),
+
+              // Customer Profile (read-only display)
+              ListenableBuilder(
+                listenable: _profileStore,
+                builder: (context, _) {
+                  final p = _profileStore.current;
+                  final name = (p?.name.trim().isNotEmpty ?? false) ? p!.name : '—';
+                  final email = (p?.email.trim().isNotEmpty ?? false) ? p!.email : '—';
+                  final phone = (p?.phone.trim().isNotEmpty ?? false) ? p!.phone : '—';
+                  return _buildSectionCard(
+                    title: context.tr('personal_info'),
+                    subtitle: context.tr('personal_info_sub'),
+                    icon: Icons.person_outline,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.white10),
+                        ),
+                        child: Column(
+                          children: [
+                            _profileRow(icon: Icons.person_outline, label: context.tr('full_name'), value: name),
+                            const SizedBox(height: 10),
+                            _profileRow(icon: Icons.email_outlined, label: context.tr('email'), value: email),
+                            const SizedBox(height: 10),
+                            _profileRow(icon: Icons.phone_outlined, label: context.tr('phone'), value: phone),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 24),
 
@@ -325,7 +375,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       Switch(
                         value: _notifManager.notificationsEnabled,
                         onChanged: (val) => _notifManager.setNotificationsEnabled(val),
-                        activeColor: const Color(0xFF3B82F6),
+                        activeThumbColor: const Color(0xFF3B82F6),
                       ),
                     ],
                   ),
@@ -351,7 +401,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         width: 140,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.05),
+                          color: Colors.white.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.white10),
                         ),
@@ -412,6 +462,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
                               onPressed: () {
                                 Navigator.pop(ctx);
+                                _profileStore.clear();
                                 Navigator.of(context).pushAndRemoveUntil(
                                   MaterialPageRoute(builder: (_) => const LoginScreen()),
                                   (route) => false,
@@ -426,7 +477,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     icon: const Icon(Icons.exit_to_app, color: Colors.white, size: 20),
                     label: Text(context.tr('logout_btn'), style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.redAccent.withOpacity(0.8),
+                      backgroundColor: Colors.redAccent.withValues(alpha: 0.8),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
@@ -448,16 +499,15 @@ class _SettingsPageState extends State<SettingsPage> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         CircleAvatar(
-          backgroundColor: Colors.black38,
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+          backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.65),
+          child: AppBackIconButton(
             onPressed: widget.onBrowseStores,
           ),
         ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E5BB3).withOpacity(0.3),
+            color: const Color(0xFF1E5BB3).withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(10),
           ),
           child: const Row(
@@ -476,6 +526,33 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Widget _profileRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.white70, size: 18),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 110,
+          child: Text(
+            label,
+            style: GoogleFonts.cairo(color: Colors.white54, fontSize: 13),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: GoogleFonts.cairo(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSectionCard({
     required String title,
     required String subtitle,
@@ -485,7 +562,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withOpacity(0.1),
+        color: const Color(0xFF1E5BB3).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white10),
       ),
@@ -530,7 +607,7 @@ class _SettingsPageState extends State<SettingsPage> {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.blueAccent.withOpacity(0.1),
+            color: Colors.blueAccent.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, color: Colors.blueAccent, size: 24),
@@ -566,7 +643,7 @@ class _SettingsPageState extends State<SettingsPage> {
             hintText: hint,
             hintStyle: const TextStyle(color: Colors.white54, fontSize: 14),
             filled: true,
-            fillColor: Colors.white.withOpacity(0.05),
+            fillColor: Colors.white.withValues(alpha: 0.05),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),

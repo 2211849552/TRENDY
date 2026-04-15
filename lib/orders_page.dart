@@ -6,6 +6,7 @@ import 'models/order.dart';
 import 'models/orders_manager.dart';
 import 'models/ratings_manager.dart';
 import 'l10n/app_strings.dart';
+import 'widgets/app_back_button.dart';
 
 class OrdersPage extends StatefulWidget {
   final VoidCallback onBrowseStores;
@@ -209,9 +210,8 @@ class _OrdersPageState extends State<OrdersPage> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         CircleAvatar(
-          backgroundColor: Colors.black38,
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+          backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.65),
+          child: AppBackIconButton(
             onPressed: widget.onBrowseStores,
           ),
         ),

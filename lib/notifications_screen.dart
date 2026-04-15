@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'models/notification_manager.dart';
 import 'models/notification_item.dart';
 import 'l10n/app_strings.dart';
+import 'widgets/app_back_button.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -85,25 +86,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        InkWell(
-          onTap: () => Navigator.pop(context),
-          child: Row(
-            children: [
-              Directionality(
-                textDirection: TextDirection.ltr,
-                child: Icon(
-                  context.isRtl ? Icons.arrow_forward_ios_rounded : Icons.arrow_back_ios_rounded,
-                  color: Colors.white70,
-                  size: 16,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                context.tr('back'),
-                style: const TextStyle(color: Colors.white70, fontSize: 16),
-              ),
-            ],
-          ),
+        AppBackLink(
+          label: context.tr('back'),
+          onPressed: () => Navigator.pop(context),
         ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

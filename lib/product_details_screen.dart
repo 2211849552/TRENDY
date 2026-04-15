@@ -4,7 +4,7 @@ import 'models/product.dart';
 import 'models/favorites_manager.dart';
 import 'models/cart_manager.dart';
 import 'l10n/app_strings.dart';
-import 'locale/app_locale.dart';
+import 'widgets/app_back_button.dart';
 
 class ProductDetailsScreen extends StatefulWidget {
   final Product product;
@@ -108,9 +108,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           top: 20,
           right: 20,
           child: CircleAvatar(
-            backgroundColor: Colors.black26,
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
+            backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.65),
+            child: AppBackIconButton(
               onPressed: () => Navigator.pop(context),
             ),
           ),

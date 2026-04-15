@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'l10n/app_strings.dart';
 import 'models/complaint.dart';
 import 'models/complaints_manager.dart';
+import 'widgets/app_back_button.dart';
 
 class ComplaintsScreen extends StatefulWidget {
   const ComplaintsScreen({super.key});
@@ -65,10 +66,9 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        TextButton.icon(
+        AppBackTextButton(
+          label: context.tr('back'),
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back, color: Colors.white70, size: 16),
-          label: Text(context.tr('back'), style: const TextStyle(color: Colors.white70)),
         ),
         const Text('Trendy', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
       ],

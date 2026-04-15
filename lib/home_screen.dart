@@ -1,9 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'complaints_screen.dart';
 import 'notifications_screen.dart';
 import 'store_details_screen.dart';
+import 'chat/chat_threads_screen.dart';
 import 'favorites_page.dart';
 import 'cart_page.dart';
 import 'models/favorites_manager.dart';
@@ -15,10 +15,16 @@ import 'models/wallet_manager.dart';
 import 'models/notification_manager.dart';
 import 'models/notification_item.dart';
 import 'models/ratings_manager.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' as fs;
+import 'package:firebase_auth/firebase_auth.dart';
+import 'services/firebase_state.dart';
+import 'services/location_service.dart';
+import 'services/store_location.dart';
 import 'orders_page.dart';
 import 'settings_page.dart';
 import 'locale/app_locale.dart';
 import 'l10n/app_strings.dart';
+import 'marketing/marketing_campaigns_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool isGuest;
@@ -34,18 +40,22 @@ class _HomeScreenState extends State<HomeScreen> {
   final CartManager _cartManager = CartManager();
   final OrdersManager _ordersManager = OrdersManager();
   final RatingsManager _ratingsManager = RatingsManager();
+  final LocationService _locationService = const LocationService();
   int _selectedIndex = 0;
   String _searchQuery = "";
   /// مفاتيح داخلية ثابتة — التسميات تُعرَض عبر [tr] حسب اللغة.
   String _selectedCategoryKey = 'all';
   String _selectedSortKey = 'nearest';
+  bool _isLocating = false;
+  double? _userLat;
+  double? _userLng;
 
   final List<Map<String, dynamic>> _stores = [
     {
       'name': 'store_elegance',
       'category': 'cat_women',
       'rating': 4.8,
-      'distance': '2.5',
+      'location': const StoreLocation(32.8872, 13.1913), // TODO: عدّل إحداثيات المتجر
       'imageUrl': 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&q=80&w=800',
       'discount': '40%',
     },
@@ -53,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'name': 'store_fashion',
       'category': 'cat_men',
       'rating': 4.5,
-      'distance': '1.2',
+      'location': const StoreLocation(32.8920, 13.1800), // TODO: عدّل إحداثيات المتجر
       'imageUrl': 'https://images.unsplash.com/photo-1490114538077-0a7f8cb49891?auto=format&fit=crop&q=80&w=800',
       'discount': null,
     },
@@ -61,7 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'name': 'store_gentle',
       'category': 'cat_men',
       'rating': 4.6,
-      'distance': '0.8',
+      'location': const StoreLocation(32.8895, 13.2050), // TODO: عدّل إحداثيات المتجر
       'imageUrl': 'https://images.unsplash.com/photo-1593032465175-481ac7f401a0?auto=format&fit=crop&q=80&w=800',
       'discount': '30%',
     },
@@ -69,7 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'name': 'store_luxury',
       'category': 'cat_women',
       'rating': 4.7,
-      'distance': '5.0',
+      'location': const StoreLocation(32.8760, 13.1860), // TODO: عدّل إحداثيات المتجر
       'imageUrl': 'https://images.unsplash.com/photo-1566174053879-31528523f8ae?auto=format&fit=crop&q=80&w=800',
       'discount': null,
     },
@@ -77,7 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
       'name': 'store_kids',
       'category': 'cat_kids',
       'rating': 4.9,
-      'distance': '3.8',
+      'location': const StoreLocation(32.9000, 13.1650), // TODO: عدّل إحداثيات المتجر
       'imageUrl': 'https://images.unsplash.com/photo-1621451537084-482c73073a0f?auto=format&fit=crop&q=80&w=800',
       'discount': '25%',
     },
@@ -85,11 +95,45 @@ class _HomeScreenState extends State<HomeScreen> {
       'name': 'store_top',
       'category': 'cat_men',
       'rating': 4.9,
-      'distance': '2.1',
+      'location': const StoreLocation(32.8850, 13.1700), // TODO: عدّل إحداثيات المتجر
       'imageUrl': 'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=800',
       'discount': null,
     },
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshUserLocation();
+  }
+
+  Future<void> _refreshUserLocation() async {
+    if (_isLocating) return;
+    setState(() => _isLocating = true);
+    try {
+      final pos = await _locationService.getCurrentPosition();
+      if (!mounted) return;
+      setState(() {
+        _userLat = pos?.latitude;
+        _userLng = pos?.longitude;
+      });
+    } finally {
+      if (mounted) setState(() => _isLocating = false);
+    }
+  }
+
+  double _distanceKmForStore(Map<String, dynamic> store) {
+    final lat = _userLat;
+    final lng = _userLng;
+    final loc = store['location'] as StoreLocation?;
+    if (lat == null || lng == null || loc == null) return 9999;
+    return _locationService.distanceKm(
+      fromLat: lat,
+      fromLng: lng,
+      toLat: loc.lat,
+      toLng: loc.lng,
+    );
+  }
 
   List<Map<String, dynamic>> get _filteredStores {
     List<Map<String, dynamic>> filtered = _stores.where((store) {
@@ -131,8 +175,8 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     } else if (_selectedSortKey == 'nearest') {
       filtered.sort((a, b) {
-        double distA = double.tryParse(a['distance'].toString()) ?? 99.0;
-        double distB = double.tryParse(b['distance'].toString()) ?? 99.0;
+        final distA = _distanceKmForStore(a);
+        final distB = _distanceKmForStore(b);
         return distA.compareTo(distB);
       });
     }
@@ -204,7 +248,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A1931),
       body: SafeArea(
         child: _buildBody(),
       ),
@@ -266,6 +309,22 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Colors.white,
                 ),
               ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: context.isRtl ? Alignment.centerRight : Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: _isLocating ? null : _refreshUserLocation,
+                  icon: Icon(
+                    _isLocating ? Icons.my_location : Icons.location_searching,
+                    color: Colors.blueAccent,
+                    size: 18,
+                  ),
+                  label: Text(
+                    context.tr('update_location'),
+                    style: GoogleFonts.cairo(color: Colors.blueAccent, fontSize: 12),
+                  ),
+                ),
+              ),
               const SizedBox(height: 20),
             ]),
           ),
@@ -285,7 +344,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E5BB3).withOpacity(0.3),
+          color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.55),
           borderRadius: BorderRadius.circular(12),
         ),
         child: const Row(
@@ -312,7 +371,14 @@ class _HomeScreenState extends State<HomeScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3), // Blue card
+        gradient: LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: [
+            Theme.of(context).colorScheme.primary.withValues(alpha: 0.95),
+            Theme.of(context).colorScheme.secondary.withValues(alpha: 0.85),
+          ],
+        ),
         borderRadius: BorderRadius.circular(24),
       ),
       child: Row(
@@ -361,10 +427,85 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () {
                   Navigator.push(
                     context,
+                    MaterialPageRoute(builder: (context) => const MarketingCampaignsScreen()),
+                  );
+                },
+                child: _buildBannerIcon(Icons.campaign_outlined),
+              ),
+              const SizedBox(width: 12),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ChatThreadsScreen()),
+                  );
+                },
+                child: ListenableBuilder(
+                  listenable: AppLocale.instance,
+                  builder: (context, _) {
+                    return Stack(
+                      children: [
+                        _buildBannerIcon(Icons.chat_bubble_outline),
+                        if (!FirebaseState().ready.value)
+                          const SizedBox.shrink()
+                        else
+                        StreamBuilder<User?>(
+                          stream: FirebaseAuth.instance.authStateChanges(),
+                          builder: (context, authSnap) {
+                            final uid = authSnap.data?.uid;
+                            final stream = uid == null
+                                ? const Stream<fs.QuerySnapshot<Map<String, dynamic>>>.empty()
+                                : fs.FirebaseFirestore.instance
+                                    .collection('chatThreads')
+                                    .where('customerUid', isEqualTo: uid)
+                                    .snapshots();
+                            return StreamBuilder<fs.QuerySnapshot<Map<String, dynamic>>>(
+                              stream: stream,
+                              builder: (context, snap) {
+                                final count = snap.data?.docs.length ?? 0;
+                                if (count <= 0) return const SizedBox.shrink();
+                                return Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.redAccent,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 16,
+                                      minHeight: 16,
+                                    ),
+                                    child: Text(
+                                      '$count',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
                     MaterialPageRoute(builder: (context) => const ComplaintsScreen()),
                   );
                 },
-                child: _buildBannerIcon(Icons.chat_bubble_outline),
+                child: _buildBannerIcon(Icons.support_agent_outlined),
               ),
               const SizedBox(width: 12),
               GestureDetector(
@@ -442,14 +583,8 @@ class _HomeScreenState extends State<HomeScreen> {
           onChanged: (value) => setState(() => _searchQuery = value),
           decoration: InputDecoration(
             hintText: context.tr('search_store'),
-            hintStyle: GoogleFonts.cairo(color: Colors.white30, fontSize: 13),
-            prefixIcon: const Icon(Icons.search, color: Colors.white30),
-            filled: true,
-            fillColor: const Color(0xFF1E5BB3).withOpacity(0.2),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
-            ),
+            hintStyle: GoogleFonts.cairo(color: Colors.white38, fontSize: 13),
+            prefixIcon: const Icon(Icons.search_rounded),
           ),
         ),
         const SizedBox(height: 16),
@@ -558,6 +693,8 @@ class _HomeScreenState extends State<HomeScreen> {
       delegate: SliverChildBuilderDelegate(
         (context, index) {
           final store = stores[index];
+          final distKm = _distanceKmForStore(store);
+          final distText = distKm >= 9999 ? '--' : distKm.toStringAsFixed(1);
           return GestureDetector(
             onTap: () {
               Navigator.push(
@@ -567,9 +704,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     storeName: store['name'],
                     storeCategory: store['category'],
                     storeRating: store['rating'],
-                    storeDistance: store['distance'],
+                    storeDistance: distText,
                     storeImageUrl: store['imageUrl'],
                     storeDiscount: store['discount'],
+                    storeLocation: store['location'] as StoreLocation?,
                   ),
                 ),
               );
@@ -581,7 +719,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 store['name'].toString(),
                 (store['rating'] as num).toDouble(),
               ),
-              distance: store['distance'],
+              distance: distText,
               imageUrl: store['imageUrl'],
               discount: store['discount'],
             ),

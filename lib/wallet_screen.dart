@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'locale/app_locale.dart';
 import 'l10n/app_strings.dart';
 import 'models/wallet_manager.dart';
+import 'widgets/app_back_button.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
@@ -89,26 +90,9 @@ class _WalletScreenState extends State<WalletScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         // Back Button
-        InkWell(
-          onTap: () => Navigator.pop(context),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Directionality(
-                textDirection: TextDirection.ltr,
-                child: Icon(
-                  context.isRtl ? Icons.arrow_forward_ios_rounded : Icons.arrow_back_ios_rounded,
-                  color: Colors.white70,
-                  size: 16,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                context.tr('back'),
-                style: const TextStyle(color: Colors.white70, fontSize: 16),
-              ),
-            ],
-          ),
+        AppBackLink(
+          label: context.tr('back'),
+          onPressed: () => Navigator.pop(context),
         ),
         // Trendy Logo
         Container(
