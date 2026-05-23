@@ -52,7 +52,7 @@ class _StoreThreadChatScreenState extends State<StoreThreadChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A1931),
+      backgroundColor: const Color(0xFF121026),
       appBar: AppBar(
         title: Text(context.tr('store_chat_title'), style: GoogleFonts.cairo()),
       ),
@@ -108,7 +108,7 @@ class _StoreThreadChatScreenState extends State<StoreThreadChatScreen> {
                 const SizedBox(width: 10),
                 IconButton(
                   onPressed: _send,
-                  icon: const Icon(Icons.send_rounded, color: Colors.blueAccent),
+                  icon: const Icon(Icons.send_rounded, color: const Color(0xFF3B82F6)),
                 ),
               ],
             ),

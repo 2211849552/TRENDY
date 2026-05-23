@@ -6,7 +6,13 @@ import 'models/order.dart';
 import 'models/orders_manager.dart';
 import 'models/ratings_manager.dart';
 import 'l10n/app_strings.dart';
+import 'theme/app_theme_mode.dart';
+import 'theme/trendy_theme_extension.dart';
+import 'order_rating_screen.dart';
+import 'widgets/product_color_image.dart';
 import 'widgets/app_back_button.dart';
+import 'widgets/store_cover_image.dart';
+import 'widgets/gradient_button.dart';
 
 class OrdersPage extends StatefulWidget {
   final VoidCallback onBrowseStores;
@@ -23,9 +29,6 @@ class _OrdersPageState extends State<OrdersPage> {
   final RatingsManager _ratingsManager = RatingsManager();
 
   String _statusFilter = 'status_all';
-  String _storeFilter = 'all_stores';
-  String _paymentFilter = 'all_payments';
-  String _dateFilter = 'all_dates';
   String _orderSearch = '';
 
   String _formatDate(BuildContext context, DateTime d) {
@@ -42,27 +45,17 @@ class _OrdersPageState extends State<OrdersPage> {
   List<Order> get _visibleOrders {
     final q = _orderSearch.trim().toLowerCase();
     return _ordersManager.orders.where((o) {
-      final statusMatch = _statusFilter == 'status_all' || o.status == _statusFilter;
-      final storeMatch = _storeFilter == 'all_stores' || o.storeName == _storeFilter;
-      final paymentMatch = _paymentFilter == 'all_payments' || o.paymentMethod == _paymentFilter;
+      final statusMatch = _matchesStatusFilter(o.status);
       final searchMatch = q.isEmpty || o.id.toLowerCase().contains(q);
-      final dateMatch = _matchesDateFilter(o.date);
-      return statusMatch && storeMatch && paymentMatch && searchMatch && dateMatch;
+      return statusMatch && searchMatch;
     }).toList();
   }
 
-  bool _matchesDateFilter(DateTime orderDate) {
-    final now = DateTime.now();
-    final d = DateTime(orderDate.year, orderDate.month, orderDate.day);
-    final today = DateTime(now.year, now.month, now.day);
-    if (_dateFilter == 'date_today') return d == today;
-    if (_dateFilter == 'date_last_7_days') {
-      return !d.isBefore(today.subtract(const Duration(days: 6))) && !d.isAfter(today);
-    }
-    if (_dateFilter == 'date_this_month') {
-      return d.year == now.year && d.month == now.month;
-    }
-    return true;
+  bool _matchesStatusFilter(String orderStatus) {
+    if (_statusFilter == 'status_all') return true;
+    if (_statusFilter == 'status_completed') return orderStatus == 'status_delivered';
+    if (_statusFilter == 'status_cancelled') return orderStatus == 'status_cancelled';
+    return orderStatus == _statusFilter;
   }
 
   Color _statusBackground(String status) {
@@ -72,7 +65,7 @@ class _OrdersPageState extends State<OrdersPage> {
       case 'status_ready':
         return Colors.green.withOpacity(0.25);
       case 'status_delivered':
-        return Colors.blueAccent.withOpacity(0.2);
+        return const Color(0xFF7C4DFF).withOpacity(0.28);
       default:
         return Colors.white.withOpacity(0.1);
     }
@@ -85,7 +78,7 @@ class _OrdersPageState extends State<OrdersPage> {
       case 'status_ready':
         return Colors.lightGreenAccent;
       case 'status_delivered':
-        return Colors.lightBlueAccent;
+        return const Color(0xFFD1B3FF);
       default:
         return Colors.white70;
     }
@@ -110,7 +103,18 @@ class _OrdersPageState extends State<OrdersPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(context.tr('added_to_cart'), style: GoogleFonts.cairo()),
-          backgroundColor: const Color(0xFF1E5BB3),
+          backgroundColor: const Color(0xFFA855F7),
+        ),
+      );
+    } on CartSingleStoreException {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.tr('cart_single_store_error'),
+            style: GoogleFonts.cairo(),
+          ),
+          backgroundColor: Colors.redAccent.shade700,
         ),
       );
     } catch (e) {
@@ -130,13 +134,13 @@ class _OrdersPageState extends State<OrdersPage> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([_ordersManager, _ratingsManager]),
+      listenable: Listenable.merge([_ordersManager, _ratingsManager, AppThemeMode.instance]),
       builder: (context, _) {
         final isEmpty = _ordersManager.count == 0;
         final list = _visibleOrders;
 
         return Container(
-          color: const Color(0xFF0A1931),
+          color: context.trendy.pageBackground,
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Directionality(
             textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
@@ -146,19 +150,13 @@ class _OrdersPageState extends State<OrdersPage> {
                 _buildHeader(),
                 const SizedBox(height: 32),
                 _buildSubHeader(isEmpty),
-                if (!isEmpty) ...[
-                  const SizedBox(height: 16),
-                  _buildOrderSearch(),
-                  const SizedBox(height: 10),
-                  _buildFilterBar(),
-                ],
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
                 Expanded(
                   child: isEmpty
                       ? _buildEmptyState()
                       : list.isEmpty
                           ? _buildNoMatchesState()
-                          : _buildOrdersList(list),
+                          : _buildScrollableOrders(list),
                 ),
               ],
             ),
@@ -183,10 +181,10 @@ class _OrdersPageState extends State<OrdersPage> {
 
 
         decoration: BoxDecoration(
-          color: const Color(0xFF1E5BB3).withOpacity(0.3),
+          color: const Color(0xFFA855F7).withOpacity(0.3),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
@@ -194,11 +192,11 @@ class _OrdersPageState extends State<OrdersPage> {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: context.trendy.titleColor,
               ),
             ),
-            SizedBox(width: 8),
-            Icon(Icons.checkroom_rounded, color: Colors.blueAccent, size: 24),
+            const SizedBox(width: 8),
+            const Icon(Icons.checkroom_rounded, color: Color(0xFF3B82F6), size: 24),
           ],
         ),
       ),
@@ -223,13 +221,13 @@ class _OrdersPageState extends State<OrdersPage> {
               style: GoogleFonts.cairo(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: context.trendy.titleColor,
               ),
             ),
             if (!isEmpty)
               Text(
                 '${_ordersManager.count} ${context.tr('orders_count')}',
-                style: GoogleFonts.cairo(fontSize: 14, color: Colors.white54),
+                style: GoogleFonts.cairo(fontSize: 14, color: context.trendy.subtitleColor),
               ),
           ],
         ),
@@ -237,102 +235,115 @@ class _OrdersPageState extends State<OrdersPage> {
     );
   }
 
-  Widget _buildOrderSearch() {
-    return TextField(
-      onChanged: (v) => setState(() => _orderSearch = v),
-      style: GoogleFonts.cairo(color: Colors.white),
-      decoration: InputDecoration(
-        hintText: context.tr('search_order_id'),
-        hintStyle: GoogleFonts.cairo(color: Colors.white38),
-        prefixIcon: const Icon(Icons.search, color: Colors.white54),
-        filled: true,
-        fillColor: const Color(0xFF1E5BB3).withOpacity(0.15),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFilterBar() {
-    final storeValues = ['all_stores', ..._ordersManager.orders.map((o) => o.storeName).toSet()];
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+  Widget _buildSearchAndFilterRow() {
+    return Row(
       children: [
-        _buildCompactDropdown(
-          value: _statusFilter,
-          values: const ['status_all', 'status_pending', 'status_ready', 'status_delivered'],
-          onChanged: (v) => setState(() => _statusFilter = v!),
+        SizedBox(
+          width: 148,
+          child: _buildStatusDropdown(),
         ),
-        _buildCompactDropdown(
-          value: _storeFilter,
-          values: storeValues,
-          onChanged: (v) => setState(() => _storeFilter = v!),
-        ),
-        _buildCompactDropdown(
-          value: _paymentFilter,
-          values: const ['all_payments', 'wallet'],
-          onChanged: (v) => setState(() => _paymentFilter = v!),
-        ),
-        _buildCompactDropdown(
-          value: _dateFilter,
-          values: const ['all_dates', 'date_today', 'date_last_7_days', 'date_this_month'],
-          onChanged: (v) => setState(() => _dateFilter = v!),
+        const SizedBox(width: 10),
+        Expanded(
+          child: TextField(
+            onChanged: (v) => setState(() => _orderSearch = v),
+            style: GoogleFonts.cairo(color: Colors.white, fontSize: 14),
+            decoration: InputDecoration(
+              hintText: context.tr('search_order_id'),
+              hintStyle: GoogleFonts.cairo(color: Colors.white38, fontSize: 14),
+              prefixIcon: const Icon(Icons.search, color: Colors.white54, size: 22),
+              filled: true,
+              fillColor: const Color(0xFF1E1B4B),
+              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Colors.white12),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Colors.white12),
+              ),
+            ),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildCompactDropdown({
-    required String value,
-    required List<String> values,
-    required void Function(String?) onChanged,
-  }) {
+  Widget _buildStatusDropdown() {
+    const values = [
+      'status_all',
+      'status_pending',
+      'status_completed',
+      'status_cancelled',
+      'status_ready',
+      'status_delivered',
+    ];
     return Container(
-      width: 165,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withOpacity(0.15),
+        color: const Color(0xFF1E1B4B),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: Colors.white12),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: value,
+          value: _statusFilter,
           isExpanded: true,
-          dropdownColor: const Color(0xFF152a45),
-          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white70),
+          dropdownColor: const Color(0xFF1E1B4B),
+          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white70, size: 22),
           style: GoogleFonts.cairo(color: Colors.white, fontSize: 13),
           items: values
-              .map(
-                (v) => DropdownMenuItem(
-                  value: v,
-                  child: Text(v.startsWith('store_') ? context.tr(v) : context.tr(v)),
-                ),
-              )
+              .map((v) => DropdownMenuItem(value: v, child: Text(context.tr(v))))
               .toList(),
-          onChanged: onChanged,
+          onChanged: (v) => setState(() => _statusFilter = v!),
         ),
       ),
     );
   }
 
-  Widget _buildOrdersList(List<Order> orders) {
-    return ListView.builder(
-      itemCount: orders.length,
-      itemBuilder: (context, index) => _buildOrderCard(orders[index]),
+  Widget _buildScrollableOrders(List<Order> orders) {
+    return CustomScrollView(
+      slivers: [
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _PinnedSearchBarDelegate(
+            child: Container(
+              color: const Color(0xFF121026),
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildSearchAndFilterRow(),
+            ),
+          ),
+        ),
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) => _buildOrderCard(orders[index]),
+            childCount: orders.length,
+          ),
+        ),
+        const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
+      ],
     );
   }
 
   Widget _buildOrderLine(CartItem line) {
     final detail = '${context.tr(line.selectedColor)} • ${line.selectedSize} • ${context.tr('quantity')}: ${line.quantity}';
     return Padding(
-      padding: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.only(top: 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: ProductColorImage(
+              productKey: line.product.name,
+              colorKey: line.selectedColor,
+              baseImageUrl: line.product.imageUrl,
+              width: 72,
+              height: 72,
+              fit: BoxFit.cover,
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -340,42 +351,26 @@ class _OrdersPageState extends State<OrdersPage> {
                 Text(
                   context.tr(line.product.name),
                   style: GoogleFonts.cairo(
-                    fontSize: 17,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Text(
                   detail,
                   style: GoogleFonts.cairo(fontSize: 13, color: Colors.white54),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${line.totalPrice.toStringAsFixed(0)} د.ل',
+                  '${line.totalPrice.toStringAsFixed(0)}${context.tr('currency_suffix')}',
                   style: GoogleFonts.cairo(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.bold,
-                    color: Colors.blueAccent,
+                    color: Colors.lightBlueAccent,
                   ),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              line.product.imageUrl,
-              width: 88,
-              height: 88,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                width: 88,
-                height: 88,
-                color: Colors.white10,
-                child: const Icon(Icons.image_not_supported_outlined, color: Colors.white24),
-              ),
             ),
           ),
         ],
@@ -384,31 +379,26 @@ class _OrdersPageState extends State<OrdersPage> {
   }
 
   Widget _buildOrderCard(Order order) {
+    final productKeys = order.items.map((e) => e.product.name).toList();
+    final fullyRated = _ratingsManager.isOrderFullyRated(order.id, productKeys);
+    final isDelivered = order.status == 'status_delivered';
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(18),
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withOpacity(0.35),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white12),
+        color: const Color(0xFF1E1B4B),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white10),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '${context.tr('order_hashtag')}#${order.id}',
-                style: GoogleFonts.cairo(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  color: Colors.white,
-                ),
-              ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: _statusBackground(order.status),
                   borderRadius: BorderRadius.circular(20),
@@ -416,133 +406,121 @@ class _OrdersPageState extends State<OrdersPage> {
                 child: Text(
                   context.tr(order.status),
                   style: GoogleFonts.cairo(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: _statusForeground(order.status),
                   ),
                 ),
               ),
+              const Spacer(),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${context.tr('order_hashtag')}#${order.id}',
+                    style: GoogleFonts.cairo(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _formatDate(context, order.date),
+                        style: GoogleFonts.cairo(fontSize: 12, color: Colors.white54),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(Icons.account_balance_wallet_outlined, size: 14, color: Colors.white54),
+                      const SizedBox(width: 4),
+                      Text(
+                        context.tr(order.paymentMethod),
+                        style: GoogleFonts.cairo(fontSize: 12, color: Colors.white54),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _formatDate(context, order.date),
-            style: GoogleFonts.cairo(fontSize: 14, color: Colors.white60),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${context.tr('store_label')}: ${context.tr(order.storeName)}',
-            style: GoogleFonts.cairo(fontSize: 13, color: Colors.white70),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            '${context.tr('payment_method_label')}: ${context.tr(order.paymentMethod)}',
-            style: GoogleFonts.cairo(fontSize: 13, color: Colors.white54),
           ),
           for (final item in order.items) _buildOrderLine(item),
-          const SizedBox(height: 16),
-          const Divider(color: Colors.white12, height: 1),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                context.tr('cart_total'),
-                style: GoogleFonts.cairo(fontSize: 16, color: Colors.white70),
-              ),
-              Text(
-                '${order.totalPrice.toStringAsFixed(0)}${context.tr('currency_suffix')}',
-                style: GoogleFonts.cairo(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: order.status == 'status_pending' 
-                      ? () => _simulateReady(order)
-                      : order.status == 'status_ready'
-                          ? () => _ordersManager.updateOrderStatus(order.id, 'status_delivered')
-                          : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: order.status == 'status_ready' ? Colors.green : const Color(0xFF2563EB),
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.white10,
-                    disabledForegroundColor: Colors.white38,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              if (isDelivered)
+                ElevatedButton.icon(
+                  onPressed: fullyRated ? null : () => _openRating(order),
+                  icon: Icon(
+                    fullyRated ? Icons.check_rounded : Icons.star_rounded,
+                    size: 18,
                   ),
-                  child: Text(
-                    order.status == 'status_pending' 
-                        ? context.tr('simulate_ready') 
-                        : order.status == 'status_ready'
-                            ? context.tr('confirm_delivery')
-                            : context.tr('order_delivered_label'),
-                    textAlign: TextAlign.center,
+                  label: Text(
+                    fullyRated ? context.tr('order_rated_done') : context.tr('rate_order'),
                     style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _reorder(order),
-                  icon: const Icon(Icons.refresh_rounded, size: 20),
-                  label: Text(context.tr('reorder'), style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white70,
-                    side: const BorderSide(color: Colors.white24),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: fullyRated ? Colors.white12 : const Color(0xFFE6B422),
+                    foregroundColor: fullyRated ? Colors.white54 : const Color(0xFF121026),
+                    disabledBackgroundColor: Colors.white12,
+                    disabledForegroundColor: Colors.white54,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
+              const Spacer(),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    context.tr('order_total_label'),
+                    style: GoogleFonts.cairo(fontSize: 13, color: Colors.white54),
+                  ),
+                  Text(
+                    '${order.totalPrice.toStringAsFixed(0)}${context.tr('currency_suffix')}',
+                    style: GoogleFonts.cairo(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.lightBlueAccent,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          if (order.status == 'status_delivered') ...[
-            const SizedBox(height: 10),
+          if (!isDelivered) ...[
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _ratingsManager.hasRatedStoreForOrder(order.id)
-                        ? null
-                        : () => _rateStore(order),
-                    icon: const Icon(Icons.storefront_outlined, size: 18),
-                    label: Text(
-                      _ratingsManager.hasRatedStoreForOrder(order.id)
-                          ? context.tr('store_rated_done')
-                          : context.tr('rate_store'),
-                      style: GoogleFonts.cairo(fontSize: 12),
+                  child: ElevatedButton(
+                    onPressed: order.status == 'status_pending'
+                        ? () => _simulateReady(order)
+                        : order.status == 'status_ready'
+                            ? () => _ordersManager.updateOrderStatus(order.id, 'status_delivered')
+                            : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: order.status == 'status_ready' ? Colors.green : const Color(0xFF3B82F6),
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.white10,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text(
+                      order.status == 'status_pending'
+                          ? context.tr('simulate_ready')
+                          : context.tr('confirm_delivery'),
+                      style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 12),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _ratingsManager.hasRatedAllProductsForOrder(
-                      order.id,
-                      order.items.map((e) => e.product.name).toList(),
-                    )
-                        ? null
-                        : () => _rateProducts(order),
-                    icon: const Icon(Icons.star_border_rounded, size: 18),
-                    label: Text(
-                      _ratingsManager.hasRatedAllProductsForOrder(
-                        order.id,
-                        order.items.map((e) => e.product.name).toList(),
-                      )
-                          ? context.tr('products_rated_done')
-                          : context.tr('rate_products'),
-                      style: GoogleFonts.cairo(fontSize: 12),
-                    ),
-                  ),
+                const SizedBox(width: 10),
+                IconButton(
+                  onPressed: () => _reorder(order),
+                  icon: const Icon(Icons.refresh_rounded, color: Colors.white54),
+                  tooltip: context.tr('reorder'),
                 ),
               ],
             ),
@@ -552,65 +530,12 @@ class _OrdersPageState extends State<OrdersPage> {
     );
   }
 
-  Future<void> _rateStore(Order order) async {
-    final selected = await _showRatingDialog(context.tr('rate_store'));
-    if (selected == null) return;
-    _ratingsManager.submitStoreRating(
-      orderId: order.id,
-      storeKey: order.storeName,
-      rating: selected,
+  Future<void> _openRating(Order order) async {
+    final done = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => OrderRatingScreen(order: order)),
     );
-  }
-
-  Future<void> _rateProducts(Order order) async {
-    for (final item in order.items) {
-      if (_ratingsManager.hasRatedProductForOrder(order.id, item.product.name)) continue;
-      final selected = await _showRatingDialog(context.tr(item.product.name));
-      if (selected == null) return;
-      _ratingsManager.submitProductRating(
-        orderId: order.id,
-        productKey: item.product.name,
-        rating: selected,
-      );
-    }
-  }
-
-  Future<double?> _showRatingDialog(String title) async {
-    double value = 5;
-    return showDialog<double>(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setInner) => AlertDialog(
-            backgroundColor: const Color(0xFF152a45),
-            title: Text(title, style: GoogleFonts.cairo(color: Colors.white)),
-            content: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(5, (i) {
-                final star = i + 1;
-                return IconButton(
-                  onPressed: () => setInner(() => value = star.toDouble()),
-                  icon: Icon(
-                    value >= star ? Icons.star : Icons.star_border,
-                    color: Colors.amber,
-                  ),
-                );
-              }),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(context.tr('cancel'), style: GoogleFonts.cairo(color: Colors.white70)),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, value),
-                child: Text(context.tr('save_changes'), style: GoogleFonts.cairo()),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    if (done == true && mounted) setState(() {});
   }
 
   Widget _buildNoMatchesState() {
@@ -628,12 +553,9 @@ class _OrdersPageState extends State<OrdersPage> {
           TextButton(
             onPressed: () => setState(() {
               _statusFilter = 'status_all';
-              _storeFilter = 'all_stores';
-              _paymentFilter = 'all_payments';
-              _dateFilter = 'all_dates';
               _orderSearch = '';
             }),
-            child: Text(context.tr('view_all_orders'), style: GoogleFonts.cairo(color: Colors.blueAccent)),
+            child: Text(context.tr('view_all_orders'), style: GoogleFonts.cairo(color: const Color(0xFF3B82F6))),
           ),
         ],
       ),
@@ -641,19 +563,20 @@ class _OrdersPageState extends State<OrdersPage> {
   }
 
   Widget _buildEmptyState() {
+    final t = context.trendy;
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Container(
           padding: const EdgeInsets.all(40),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: t.cardFill,
             shape: BoxShape.circle,
           ),
           child: Icon(
             Icons.inventory_2_outlined,
             size: 100,
-            color: Colors.white.withOpacity(0.4),
+            color: t.subtitleColor.withValues(alpha: 0.55),
           ),
         ),
         const SizedBox(height: 32),
@@ -662,7 +585,7 @@ class _OrdersPageState extends State<OrdersPage> {
           style: GoogleFonts.cairo(
             fontSize: 26,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: t.titleColor,
           ),
         ),
         const SizedBox(height: 12),
@@ -671,28 +594,38 @@ class _OrdersPageState extends State<OrdersPage> {
           textAlign: TextAlign.center,
           style: GoogleFonts.cairo(
             fontSize: 16,
-            color: Colors.white70,
+            color: t.subtitleColor,
           ),
         ),
         const SizedBox(height: 40),
-        SizedBox(
-          width: 200,
-          height: 50,
-          child: ElevatedButton(
-            onPressed: widget.onBrowseStores,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1E5BB3),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              elevation: 0,
-            ),
-            child: Text(
-              context.tr('start_shopping'),
-              style: GoogleFonts.cairo(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ),
+        GradientButton(
+          onPressed: widget.onBrowseStores,
+          label: context.tr('start_shopping'),
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
         ),
       ],
     );
+  }
+}
+
+class _PinnedSearchBarDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+
+  _PinnedSearchBarDelegate({required this.child});
+
+  @override
+  double get minExtent => 60;
+
+  @override
+  double get maxExtent => 60;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return child;
+  }
+
+  @override
+  bool shouldRebuild(covariant _PinnedSearchBarDelegate oldDelegate) {
+    return oldDelegate.child != child;
   }
 }

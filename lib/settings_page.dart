@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'models/notification_manager.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'notifications_screen.dart';
 import 'complaints_screen.dart';
 import 'wallet_screen.dart';
 import 'models/wallet_manager.dart';
 import 'locale/app_locale.dart';
+import 'theme/app_theme_mode.dart';
+import 'theme/app_colors.dart';
+import 'theme/trendy_theme_extension.dart';
 import 'l10n/app_strings.dart';
 import 'login_screen.dart';
 import 'widgets/app_back_button.dart';
+import 'widgets/gradient_button.dart';
 import 'models/customer_profile.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -77,7 +80,7 @@ class _SettingsPageState extends State<SettingsPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(context.tr('saved_ok'), style: GoogleFonts.cairo()),
-        backgroundColor: const Color(0xFF1E5BB3),
+        backgroundColor: const Color(0xFFA855F7),
       ),
     );
   }
@@ -119,7 +122,7 @@ class _SettingsPageState extends State<SettingsPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(context.tr('pwd_changed_ok'), style: GoogleFonts.cairo()),
-        backgroundColor: const Color(0xFF1E5BB3),
+        backgroundColor: const Color(0xFFA855F7),
       ),
     );
   }
@@ -127,10 +130,10 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFF0A1931),
+      color: context.trendy.pageBackground,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: ListenableBuilder(
-        listenable: Listenable.merge([_wallet, AppLocale.instance]),
+        listenable: Listenable.merge([_wallet, AppLocale.instance, AppThemeMode.instance]),
         builder: (context, _) {
           return Directionality(
             textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
@@ -149,7 +152,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 style: GoogleFonts.cairo(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: context.trendy.titleColor,
                 ),
               ),
               const SizedBox(height: 24),
@@ -207,19 +210,6 @@ class _SettingsPageState extends State<SettingsPage> {
                         MaterialPageRoute<void>(
                           builder: (context) => const WalletScreen(),
                         ),
-                      );
-                    },
-                  ),
-                  _buildQuickLink(
-                    title: context.tr('notifications'),
-                    subtitle: AppStrings.format(context, 'notifications_unread', params: {
-                      'count': NotificationManager().unreadCount.toString(),
-                    }),
-                    icon: Icons.notifications_none_rounded,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const NotificationsScreen()),
                       );
                     },
                   ),
@@ -290,14 +280,9 @@ class _SettingsPageState extends State<SettingsPage> {
                   const SizedBox(height: 24),
                   Align(
                     alignment: AlignmentDirectional.centerStart,
-                    child: ElevatedButton(
+                    child: GradientButton(
                       onPressed: _saveProfile,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF3B82F6),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      ),
-                      child: Text(context.tr('save_changes'), style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold)),
+                      label: context.tr('save_changes'),
                     ),
                   ),
                 ],
@@ -341,14 +326,9 @@ class _SettingsPageState extends State<SettingsPage> {
                   const SizedBox(height: 24),
                   Align(
                     alignment: AlignmentDirectional.centerStart,
-                    child: ElevatedButton(
+                    child: GradientButton(
                       onPressed: _changePassword,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF3B82F6),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      ),
-                      child: Text(context.tr('change_password_btn'), style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold)),
+                      label: context.tr('change_password_btn'),
                     ),
                   ),
                 ],
@@ -368,20 +348,61 @@ class _SettingsPageState extends State<SettingsPage> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(context.tr('enable_notifications'), style: GoogleFonts.cairo(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                          Text(context.tr('notifications_desc'), style: GoogleFonts.cairo(color: Colors.white54, fontSize: 13)),
+                          Text(
+                            context.tr('enable_notifications'),
+                            style: GoogleFonts.cairo(
+                              color: context.trendy.titleColor,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            context.tr('notifications_desc'),
+                            style: GoogleFonts.cairo(color: context.trendy.subtitleColor, fontSize: 13),
+                          ),
                         ],
                       ),
                       Switch(
                         value: _notifManager.notificationsEnabled,
                         onChanged: (val) => _notifManager.setNotificationsEnabled(val),
-                        activeThumbColor: const Color(0xFF3B82F6),
                       ),
                     ],
                   ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Divider(color: Colors.white10),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Divider(color: context.trendy.dividerColor),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              context.tr('light_mode'),
+                              style: GoogleFonts.cairo(
+                                color: context.trendy.titleColor,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              context.tr('light_mode_desc'),
+                              style: GoogleFonts.cairo(color: context.trendy.subtitleColor, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Switch(
+                        value: AppThemeMode.instance.isLight,
+                        onChanged: AppThemeMode.instance.setLightMode,
+                      ),
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Divider(color: context.trendy.dividerColor),
                   ),
                   // Language Dropdown
                   Row(
@@ -392,8 +413,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(context.tr('language'), style: GoogleFonts.cairo(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                            Text(context.tr('language_desc'), style: GoogleFonts.cairo(color: Colors.white54, fontSize: 13)),
+                            Text(context.tr('language'), style: GoogleFonts.cairo(color: context.trendy.titleColor, fontSize: 16, fontWeight: FontWeight.bold)),
+                            Text(context.tr('language_desc'), style: GoogleFonts.cairo(color: context.trendy.subtitleColor, fontSize: 13)),
                           ],
                         ),
                       ),
@@ -401,24 +422,24 @@ class _SettingsPageState extends State<SettingsPage> {
                         width: 140,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.05),
+                          color: context.trendy.inputFill,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white10),
+                          border: Border.all(color: context.trendy.cardBorder),
                         ),
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<Locale>(
                             value: AppLocale.instance.locale,
-                            dropdownColor: const Color(0xFF121E36),
-                            icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white54),
+                            dropdownColor: context.trendy.surfaceColor,
+                            icon: Icon(Icons.keyboard_arrow_down, color: context.trendy.subtitleColor),
                             isExpanded: true,
                             items: [
                               DropdownMenuItem(
                                 value: const Locale('ar'),
-                                child: Text(context.tr('lang_ar'), style: const TextStyle(color: Colors.white, fontSize: 14)),
+                                child: Text(context.tr('lang_ar'), style: TextStyle(color: context.trendy.titleColor, fontSize: 14)),
                               ),
                               DropdownMenuItem(
                                 value: const Locale('en'),
-                                child: Text(context.tr('lang_en'), style: const TextStyle(color: Colors.white, fontSize: 14)),
+                                child: Text(context.tr('lang_en'), style: TextStyle(color: context.trendy.titleColor, fontSize: 14)),
                               ),
                             ],
                             onChanged: (loc) {
@@ -441,7 +462,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(context.tr('logout'), style: GoogleFonts.cairo(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold)),
-                      Text(context.tr('logout_desc'), style: GoogleFonts.cairo(color: Colors.white54, fontSize: 13)),
+                      Text(context.tr('logout_desc'), style: GoogleFonts.cairo(color: context.trendy.subtitleColor, fontSize: 13)),
                     ],
                   ),
                   ElevatedButton.icon(
@@ -449,7 +470,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       showDialog(
                         context: context,
                         builder: (ctx) => AlertDialog(
-                          backgroundColor: const Color(0xFF121E36),
+                          backgroundColor: const Color(0xFF1E1B4B),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                           title: Text(context.tr('logout'), style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold)),
                           content: Text(context.tr('logout_desc'), style: GoogleFonts.cairo(color: Colors.white70)),
@@ -507,7 +528,7 @@ class _SettingsPageState extends State<SettingsPage> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E5BB3).withValues(alpha: 0.3),
+            color: const Color(0xFFA855F7).withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(10),
           ),
           child: const Row(
@@ -518,7 +539,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
               ),
               SizedBox(width: 6),
-              Icon(Icons.checkroom_rounded, color: Colors.blueAccent, size: 20),
+              Icon(Icons.checkroom_rounded, color: const Color(0xFF3B82F6), size: 20),
             ],
           ),
         ),
@@ -531,22 +552,23 @@ class _SettingsPageState extends State<SettingsPage> {
     required String label,
     required String value,
   }) {
+    final t = context.trendy;
     return Row(
       children: [
-        Icon(icon, color: Colors.white70, size: 18),
+        Icon(icon, color: t.subtitleColor, size: 18),
         const SizedBox(width: 10),
         SizedBox(
           width: 110,
           child: Text(
             label,
-            style: GoogleFonts.cairo(color: Colors.white54, fontSize: 13),
+            style: GoogleFonts.cairo(color: t.subtitleColor, fontSize: 13),
           ),
         ),
         Expanded(
           child: Text(
             value,
             textAlign: TextAlign.end,
-            style: GoogleFonts.cairo(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+            style: GoogleFonts.cairo(color: t.titleColor, fontSize: 13, fontWeight: FontWeight.bold),
           ),
         ),
       ],
@@ -559,12 +581,16 @@ class _SettingsPageState extends State<SettingsPage> {
     IconData? icon,
     required List<Widget> children,
   }) {
+    final t = context.trendy;
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withValues(alpha: 0.1),
+        color: t.cardFill,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: t.cardBorder),
+        boxShadow: AppThemeMode.instance.isLight
+            ? [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 4))]
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -572,14 +598,14 @@ class _SettingsPageState extends State<SettingsPage> {
           Row(
             children: [
               if (icon != null) ...[
-                Icon(icon, color: Colors.white, size: 24),
+                Icon(icon, color: t.titleColor, size: 24),
                 const SizedBox(width: 12),
               ],
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: GoogleFonts.cairo(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                  Text(subtitle, style: GoogleFonts.cairo(color: Colors.white54, fontSize: 13)),
+                  Text(title, style: GoogleFonts.cairo(color: t.titleColor, fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(subtitle, style: GoogleFonts.cairo(color: t.subtitleColor, fontSize: 13)),
                 ],
               ),
             ],
@@ -598,23 +624,24 @@ class _SettingsPageState extends State<SettingsPage> {
     bool showBorder = true,
     VoidCallback? onTap,
   }) {
+    final t = context.trendy;
     return Container(
       decoration: BoxDecoration(
-        border: showBorder ? const Border(bottom: BorderSide(color: Colors.white10)) : null,
+        border: showBorder ? Border(bottom: BorderSide(color: t.dividerColor)) : null,
       ),
       child: ListTile(
         contentPadding: EdgeInsets.zero,
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.blueAccent.withValues(alpha: 0.1),
+            color: AppColors.primary.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: Colors.blueAccent, size: 24),
+          child: Icon(icon, color: AppColors.primary, size: 24),
         ),
-        title: Text(title, style: GoogleFonts.cairo(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle, style: GoogleFonts.cairo(color: Colors.white54, fontSize: 13)),
-        trailing: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white24, size: 16),
+        title: Text(title, style: GoogleFonts.cairo(color: t.titleColor, fontSize: 16, fontWeight: FontWeight.bold)),
+        subtitle: Text(subtitle, style: GoogleFonts.cairo(color: t.subtitleColor, fontSize: 13)),
+        trailing: Icon(Icons.arrow_forward_ios_rounded, color: t.hintColor, size: 16),
         onTap: onTap,
       ),
     );
@@ -628,34 +655,35 @@ class _SettingsPageState extends State<SettingsPage> {
     TextInputType? keyboardType,
     List<TextInputFormatter>? inputFormatters,
   }) {
+    final t = context.trendy;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: GoogleFonts.cairo(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+        Text(label, style: GoogleFonts.cairo(color: t.titleColor, fontSize: 13, fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
         TextField(
           controller: controller,
           obscureText: obscureText,
           keyboardType: keyboardType,
           inputFormatters: inputFormatters,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
+          style: TextStyle(color: t.titleColor, fontSize: 14),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: Colors.white54, fontSize: 14),
+            hintStyle: TextStyle(color: t.hintColor, fontSize: 14),
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.05),
+            fillColor: t.inputFill,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.white10),
+              borderSide: BorderSide(color: t.cardBorder),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.white10),
+              borderSide: BorderSide(color: t.cardBorder),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF3B82F6)),
+              borderSide: const BorderSide(color: AppColors.primary),
             ),
           ),
         ),

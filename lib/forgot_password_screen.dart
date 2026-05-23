@@ -7,7 +7,7 @@ class ForgotPasswordScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A1931), // Dark blue background
+      backgroundColor: const Color(0xFF121026), // Dark blue background
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -26,7 +26,7 @@ class ForgotPasswordScreen extends StatelessWidget {
                       child: const Icon(
                         Icons.storefront_outlined,
                         size: 60,
-                        color: Colors.blueAccent,
+                        color: const Color(0xFF3B82F6),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -55,7 +55,7 @@ class ForgotPasswordScreen extends StatelessWidget {
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E5BB3), // Lighter blue card
+                  color: const Color(0xFFA855F7), // Lighter blue card
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Directionality(
@@ -129,7 +129,7 @@ class ForgotPasswordScreen extends StatelessWidget {
                             );
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF00D1FF), // Cyan/Light Blue
+                            backgroundColor: const Color(0xFF3B82F6), // Cyan/Light Blue
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),

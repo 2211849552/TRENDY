@@ -21,7 +21,7 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A1931),
+      backgroundColor: const Color(0xFF121026),
       body: SafeArea(
         child: Directionality(
           textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
@@ -98,7 +98,7 @@ class _WalletScreenState extends State<WalletScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E5BB3).withOpacity(0.3),
+            color: const Color(0xFFA855F7).withOpacity(0.3),
             borderRadius: BorderRadius.circular(10),
           ),
           child: const Row(
@@ -112,7 +112,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 ),
               ),
               SizedBox(width: 6),
-              Icon(Icons.checkroom_rounded, color: Colors.blueAccent, size: 20),
+              Icon(Icons.checkroom_rounded, color: const Color(0xFF3B82F6), size: 20),
             ],
           ),
         ),
@@ -126,7 +126,7 @@ class _WalletScreenState extends State<WalletScreen> {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF1E5BB3), Color(0xFF0F2847)],
+          colors: [Color(0xFFA855F7), Color(0xFF1C1A33)],
           begin: Alignment.topRight,
           end: Alignment.bottomLeft,
         ),
@@ -134,7 +134,7 @@ class _WalletScreenState extends State<WalletScreen> {
         border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.35)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1E5BB3).withOpacity(0.25),
+            color: const Color(0xFFA855F7).withOpacity(0.25),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -224,12 +224,12 @@ class _WalletScreenState extends State<WalletScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.add, color: Color(0xFF1E5BB3), size: 20),
+                    const Icon(Icons.add, color: Color(0xFFA855F7), size: 20),
                     const SizedBox(width: 6),
                     Text(
                       context.tr('wallet_topup'),
                       style: GoogleFonts.cairo(
-                        color: const Color(0xFF1E5BB3),
+                        color: const Color(0xFFA855F7),
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
@@ -250,7 +250,7 @@ class _WalletScreenState extends State<WalletScreen> {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E5BB3).withOpacity(0.1),
+          color: const Color(0xFFA855F7).withOpacity(0.1),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: Colors.white10),
         ),
@@ -263,7 +263,7 @@ class _WalletScreenState extends State<WalletScreen> {
     }
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withOpacity(0.1),
+        color: const Color(0xFFA855F7).withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white10),
       ),
@@ -332,7 +332,7 @@ class _WalletScreenState extends State<WalletScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withOpacity(0.1),
+        color: const Color(0xFFA855F7).withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white10),
       ),
@@ -365,7 +365,7 @@ class _WalletScreenState extends State<WalletScreen> {
         children: [
           const Padding(
             padding: EdgeInsets.only(top: 6),
-            child: Icon(Icons.circle, color: Colors.blueAccent, size: 8),
+            child: Icon(Icons.circle, color: const Color(0xFF3B82F6), size: 8),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -446,7 +446,7 @@ class _SadadTopUpDialogState extends State<_SadadTopUpDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: const Color(0xFF121E36),
+      backgroundColor: const Color(0xFF1E1B4B),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Directionality(
         textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
@@ -484,7 +484,7 @@ class _SadadTopUpDialogState extends State<_SadadTopUpDialog> {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: const BoxDecoration(
-                    color: Color(0xFF1E5BB3),
+                    color: Color(0xFFA855F7),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -537,7 +537,7 @@ class _SadadTopUpDialogState extends State<_SadadTopUpDialog> {
                           data: Theme.of(context).copyWith(
                             colorScheme: const ColorScheme.dark(
                               primary: Color(0xFF3B82F6),
-                              surface: Color(0xFF121E36),
+                              surface: Color(0xFF1E1B4B),
                             ),
                           ),
                           child: child!,

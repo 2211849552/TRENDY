@@ -62,16 +62,4 @@ class OrdersManager extends ChangeNotifier {
     }
   }
 
-  bool canCheckoutFromStore(String storeName) {
-    // Orders that are not delivered yet are considered active
-    final activeOrders = _orders.where((o) => o.status != 'status_delivered');
-    
-    // If there is an active order from a DIFFERENT store, prevent checkout
-    for (final order in activeOrders) {
-      if (order.items.isNotEmpty && order.items.first.product.storeName != storeName) {
-        return false;
-      }
-    }
-    return true;
-  }
 }

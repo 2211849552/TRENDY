@@ -2,13 +2,19 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'locale/app_locale.dart';
+import 'theme/app_theme_mode.dart';
+import 'theme/trendy_theme_extension.dart';
 import 'l10n/app_strings.dart';
 import 'models/cart_manager.dart';
 import 'models/cart_item.dart';
 import 'models/wallet_manager.dart';
-import 'models/orders_manager.dart';
 import 'login_screen.dart';
 import 'widgets/app_back_button.dart';
+import 'widgets/product_comments_button.dart';
+import 'data/product_color_variants.dart';
+import 'widgets/product_color_image.dart';
+import 'widgets/store_cover_image.dart';
+import 'widgets/gradient_button.dart';
 
 class CartPage extends StatefulWidget {
   final VoidCallback onBrowseStores;
@@ -35,12 +41,12 @@ class _CartPageState extends State<CartPage> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([_cartManager, WalletManager(), AppLocale.instance]),
+      listenable: Listenable.merge([_cartManager, WalletManager(), AppLocale.instance, AppThemeMode.instance]),
       builder: (context, _) {
         bool isEmpty = _cartManager.items.isEmpty;
 
         return Container(
-          color: const Color(0xFF0A1931),
+          color: context.trendy.pageBackground,
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Directionality(
             textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
@@ -70,18 +76,22 @@ class _CartPageState extends State<CartPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E5BB3).withOpacity(0.3),
+          color: const Color(0xFFA855F7).withOpacity(0.3),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               'Trendy',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: context.trendy.titleColor,
+              ),
             ),
-            SizedBox(width: 8),
-            Icon(Icons.checkroom_rounded, color: Colors.blueAccent, size: 24),
+            const SizedBox(width: 8),
+            const Icon(Icons.checkroom_rounded, color: Color(0xFF3B82F6), size: 24),
           ],
         ),
       ),
@@ -100,97 +110,31 @@ class _CartPageState extends State<CartPage> {
         ),
         Text(
           context.tr('cart_title'),
-          style: GoogleFonts.cairo(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+          style: GoogleFonts.cairo(fontSize: 24, fontWeight: FontWeight.bold, color: context.trendy.titleColor),
         ),
       ],
     );
   }
 
   Widget _buildCartContent() {
-    Map<String, List<CartItem>> itemsByStore = {};
     final filteredItems = _cartManager.items.where((item) {
       if (_search.trim().isEmpty) return true;
       final q = _search.trim().toLowerCase();
       return context.tr(item.product.name).toLowerCase().contains(q) ||
           (item.product.code ?? '').toLowerCase().contains(q);
     }).toList();
-    for (var item in filteredItems) {
-      itemsByStore.putIfAbsent(item.product.storeName, () => []).add(item);
-    }
-    final storeNames = itemsByStore.keys.toList();
 
-    if (storeNames.length == 1) {
-      return _buildStoreCartView(storeNames.first, itemsByStore[storeNames.first]!);
+    if (filteredItems.isEmpty) {
+      return Center(
+        child: Text(
+          context.tr('search_no_result'),
+          style: GoogleFonts.cairo(color: Colors.white54, fontSize: 16),
+        ),
+      );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextField(
-          onChanged: (v) => setState(() => _search = v),
-          style: GoogleFonts.cairo(color: Colors.white),
-          decoration: InputDecoration(
-            hintText: context.tr('search_product_cart'),
-            hintStyle: GoogleFonts.cairo(color: Colors.white30),
-            prefixIcon: const Icon(Icons.search, color: Colors.white54),
-            filled: true,
-            fillColor: const Color(0xFF1E5BB3).withOpacity(0.12),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E5BB3).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            context.tr('multi_store_warning'),
-            style: GoogleFonts.cairo(color: Colors.amber, fontWeight: FontWeight.bold),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            TextButton(
-              onPressed: () => setState(() => _selectedItems.addAll(filteredItems)),
-              child: Text(context.tr('select_all_items')),
-            ),
-            TextButton(
-              onPressed: () => setState(_selectedItems.clear),
-              child: Text(context.tr('unselect_all_items')),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Expanded(
-          child: DefaultTabController(
-            length: storeNames.length,
-            child: Column(
-              children: [
-                TabBar(
-                  isScrollable: true,
-                  indicatorColor: Colors.blueAccent,
-                  labelColor: Colors.white,
-                  unselectedLabelColor: Colors.white54,
-                  labelStyle: GoogleFonts.cairo(fontWeight: FontWeight.bold),
-                  tabs: storeNames.map((name) => Tab(text: context.tr(name))).toList(),
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: TabBarView(
-                    children: storeNames.map((name) {
-                      return _buildStoreCartView(name, itemsByStore[name]!);
-                    }).toList(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
+    final storeKey = _cartManager.currentStoreKey!;
+    return _buildStoreCartView(storeKey, filteredItems);
   }
 
   Widget _buildStoreCartView(String storeName, List<CartItem> storeItems) {
@@ -226,7 +170,7 @@ class _CartPageState extends State<CartPage> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withOpacity(0.1),
+        color: const Color(0xFFA855F7).withOpacity(0.1),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white10),
       ),
@@ -243,7 +187,7 @@ class _CartPageState extends State<CartPage> {
           _buildSummaryRow(
             context.tr('cart_total'),
             '$totalPrice${context.tr('currency_suffix')}',
-            valueColor: Colors.blueAccent,
+            valueColor: const Color(0xFF3B82F6),
           ),
           const Divider(color: Colors.white10, height: 40),
           if (!widget.isGuest) ...[
@@ -270,23 +214,11 @@ class _CartPageState extends State<CartPage> {
                     (route) => false,
                   );
                 } else {
-                  if (!OrdersManager().canCheckoutFromStore(storeName)) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          context.tr('multi_store_error'),
-                          style: GoogleFonts.cairo(),
-                        ),
-                        backgroundColor: Colors.redAccent.shade700,
-                      ),
-                    );
-                    return;
-                  }
-                  widget.onWalletPay(storeName, activeItems);
+                  _confirmAndPay(storeName, activeItems, totalPrice);
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: widget.isGuest ? Colors.blueAccent : const Color(0xFF1E5BB3),
+                backgroundColor: widget.isGuest ? const Color(0xFF3B82F6) : const Color(0xFFA855F7),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
@@ -311,13 +243,49 @@ class _CartPageState extends State<CartPage> {
               },
               child: Text(
                 _selectedItems.isEmpty ? context.tr('cart_clear') : context.tr('clear_selected_items'),
-                style: GoogleFonts.cairo(color: Colors.blueAccent, fontWeight: FontWeight.bold),
+                style: GoogleFonts.cairo(color: const Color(0xFF3B82F6), fontWeight: FontWeight.bold),
               ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _confirmAndPay(String storeName, List<CartItem> activeItems, double totalPrice) async {
+    final amount = totalPrice.toStringAsFixed(0);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1B4B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          context.tr('payment_confirm_title'),
+          style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          AppStrings.format(context, 'payment_confirm_message', params: {'amount': amount}),
+          style: GoogleFonts.cairo(color: Colors.white70, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(context.tr('cancel'), style: GoogleFonts.cairo(color: Colors.white70)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFA855F7),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text(context.tr('confirm_action'), style: GoogleFonts.cairo(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      widget.onWalletPay(storeName, activeItems);
+    }
   }
 
   Widget _buildSummaryRow(String label, String value, {Color color = Colors.white70, Color valueColor = Colors.white, double fontSize = 16}) {
@@ -336,7 +304,7 @@ class _CartPageState extends State<CartPage> {
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withOpacity(0.1),
+        color: const Color(0xFFA855F7).withOpacity(0.1),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white10),
       ),
@@ -369,18 +337,23 @@ class _CartPageState extends State<CartPage> {
                   style: GoogleFonts.cairo(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
                 Text(
-                  '${context.tr('color')}: ${item.selectedColor}, ${context.tr('size')}: ${item.selectedSize}',
+                  '${context.tr('color')}: ${context.tr(item.selectedColor)}, ${context.tr('size')}: ${item.selectedSize}',
                   style: const TextStyle(color: Colors.white38, fontSize: 12),
+                ),
+                const SizedBox(height: 6),
+                ProductCommentsButton(
+                  product: item.product,
+                  variantLabel: '${context.tr(item.selectedColor)} · ${item.selectedSize}',
                 ),
                 TextButton.icon(
                   onPressed: () => _showEditAttributesDialog(item),
-                  icon: const Icon(Icons.tune, size: 16, color: Colors.blueAccent),
-                  label: Text(context.tr('edit_item_attributes'), style: const TextStyle(color: Colors.blueAccent, fontSize: 12)),
+                  icon: const Icon(Icons.tune, size: 16, color: const Color(0xFF3B82F6)),
+                  label: Text(context.tr('edit_item_attributes'), style: const TextStyle(color: const Color(0xFF3B82F6), fontSize: 12)),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   '${item.product.price}${context.tr('currency_suffix')}',
-                  style: GoogleFonts.cairo(fontSize: 20, color: Colors.blueAccent, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.cairo(fontSize: 20, color: const Color(0xFF3B82F6), fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -405,8 +378,10 @@ class _CartPageState extends State<CartPage> {
           // 3. Image on the RIGHT
           ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: Image.network(
-              item.product.imageUrl,
+            child: ProductColorImage(
+              productKey: item.product.name,
+              colorKey: item.selectedColor,
+              baseImageUrl: item.product.imageUrl,
               height: 100,
               width: 100,
               fit: BoxFit.cover,
@@ -441,7 +416,7 @@ class _CartPageState extends State<CartPage> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.add, color: Colors.blueAccent, size: 16),
+            icon: const Icon(Icons.add, color: const Color(0xFF3B82F6), size: 16),
             onPressed: () => _cartManager.updateQuantity(item, 1),
             padding: const EdgeInsets.all(4),
             constraints: const BoxConstraints(),
@@ -452,74 +427,88 @@ class _CartPageState extends State<CartPage> {
   }
 
   void _showEditAttributesDialog(CartItem item) {
-    final colorController = TextEditingController(text: item.selectedColor);
+    String selectedColor = ProductColorVariants.availableColors.contains(item.selectedColor)
+        ? item.selectedColor
+        : 'black';
     final sizeController = TextEditingController(text: item.selectedSize);
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF121E36),
-        title: Text(context.tr('edit_item_attributes'), style: GoogleFonts.cairo(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: colorController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(hintText: context.tr('color')),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: sizeController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(hintText: context.tr('size')),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF1E1B4B),
+          title: Text(context.tr('edit_item_attributes'), style: GoogleFonts.cairo(color: Colors.white)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: ProductColorImage(
+                  productKey: item.product.name,
+                  colorKey: selectedColor,
+                  baseImageUrl: item.product.imageUrl,
+                  height: 120,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: selectedColor,
+                dropdownColor: const Color(0xFF1E1B4B),
+                style: GoogleFonts.cairo(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: context.tr('color'),
+                  labelStyle: GoogleFonts.cairo(color: Colors.white54),
+                ),
+                items: ProductColorVariants.availableColors
+                    .map((c) => DropdownMenuItem(value: c, child: Text(context.tr(c))))
+                    .toList(),
+                onChanged: (v) => setDialogState(() => selectedColor = v ?? selectedColor),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: sizeController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(hintText: context.tr('size')),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.tr('cancel'))),
+            ElevatedButton(
+              onPressed: () {
+                _cartManager.updateAttributes(
+                  item,
+                  color: selectedColor,
+                  size: sizeController.text.trim(),
+                );
+                Navigator.pop(ctx);
+                setState(() {});
+              },
+              child: Text(context.tr('save_changes')),
             ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.tr('cancel'))),
-          ElevatedButton(
-            onPressed: () {
-              _cartManager.updateAttributes(
-                item,
-                color: colorController.text.trim(),
-                size: sizeController.text.trim(),
-              );
-              Navigator.pop(ctx);
-            },
-            child: Text(context.tr('save_changes')),
-          ),
-        ],
       ),
     );
   }
 
   Widget _buildEmptyState() {
+    final t = context.trendy;
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.shopping_basket_outlined, size: 100, color: Colors.white.withOpacity(0.2)),
+        Icon(Icons.shopping_basket_outlined, size: 100, color: t.subtitleColor.withValues(alpha: 0.45)),
         const SizedBox(height: 24),
         Text(
           context.tr('cart_empty'),
-          style: GoogleFonts.cairo(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+          style: GoogleFonts.cairo(fontSize: 22, fontWeight: FontWeight.bold, color: t.titleColor),
         ),
         const SizedBox(height: 32),
-        SizedBox(
-          width: 180,
-          height: 50,
-          child: ElevatedButton(
-            onPressed: widget.onBrowseStores,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1E5BB3),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              elevation: 0,
-            ),
-            child: Text(
-              context.tr('cart_shop_now'),
-              style: GoogleFonts.cairo(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ),
+        GradientButton(
+          onPressed: widget.onBrowseStores,
+          label: context.tr('cart_shop_now'),
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
         ),
       ],
     );

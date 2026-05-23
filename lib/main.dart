@@ -4,7 +4,9 @@ import 'login_screen.dart';
 import 'locale/app_locale.dart';
 import 'l10n/app_strings.dart';
 import 'services/firebase_bootstrap.dart';
+import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
+import 'theme/app_theme_mode.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,14 +20,15 @@ class AppRoot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: AppLocale.instance,
+      listenable: Listenable.merge([AppLocale.instance, AppThemeMode.instance]),
       builder: (context, _) {
         final locale = AppLocale.instance.locale;
         final isAr = locale.languageCode == 'ar';
+        final isLight = AppThemeMode.instance.isLight;
         return MaterialApp(
           title: isAr ? 'متجري' : 'Matajari',
           debugShowCheckedModeBanner: false,
-          theme: AppTheme.dark(isAr: isAr),
+          theme: isLight ? AppTheme.light(isAr: isAr) : AppTheme.dark(isAr: isAr),
           locale: locale,
           supportedLocales: const [
             Locale('ar'),
@@ -66,8 +69,11 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0061FF),
-      body: Center(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(gradient: AppColors.brandGradientRtl),
+        child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -84,7 +90,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   Icon(
                     Icons.checkroom_rounded,
                     size: 80,
-                    color: Color(0xFF0061FF),
+                    color: Color(0xFFA855F7),
                   ),
                   Positioned(
                     top: 25,
@@ -129,6 +135,7 @@ class _SplashScreenState extends State<SplashScreen> {
               ],
             )
           ],
+        ),
         ),
       ),
     );

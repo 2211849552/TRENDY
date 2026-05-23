@@ -15,7 +15,7 @@ class StoreInboxScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!FirebaseState().ready.value) {
       return Scaffold(
-        backgroundColor: const Color(0xFF0A1931),
+        backgroundColor: const Color(0xFF121026),
         appBar: AppBar(
           title: Text(context.tr('store_inbox_title'), style: GoogleFonts.cairo()),
         ),
@@ -35,7 +35,7 @@ class StoreInboxScreen extends StatelessWidget {
     final storeKeyStream = StoreIdentityService().watchStoreKey();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A1931),
+      backgroundColor: const Color(0xFF121026),
       appBar: AppBar(
         title: Text(context.tr('store_inbox_title'), style: GoogleFonts.cairo()),
         actions: [
@@ -106,7 +106,7 @@ class StoreInboxScreen extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1E5BB3).withOpacity(0.12),
+                        color: const Color(0xFFA855F7).withOpacity(0.12),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: Colors.white10),
                       ),

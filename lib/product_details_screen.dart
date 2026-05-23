@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'data/product_color_variants.dart';
+import 'theme/trendy_theme_extension.dart';
+import 'widgets/product_gallery_section.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'models/product.dart';
 import 'models/favorites_manager.dart';
 import 'models/cart_manager.dart';
 import 'l10n/app_strings.dart';
 import 'widgets/app_back_button.dart';
+import 'widgets/product_comments_button.dart';
 
 class ProductDetailsScreen extends StatefulWidget {
   final Product product;
@@ -18,17 +22,24 @@ class ProductDetailsScreen extends StatefulWidget {
 class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   final FavoritesManager _favoritesManager = FavoritesManager();
   final CartManager _cartManager = CartManager();
-  String _selectedColor = 'black';
+  late String _selectedColor;
   String _selectedSize = 'M';
   int _quantity = 1;
 
-  final List<String> _colors = ['black', 'navy', 'grey'];
+  late final List<String> _colors;
   final List<String> _sizes = ['S', 'M', 'L', 'XL', 'XXL'];
+
+  @override
+  void initState() {
+    super.initState();
+    _colors = ProductColorVariants.colorsFor(widget.product.name);
+    _selectedColor = ProductColorVariants.defaultColorFor(widget.product.name);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A1931),
+      backgroundColor: context.trendy.pageBackground,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Directionality(
@@ -36,33 +47,42 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Product Image and Back Button
-                _buildProductImage(),
-                
+                Stack(
+                  children: [
+                    ProductGallerySection(
+                      imageUrl: widget.product.imageUrl,
+                      productKey: widget.product.name,
+                      storeName: widget.product.storeName,
+                    ),
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: CircleAvatar(
+                        backgroundColor: Colors.black.withValues(alpha: 0.35),
+                        child: AppBackIconButton(
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Title and Category/Rating Banner
                       _buildMainHeader(),
                       const SizedBox(height: 24),
-                      
-                      // Price Section
                       _buildPriceSection(),
                       const SizedBox(height: 32),
-                      
-                      // Description
                       _buildDescriptionBox(),
+                      const SizedBox(height: 12),
+                      ProductCommentsButton(product: widget.product),
                       const SizedBox(height: 32),
-                      
-                      // Color Selection
                       _buildSelectionLabel(context.tr('color')),
                       const SizedBox(height: 16),
                       _buildColorSelector(),
                       const SizedBox(height: 32),
-                      
-                      // Size Selection
                       _buildSelectionLabel(context.tr('size')),
                       const SizedBox(height: 16),
                       _buildSizeSelector(),
@@ -89,35 +109,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     );
   }
 
-  Widget _buildProductImage() {
-    return Stack(
-      children: [
-        Container(
-          height: 400,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
-            image: DecorationImage(
-              image: NetworkImage(widget.product.imageUrl),
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
-        // Back Button
-        Positioned(
-          top: 20,
-          right: 20,
-          child: CircleAvatar(
-            backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.65),
-            child: AppBackIconButton(
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildMainHeader() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -140,13 +131,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E5BB3).withOpacity(0.2),
+                      color: const Color(0xFFA855F7).withOpacity(0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       context.tr(widget.product.category),
                       style: GoogleFonts.cairo(
-                        color: Colors.blueAccent,
+                        color: const Color(0xFF3B82F6),
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                       ),
@@ -179,7 +170,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               style: GoogleFonts.cairo(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
-                color: Colors.blueAccent,
+                color: const Color(0xFF3B82F6),
               ),
             ),
             if (widget.product.originalPrice != null) ...[
@@ -198,12 +189,12 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF00D1FF).withOpacity(0.2),
+                  color: const Color(0xFF3B82F6).withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   '${widget.product.discount} ${context.tr('sort_offers').split(' ')[0]}',
-                  style: const TextStyle(color: Color(0xFF00D1FF), fontSize: 12, fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: Color(0xFF3B82F6), fontSize: 12, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -227,7 +218,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withOpacity(0.1),
+        color: const Color(0xFFA855F7).withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white10),
       ),
@@ -254,18 +245,24 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   }
 
   Widget _buildColorSelector() {
-    return Row(
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
       children: _colors.map((color) {
-        bool isSelected = _selectedColor == color;
+        final isSelected = _selectedColor == color;
         return GestureDetector(
           onTap: () => setState(() => _selectedColor = color),
           child: Container(
-            margin: EdgeInsets.only(left: context.isRtl ? 0 : 12, right: context.isRtl ? 12 : 0),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFF1E5BB3) : Colors.white.withOpacity(0.05),
+              color: isSelected
+                  ? const Color(0xFFA855F7).withValues(alpha: 0.25)
+                  : Colors.white.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: isSelected ? Colors.blueAccent : Colors.white10),
+              border: Border.all(
+                color: isSelected ? const Color(0xFF3B82F6) : Colors.white10,
+                width: isSelected ? 2 : 1,
+              ),
             ),
             child: Text(
               context.tr(color),
@@ -291,9 +288,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             margin: const EdgeInsets.only(left: 12),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFF1E5BB3) : Colors.white.withOpacity(0.05),
+              color: isSelected ? const Color(0xFFA855F7) : Colors.white.withOpacity(0.05),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: isSelected ? Colors.blueAccent : Colors.white10),
+              border: Border.all(color: isSelected ? const Color(0xFF3B82F6) : Colors.white10),
             ),
             child: Text(
               size,
@@ -332,7 +329,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.add, color: Colors.blueAccent, size: 20),
+            icon: const Icon(Icons.add, color: const Color(0xFF3B82F6), size: 20),
             onPressed: () => setState(() => _quantity++),
           ),
         ],
@@ -358,12 +355,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                     size: _selectedSize,
                     quantity: _quantity,
                   );
-
-                  // Show "تم إضافة المنتج للسلة" toast
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       behavior: SnackBarBehavior.floating,
-                      backgroundColor: const Color(0xFF1E5BB3).withOpacity(0.9),
+                      backgroundColor: const Color(0xFFA855F7).withOpacity(0.9),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       margin: EdgeInsets.only(
                         bottom: MediaQuery.of(context).size.height - 100,
@@ -383,14 +378,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       ),
                     ),
                   );
-                } catch (e) {
-                  // Show error if from different store
+                } on CartSingleStoreException {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       behavior: SnackBarBehavior.floating,
                       backgroundColor: Colors.redAccent,
                       content: Text(
-                        e.toString().replaceAll('Exception: ', ''),
+                        context.tr('cart_single_store_error'),
                         style: GoogleFonts.cairo(color: Colors.white),
                         textAlign: TextAlign.right,
                       ),
@@ -399,7 +393,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1E5BB3),
+                backgroundColor: const Color(0xFFA855F7),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -434,7 +428,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   behavior: SnackBarBehavior.floating,
-                  backgroundColor: const Color(0xFF1E5BB3).withOpacity(0.9),
+                  backgroundColor: const Color(0xFFA855F7).withOpacity(0.9),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   margin: EdgeInsets.only(
                     bottom: MediaQuery.of(context).size.height - 100,
@@ -460,9 +454,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isFav ? const Color(0xFF1E5BB3) : Colors.white.withOpacity(0.05),
+              color: isFav ? const Color(0xFFA855F7) : Colors.white.withOpacity(0.05),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: isFav ? Colors.blueAccent : Colors.white10),
+              border: Border.all(color: isFav ? const Color(0xFF3B82F6) : Colors.white10),
             ),
             child: Icon(
               isFav ? Icons.favorite : Icons.favorite_outline,

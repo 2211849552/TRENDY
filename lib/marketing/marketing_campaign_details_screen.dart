@@ -3,7 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../l10n/app_strings.dart';
 import '../models/marketing_campaign.dart';
-
+import '../utils/store_navigation.dart';
+import '../widgets/store_cover_image.dart';
 class MarketingCampaignDetailsScreen extends StatelessWidget {
   final MarketingCampaign campaign;
 
@@ -40,17 +41,9 @@ class MarketingCampaignDetailsScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(18),
                   child: AspectRatio(
                     aspectRatio: 16 / 9,
-                    child: Image.network(
-                      campaign.imageUrl!,
+                    child: StoreCoverImage(
+                      imageUrl: campaign.imageUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.white10,
-                          child: const Center(
-                            child: Icon(Icons.broken_image_outlined, color: Colors.white24, size: 44),
-                          ),
-                        );
-                      },
                     ),
                   ),
                 ),
@@ -69,7 +62,9 @@ class MarketingCampaignDetailsScreen extends StatelessWidget {
                 runSpacing: 10,
                 children: [
                   _chip(context.tr(campaign.statusKey)),
-                  _chip('${context.tr('marketing_store')}: ${context.tr(campaign.storeKey)}'),
+                  ...campaign.storeKeys.map(
+                    (key) => _chip('${context.tr('marketing_store')}: ${context.tr(key)}'),
+                  ),
                   _chip('${context.tr('marketing_campaign_id')}: ${campaign.id}'),
                   _chip('${context.tr('marketing_campaign_period')}: ${_dateText(context, campaign.startAt)} → ${_dateText(context, campaign.endAt)}'),
                 ],
@@ -90,6 +85,37 @@ class MarketingCampaignDetailsScreen extends StatelessWidget {
                   fontSize: 14,
                   color: Colors.white70,
                   height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                context.tr('campaign_participating_stores'),
+                style: GoogleFonts.cairo(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 10),
+              ...campaign.storeKeys.map(
+                (key) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () => StoreNavigation.open(context, storeKey: key),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF3B82F6),
+                        side: const BorderSide(color: const Color(0xFF3B82F6)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text(
+                        context.tr(key),
+                        style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -114,4 +140,3 @@ class MarketingCampaignDetailsScreen extends StatelessWidget {
     );
   }
 }
-

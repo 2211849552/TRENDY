@@ -4,7 +4,11 @@ import 'models/favorites_manager.dart';
 import 'models/cart_manager.dart';
 import 'models/product.dart';
 import 'l10n/app_strings.dart';
+import 'theme/app_theme_mode.dart';
+import 'theme/trendy_theme_extension.dart';
 import 'widgets/app_back_button.dart';
+import 'widgets/store_cover_image.dart';
+import 'widgets/gradient_button.dart';
 
 class FavoritesPage extends StatefulWidget {
   final VoidCallback onBrowseStores;
@@ -23,12 +27,12 @@ class _FavoritesPageState extends State<FavoritesPage> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: _favoritesManager,
+      listenable: Listenable.merge([_favoritesManager, AppThemeMode.instance]),
       builder: (context, _) {
         bool isEmpty = _favoritesManager.count == 0;
 
         return Container(
-          color: const Color(0xFF0A1931),
+          color: context.trendy.pageBackground,
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Directionality(
             textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
@@ -47,13 +51,13 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 if (!isEmpty) ...[
                   TextField(
                     onChanged: (v) => setState(() => _search = v),
-                    style: GoogleFonts.cairo(color: Colors.white),
+                    style: GoogleFonts.cairo(color: context.trendy.titleColor),
                     decoration: InputDecoration(
                       hintText: context.tr('search_favorites'),
-                      hintStyle: GoogleFonts.cairo(color: Colors.white30),
-                      prefixIcon: const Icon(Icons.search, color: Colors.white54),
+                      hintStyle: GoogleFonts.cairo(color: context.trendy.hintColor),
+                      prefixIcon: Icon(Icons.search, color: context.trendy.subtitleColor),
                       filled: true,
-                      fillColor: const Color(0xFF1E5BB3).withOpacity(0.12),
+                      fillColor: context.trendy.inputFill,
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                     ),
                   ),
@@ -73,10 +77,10 @@ class _FavoritesPageState extends State<FavoritesPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E5BB3).withOpacity(0.3),
+          color: const Color(0xFFA855F7).withOpacity(0.3),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
@@ -84,11 +88,11 @@ class _FavoritesPageState extends State<FavoritesPage> {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: context.trendy.titleColor,
               ),
             ),
-            SizedBox(width: 8),
-            Icon(Icons.checkroom_rounded, color: Colors.blueAccent, size: 24),
+            const SizedBox(width: 8),
+            const Icon(Icons.checkroom_rounded, color: Color(0xFF3B82F6), size: 24),
           ],
         ),
       ),
@@ -110,7 +114,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
           style: GoogleFonts.cairo(
             fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: context.trendy.titleColor,
           ),
         ),
       ],
@@ -134,12 +138,13 @@ class _FavoritesPageState extends State<FavoritesPage> {
   }
 
   Widget _buildFavoriteCard(Product p) {
+    final t = context.trendy;
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withOpacity(0.1),
+        color: t.cardFill,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: t.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -147,8 +152,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
           // Large Image
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            child: Image.network(
-              p.imageUrl,
+            child: StoreCoverImage(
+              imageUrl: p.imageUrl,
               height: 200,
               width: double.infinity,
               fit: BoxFit.cover,
@@ -164,7 +169,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                   style: GoogleFonts.cairo(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: t.titleColor,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -172,7 +177,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                   '${p.price}${context.tr('currency_suffix')}',
                   style: GoogleFonts.cairo(
                     fontSize: 18,
-                    color: Colors.blueAccent,
+                    color: const Color(0xFF3B82F6),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -185,11 +190,10 @@ class _FavoritesPageState extends State<FavoritesPage> {
                     onPressed: () {
                       try {
                         _cartManager.addToCart(p);
-                        // Show confirmation toast
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             behavior: SnackBarBehavior.floating,
-                            backgroundColor: const Color(0xFF1E5BB3),
+                            backgroundColor: const Color(0xFFA855F7),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             content: Text(
                               context.tr('added_to_cart'),
@@ -198,14 +202,13 @@ class _FavoritesPageState extends State<FavoritesPage> {
                             ),
                           ),
                         );
-                      } catch (e) {
-                        // Error if from different store
+                      } on CartSingleStoreException {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             behavior: SnackBarBehavior.floating,
                             backgroundColor: Colors.redAccent,
                             content: Text(
-                              e.toString().replaceAll('Exception: ', ''),
+                              context.tr('cart_single_store_error'),
                               style: GoogleFonts.cairo(color: Colors.white),
                               textAlign: TextAlign.right,
                             ),
@@ -214,7 +217,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                       }
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E5BB3),
+                      backgroundColor: const Color(0xFFA855F7),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
@@ -235,10 +238,10 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 Center(
                   child: TextButton.icon(
                     onPressed: () => _favoritesManager.remove(p),
-                    icon: const Icon(Icons.delete_outline, color: Colors.white54, size: 18),
+                    icon: Icon(Icons.delete_outline, color: t.subtitleColor, size: 18),
                     label: Text(
                       context.tr('remove'),
-                      style: const TextStyle(color: Colors.white54, fontWeight: FontWeight.normal),
+                      style: TextStyle(color: t.subtitleColor, fontWeight: FontWeight.normal),
                     ),
                   ),
                 ),
@@ -251,13 +254,14 @@ class _FavoritesPageState extends State<FavoritesPage> {
   }
 
   Widget _buildEmptyState() {
+    final t = context.trendy;
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Icon(
           Icons.favorite_border_rounded,
           size: 100,
-          color: Colors.white.withOpacity(0.6),
+          color: t.subtitleColor.withValues(alpha: 0.55),
         ),
         const SizedBox(height: 32),
         Text(
@@ -265,7 +269,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
           style: GoogleFonts.cairo(
             fontSize: 26,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: t.titleColor,
           ),
         ),
         const SizedBox(height: 12),
@@ -274,25 +278,14 @@ class _FavoritesPageState extends State<FavoritesPage> {
           textAlign: TextAlign.center,
           style: GoogleFonts.cairo(
             fontSize: 16,
-            color: Colors.white70,
+            color: t.subtitleColor,
           ),
         ),
         const SizedBox(height: 40),
-        SizedBox(
-          width: 140,
-          height: 50,
-          child: ElevatedButton(
-            onPressed: widget.onBrowseStores,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1E5BB3),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            ),
-            child: Text(
-              context.tr('browse_stores'),
-              style: GoogleFonts.cairo(fontSize: 14, fontWeight: FontWeight.bold),
-            ),
-          ),
+        GradientButton(
+          onPressed: widget.onBrowseStores,
+          label: context.tr('browse_stores'),
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
         ),
       ],
     );

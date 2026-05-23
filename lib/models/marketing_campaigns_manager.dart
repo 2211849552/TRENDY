@@ -1,81 +1,96 @@
 import 'package:flutter/foundation.dart';
 
+import '../data/campaign_visuals.dart';
 import 'marketing_campaign.dart';
 
 class MarketingCampaignsManager extends ChangeNotifier {
+  MarketingCampaignsManager._();
   static final MarketingCampaignsManager _instance = MarketingCampaignsManager._();
   factory MarketingCampaignsManager() => _instance;
-  MarketingCampaignsManager._();
 
   final List<MarketingCampaign> _campaigns = [
     MarketingCampaign(
       id: 'cmp_001',
-      name: 'بضاعة جديدة وصلت',
-      storeKey: 'store_elegance',
+      name: 'عروض الجمعة البيضاء',
+      storeKeys: ['store_elegance', 'store_luxury', 'store_gentle'],
       statusKey: 'campaign_status_active',
+      badgeKey: 'campaign_badge_white_friday',
+      summary: 'خصومات ضخمة على تشكيلة مختارة من جميع المتاجر',
       description:
-          'متجر الأناقة يعلن عن وصول قطع جديدة: فساتين ميدي، بلوزات ساتان، وشنط توت. الكميات محدودة.',
-      startAt: DateTime(2026, 3, 20),
-      endAt: DateTime(2026, 4, 25),
-      imageUrl: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=80',
+          'عروض الجمعة البيضاء: خصومات حصرية على منتجات مختارة في متاجر التطبيق المشاركة. العرض لفترة محدودة.',
+      startAt: DateTime(2026, 5, 1),
+      endAt: DateTime(2026, 6, 30),
+      imageUrl: CampaignVisuals.forCampaign('cmp_001').imageUrl,
     ),
     MarketingCampaign(
       id: 'cmp_002',
-      name: 'اشترِ قطعة وخذ قطعة مجاناً',
-      storeKey: 'store_fashion',
-      statusKey: 'campaign_status_planned',
+      name: 'تخفيض 15% على أول طلب لك',
+      storeKeys: ['store_gentle', 'store_fashion', 'store_top'],
+      statusKey: 'campaign_status_active',
+      badgeKey: 'campaign_badge_first_order',
+      summary: 'خصم 15% على أول طلب لك من المتاجر المشاركة',
       description:
-          'بوتيك الموضة: عند شراء تيشيرت/هودي من التشكيلة الجديدة تحصل على تيشيرت Basic مجاناً (حسب التوفر).',
-      startAt: DateTime(2026, 4, 18),
-      endAt: DateTime(2026, 5, 2),
-      imageUrl: 'https://images.unsplash.com/photo-1520975916090-3105956dac38?auto=format&fit=crop&w=1200&q=80',
+          'سجّل طلبك الأول واحصل على خصم 15% على مشترياتك من المتاجر المشاركة في الحملة (حسب الشروط).',
+      startAt: DateTime(2026, 5, 1),
+      endAt: DateTime(2026, 7, 31),
+      imageUrl: CampaignVisuals.forCampaign('cmp_002').imageUrl,
     ),
     MarketingCampaign(
       id: 'cmp_003',
-      name: 'تخفيض على قطع جديدة',
-      storeKey: 'store_gentle',
+      name: 'تخفيضات نهاية الموسم',
+      storeKeys: ['store_kids', 'store_elegance'],
       statusKey: 'campaign_status_active',
+      badgeKey: 'campaign_badge_end_season',
+      summary: 'تخفيضات تصل إلى 70% على منتجات مختارة',
       description:
-          'الرجل الأنيق: خصم 20% على تشكيلة القمصان الأوكسفورد واللوفر الجلد الجديدة هذا الأسبوع.',
-      startAt: DateTime(2026, 4, 10),
-      endAt: DateTime(2026, 4, 17),
-      imageUrl: 'https://images.unsplash.com/photo-1521336575822-6da63fb45455?auto=format&fit=crop&w=1200&q=80',
+          'تخفيضات نهاية الموسم: فرصة لتوفير الكثير على ملابس مختارة من المتاجر المشاركة قبل انتهاء المخزون.',
+      startAt: DateTime(2026, 4, 15),
+      endAt: DateTime(2026, 6, 30),
+      imageUrl: CampaignVisuals.forCampaign('cmp_003').imageUrl,
     ),
     MarketingCampaign(
       id: 'cmp_004',
-      name: 'عرض خاص: حقيبة + إكسسوار',
-      storeKey: 'store_luxury',
-      statusKey: 'campaign_status_paused',
-      description:
-          'متجر الفخامة: عند شراء حقيبة يد فاخرة تحصل على سوار/إكسسوار مجاناً. العرض متوقف مؤقتاً لحين تجديد المخزون.',
-      startAt: DateTime(2026, 4, 1),
-      endAt: DateTime(2026, 5, 15),
-      imageUrl: 'https://images.unsplash.com/photo-1490114538077-0a7f8cb49891?auto=format&fit=crop&w=1200&q=80',
+      name: 'بضاعة جديدة وصلت',
+      storeKeys: ['store_fashion'],
+      statusKey: 'campaign_status_planned',
+      badgeKey: 'campaign_badge_new',
+      summary: 'تشكيلة رجالية جديدة قريباً',
+      description: 'بوتيك الموضة: تشكيلة رجالية جديدة قريباً. تابعونا للتفاصيل.',
+      startAt: DateTime(2026, 6, 1),
+      endAt: DateTime(2026, 7, 15),
+      imageUrl: CampaignVisuals.forCampaign('cmp_004').imageUrl,
     ),
     MarketingCampaign(
       id: 'cmp_005',
-      name: 'تجهيزات أطفال جديدة',
-      storeKey: 'store_kids',
-      statusKey: 'campaign_status_draft',
-      description:
-          'عالم الأطفال: وصول حقائب جديدة + أحذية أطفال مريحة. (مسودة قبل الإطلاق الرسمي).',
-      startAt: DateTime(2026, 4, 28),
-      endAt: DateTime(2026, 5, 25),
-      imageUrl: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1200&q=80',
+      name: 'عرض خاص: حقيبة + إكسسوار',
+      storeKeys: ['store_luxury'],
+      statusKey: 'campaign_status_paused',
+      badgeKey: 'campaign_badge_gift',
+      summary: 'حقيبة يد + إكسسوار مجاناً',
+      description: 'متجر الفخامة: عند شراء حقيبة يد فاخرة تحصل على إكسسوار مجاناً. العرض متوقف مؤقتاً.',
+      startAt: DateTime(2026, 4, 1),
+      endAt: DateTime(2026, 5, 15),
+      imageUrl: CampaignVisuals.forCampaign('cmp_005').imageUrl,
     ),
     MarketingCampaign(
       id: 'cmp_006',
       name: 'تخفيضات محدودة على الأحذية',
-      storeKey: 'store_top',
+      storeKeys: ['store_top'],
       statusKey: 'campaign_status_ended',
-      description:
-          'توب فاشن: خصم على سنيكرز تشنكي وبوت شتوي. انتهى العرض، انتظروا عروض جديدة قريباً.',
+      badgeKey: 'campaign_badge_discount',
+      summary: 'انتهى العرض',
+      description: 'توب فاشن: خصم على الأحذية. انتهى العرض، انتظروا عروضاً جديدة.',
       startAt: DateTime(2026, 2, 10),
       endAt: DateTime(2026, 2, 20),
-      imageUrl: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1200&q=80',
+      imageUrl: CampaignVisuals.forCampaign('cmp_006').imageUrl,
     ),
   ];
 
   List<MarketingCampaign> get campaigns => List.unmodifiable(_campaigns);
-}
 
+  List<MarketingCampaign> get homeFeatured {
+    final active = _campaigns.where((c) => c.statusKey == 'campaign_status_active').toList();
+    active.sort((a, b) => b.startAt.compareTo(a.startAt));
+    return active.take(3).toList();
+  }
+}

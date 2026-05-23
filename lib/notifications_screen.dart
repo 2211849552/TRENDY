@@ -18,7 +18,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A1931),
+      backgroundColor: const Color(0xFF121026),
       body: SafeArea(
         child: Directionality(
           textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
@@ -48,23 +48,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           ),
                         ),
                         if (notifications.isNotEmpty)
-                          Row(
-                            children: [
-                              TextButton(
-                                onPressed: () => _manager.markAllAsRead(),
-                                child: Text(
-                                  context.tr('mark_all_read'),
-                                  style: GoogleFonts.cairo(color: Colors.blueAccent, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: () => _manager.clearNotifications(),
-                                child: Text(
-                                  context.tr('clear_all_notifications'),
-                                  style: GoogleFonts.cairo(color: Colors.redAccent, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            ],
+                          TextButton(
+                            onPressed: () => _manager.markAllAsRead(),
+                            child: Text(
+                              context.tr('mark_all_read'),
+                              style: GoogleFonts.cairo(color: const Color(0xFF3B82F6), fontWeight: FontWeight.bold),
+                            ),
                           ),
                       ],
                     ),
@@ -93,14 +82,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E5BB3).withOpacity(0.3),
+            color: const Color(0xFFA855F7).withOpacity(0.3),
             borderRadius: BorderRadius.circular(10),
           ),
           child: const Row(
             children: [
               Text('Trendy', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
               SizedBox(width: 8),
-              Icon(Icons.checkroom_rounded, color: Colors.blueAccent, size: 20),
+              Icon(Icons.checkroom_rounded, color: const Color(0xFF3B82F6), size: 20),
             ],
           ),
         ),
@@ -129,9 +118,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: item.isRead ? Colors.white.withOpacity(0.03) : const Color(0xFF1E5BB3).withOpacity(0.12),
+          color: item.isRead ? Colors.white.withOpacity(0.03) : const Color(0xFFA855F7).withOpacity(0.12),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: item.isRead ? Colors.white10 : Colors.blueAccent.withOpacity(0.3)),
+          border: Border.all(color: item.isRead ? Colors.white10 : const Color(0xFF3B82F6).withOpacity(0.3)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,7 +146,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       ),
                       PopupMenuButton<String>(
                         icon: const Icon(Icons.more_vert, color: Colors.white54, size: 18),
-                        color: const Color(0xFF152a45),
+                        color: const Color(0xFF1E1B4B),
                         onSelected: (value) {
                           if (value == 'toggle') {
                             _manager.toggleRead(item.id);
@@ -182,7 +171,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         Container(
                           width: 8,
                           height: 8,
-                          decoration: const BoxDecoration(color: Colors.blueAccent, shape: BoxShape.circle),
+                          decoration: const BoxDecoration(color: const Color(0xFF3B82F6), shape: BoxShape.circle),
                         ),
                     ],
                   ),
@@ -213,7 +202,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     switch (type) {
       case NotificationType.orderPending: return Colors.orangeAccent;
       case NotificationType.orderReady: return Colors.greenAccent;
-      case NotificationType.orderCompleted: return Colors.blueAccent;
+      case NotificationType.orderCompleted: return const Color(0xFF3B82F6);
       case NotificationType.walletUpdate: return Colors.pinkAccent;
       default: return Colors.white54;
     }

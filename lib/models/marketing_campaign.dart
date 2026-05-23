@@ -1,22 +1,28 @@
-class MarketingCampaign {
-  final String id;
-  final String name;
-  final String storeKey; // one of app stores keys (e.g. store_elegance)
-  final String statusKey; // e.g. campaign_status_active
-  final String? description;
-  final DateTime startAt;
-  final DateTime endAt;
-  final String? imageUrl;
-
-  const MarketingCampaign({
-    required this.id,
-    required this.name,
-    required this.storeKey,
-    required this.statusKey,
-    this.description,
-    required this.startAt,
-    required this.endAt,
-    this.imageUrl,
-  });
-}
-
+class MarketingCampaign {
+  final String id;
+  final String name;
+  final List<String> storeKeys;
+  final String statusKey;
+  final String? description;
+  final String? summary;
+  final String? badgeKey;
+  final DateTime startAt;
+  final DateTime endAt;
+  final String? imageUrl;
+
+  String get storeKey => storeKeys.first;
+
+  const MarketingCampaign({
+    required this.id,
+    required this.name,
+    required this.storeKeys,
+    required this.statusKey,
+    this.description,
+    this.summary,
+    this.badgeKey,
+    required this.startAt,
+    required this.endAt,
+    this.imageUrl,
+  });
+}
+

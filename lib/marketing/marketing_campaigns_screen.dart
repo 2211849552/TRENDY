@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../l10n/app_strings.dart';
+import '../data/campaign_visuals.dart';
 import '../models/marketing_campaign.dart';
 import '../models/marketing_campaigns_manager.dart';
+import '../widgets/store_cover_image.dart';
 import 'marketing_campaign_details_screen.dart';
 
 class MarketingCampaignsScreen extends StatefulWidget {
@@ -154,7 +156,7 @@ class _MarketingCampaignsScreenState extends State<MarketingCampaignsScreen> {
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: value,
-                dropdownColor: const Color(0xFF0A1931),
+                dropdownColor: const Color(0xFF121026),
                 icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white54),
                 isExpanded: true,
                 style: GoogleFonts.cairo(color: Colors.white, fontSize: 13),
@@ -190,32 +192,34 @@ class _CampaignCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final visual = CampaignVisuals.forCampaign(campaign.id);
+    final imageUrl = campaign.imageUrl ?? visual.imageUrl;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Theme.of(context).cardColor.withValues(alpha: 0.75),
+          gradient: visual.cardGradient,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white10),
+          border: Border.all(color: visual.accent.withValues(alpha: 0.35)),
         ),
         child: Row(
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(14),
-              child: Container(
+              child: SizedBox(
                 width: 74,
                 height: 74,
-                color: Colors.white10,
-                child: campaign.imageUrl == null
-                    ? const Icon(Icons.campaign_outlined, color: Colors.white30, size: 30)
-                    : Image.network(
-                        campaign.imageUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(Icons.broken_image_outlined, color: Colors.white30, size: 30);
-                        },
+                child: imageUrl == null
+                    ? ColoredBox(color: visual.accentSoft)
+                    : Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          StoreCoverImage(imageUrl: imageUrl, fit: BoxFit.cover),
+                          DecoratedBox(decoration: BoxDecoration(gradient: visual.imageOverlay)),
+                        ],
                       ),
               ),
             ),
@@ -236,7 +240,7 @@ class _CampaignCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${context.tr('marketing_store')}: ${context.tr(campaign.storeKey)}',
+                    campaign.storeKeys.map((k) => context.tr(k)).join(' • '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.cairo(color: Colors.white54, fontSize: 12),

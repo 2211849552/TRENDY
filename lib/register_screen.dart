@@ -76,7 +76,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E5BB3),
+                  color: const Color(0xFFA855F7),
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Directionality(
@@ -196,7 +196,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             );
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF00D1FF),
+                            backgroundColor: const Color(0xFF3B82F6),
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),

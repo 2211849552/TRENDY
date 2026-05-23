@@ -94,7 +94,7 @@ class _ThreadTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E5BB3).withOpacity(0.12),
+          color: const Color(0xFFA855F7).withOpacity(0.12),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.white10),
         ),

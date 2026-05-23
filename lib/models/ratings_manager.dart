@@ -1,4 +1,7 @@
 import 'package:flutter/foundation.dart';
+import '../data/product_reviews_seed.dart';
+import 'customer_review.dart';
+import 'product_rating_detail.dart';
 
 class RatingsManager extends ChangeNotifier {
   static final RatingsManager _instance = RatingsManager._internal();
@@ -9,6 +12,8 @@ class RatingsManager extends ChangeNotifier {
   final Map<String, List<double>> _productRatings = {};
   final Map<String, double> _storeRatingByOrder = {};
   final Map<String, Map<String, double>> _productRatingsByOrder = {};
+  final Map<String, Map<String, ProductRatingDetail>> _productDetailsByOrder = {};
+  final Map<String, List<CustomerReview>> _userReviewsByProduct = {};
 
   bool hasRatedStoreForOrder(String orderId) {
     return _storeRatingByOrder.containsKey(orderId);
@@ -27,6 +32,23 @@ class RatingsManager extends ChangeNotifier {
     return true;
   }
 
+  ProductRatingDetail? productRatingDetail(String orderId, String productKey) {
+    return _productDetailsByOrder[orderId]?[productKey];
+  }
+
+  bool isOrderFullyRated(String orderId, List<String> productKeys) {
+    if (!hasRatedStoreForOrder(orderId)) return false;
+    return hasRatedAllProductsForOrder(orderId, productKeys);
+  }
+
+  List<CustomerReview> reviewsForProduct(String productKey) {
+    final seed = ProductReviewsSeed.reviewsFor(productKey);
+    final user = _userReviewsByProduct[productKey] ?? [];
+    return [...user, ...seed];
+  }
+
+  double? storeRatingForOrder(String orderId) => _storeRatingByOrder[orderId];
+
   void submitStoreRating({
     required String orderId,
     required String storeKey,
@@ -43,12 +65,34 @@ class RatingsManager extends ChangeNotifier {
     required String orderId,
     required String productKey,
     required double rating,
+    String? comment,
+    List<String> imagePaths = const [],
   }) {
     final safeRating = rating.clamp(1.0, 5.0);
     final byOrder = _productRatingsByOrder.putIfAbsent(orderId, () => {});
     if (byOrder.containsKey(productKey)) return;
     byOrder[productKey] = safeRating;
     _productRatings.putIfAbsent(productKey, () => []).add(safeRating);
+
+    final details = _productDetailsByOrder.putIfAbsent(orderId, () => {});
+    final trimmed = comment?.trim();
+    final savedComment = trimmed == null || trimmed.isEmpty ? null : trimmed;
+    details[productKey] = ProductRatingDetail(
+      rating: safeRating,
+      comment: savedComment,
+      imagePaths: List<String>.from(imagePaths),
+    );
+
+    _userReviewsByProduct.putIfAbsent(productKey, () => []).insert(
+      0,
+      CustomerReview(
+        authorName: 'أنت',
+        rating: safeRating,
+        comment: savedComment ?? '',
+        imageAssetPath: imagePaths.isNotEmpty ? imagePaths.first : null,
+        date: DateTime.now(),
+      ),
+    );
     notifyListeners();
   }
 

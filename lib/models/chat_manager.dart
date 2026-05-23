@@ -26,14 +26,40 @@ class ChatManager extends ChangeNotifier {
   int get totalUnread =>
       _threadsByStore.values.fold<int>(0, (sum, t) => sum + t.unreadCount);
 
+  /// يحدّث رسالة الترحيب إن كانت المحادثة جديدة وباللغة الخاطئة.
+  void refreshWelcomeIfNeeded(String storeKey, {String? languageCode}) {
+    final thread = _threadsByStore[storeKey];
+    if (thread == null || thread.messages.length != 1) return;
+    final first = thread.messages.first;
+    if (first.sender != ChatSender.store) return;
+
+    final lang = languageCode ?? 'ar';
+    final welcome = AppStrings.formatLang(lang, 'chat_welcome', params: {
+      'store': AppStrings.formatLang(lang, storeKey),
+    });
+    if (first.text == welcome) return;
+
+    thread.messages[0] = ChatMessage(
+      id: first.id,
+      threadId: first.threadId,
+      sender: first.sender,
+      text: welcome,
+      createdAt: first.createdAt,
+    );
+    notifyListeners();
+  }
+
   ChatThread threadForStore(String storeKey, {String? languageCode}) {
     final existing = _threadsByStore[storeKey];
-    if (existing != null) return existing;
+    if (existing != null) {
+      refreshWelcomeIfNeeded(storeKey, languageCode: languageCode);
+      return existing;
+    }
 
     final thread = ChatThread(id: _newId('th'), storeKey: storeKey);
     _threadsByStore[storeKey] = thread;
 
-    final lang = languageCode ?? 'en';
+    final lang = languageCode ?? 'ar';
     final welcome = AppStrings.formatLang(lang, 'chat_welcome', params: {
       'store': AppStrings.formatLang(lang, storeKey),
     });
@@ -51,8 +77,8 @@ class ChatManager extends ChangeNotifier {
     return thread;
   }
 
-  List<ChatMessage> messagesForStore(String storeKey) {
-    return threadForStore(storeKey).messages;
+  List<ChatMessage> messagesForStore(String storeKey, {String? languageCode}) {
+    return threadForStore(storeKey, languageCode: languageCode).messages;
   }
 
   void markRead(String storeKey) {
@@ -63,11 +89,11 @@ class ChatManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  void sendCustomerMessage(String storeKey, String text) {
+  void sendCustomerMessage(String storeKey, String text, {String? languageCode}) {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
 
-    final thread = threadForStore(storeKey);
+    final thread = threadForStore(storeKey, languageCode: languageCode);
     thread.messages.add(
       ChatMessage(
         id: _newId('m'),
@@ -79,11 +105,11 @@ class ChatManager extends ChangeNotifier {
     );
     notifyListeners();
 
-    _simulateStoreReply(storeKey, trimmed);
+    _simulateStoreReply(storeKey, trimmed, languageCode: languageCode);
   }
 
-  void _simulateStoreReply(String storeKey, String customerText) {
-    final thread = threadForStore(storeKey);
+  void _simulateStoreReply(String storeKey, String customerText, {String? languageCode}) {
+    final thread = threadForStore(storeKey, languageCode: languageCode);
     final replyText = _pickReply(customerText);
     Future<void>.delayed(const Duration(milliseconds: 700), () {
       thread.messages.add(

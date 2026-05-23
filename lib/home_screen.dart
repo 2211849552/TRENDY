@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'complaints_screen.dart';
 import 'notifications_screen.dart';
-import 'store_details_screen.dart';
-import 'chat/chat_threads_screen.dart';
 import 'favorites_page.dart';
 import 'cart_page.dart';
 import 'models/favorites_manager.dart';
@@ -15,16 +12,21 @@ import 'models/wallet_manager.dart';
 import 'models/notification_manager.dart';
 import 'models/notification_item.dart';
 import 'models/ratings_manager.dart';
-import 'package:cloud_firestore/cloud_firestore.dart' as fs;
-import 'package:firebase_auth/firebase_auth.dart';
-import 'services/firebase_state.dart';
 import 'services/location_service.dart';
 import 'services/store_location.dart';
 import 'orders_page.dart';
 import 'settings_page.dart';
 import 'locale/app_locale.dart';
 import 'l10n/app_strings.dart';
-import 'marketing/marketing_campaigns_screen.dart';
+import 'data/store_catalog.dart';
+import 'data/campaign_visuals.dart';
+import 'theme/app_theme_mode.dart';
+import 'theme/trendy_theme_extension.dart';
+import 'models/marketing_campaign.dart';
+import 'models/marketing_campaigns_manager.dart';
+import 'utils/store_navigation.dart';
+import 'widgets/campaign_promo_dialog.dart';
+import 'widgets/store_cover_image.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool isGuest;
@@ -36,6 +38,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static const double _cardExtent = 280;
+  static const double _gridGap = 20;
+
   final FavoritesManager _favoritesManager = FavoritesManager();
   final CartManager _cartManager = CartManager();
   final OrdersManager _ordersManager = OrdersManager();
@@ -44,62 +49,15 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   String _searchQuery = "";
   /// مفاتيح داخلية ثابتة — التسميات تُعرَض عبر [tr] حسب اللغة.
-  String _selectedCategoryKey = 'all';
+  String _selectedStoreTypeKey = 'all';
   String _selectedSortKey = 'nearest';
   bool _isLocating = false;
   double? _userLat;
   double? _userLng;
 
-  final List<Map<String, dynamic>> _stores = [
-    {
-      'name': 'store_elegance',
-      'category': 'cat_women',
-      'rating': 4.8,
-      'location': const StoreLocation(32.8872, 13.1913), // TODO: عدّل إحداثيات المتجر
-      'imageUrl': 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&q=80&w=800',
-      'discount': '40%',
-    },
-    {
-      'name': 'store_fashion',
-      'category': 'cat_men',
-      'rating': 4.5,
-      'location': const StoreLocation(32.8920, 13.1800), // TODO: عدّل إحداثيات المتجر
-      'imageUrl': 'https://images.unsplash.com/photo-1490114538077-0a7f8cb49891?auto=format&fit=crop&q=80&w=800',
-      'discount': null,
-    },
-    {
-      'name': 'store_gentle',
-      'category': 'cat_men',
-      'rating': 4.6,
-      'location': const StoreLocation(32.8895, 13.2050), // TODO: عدّل إحداثيات المتجر
-      'imageUrl': 'https://images.unsplash.com/photo-1593032465175-481ac7f401a0?auto=format&fit=crop&q=80&w=800',
-      'discount': '30%',
-    },
-    {
-      'name': 'store_luxury',
-      'category': 'cat_women',
-      'rating': 4.7,
-      'location': const StoreLocation(32.8760, 13.1860), // TODO: عدّل إحداثيات المتجر
-      'imageUrl': 'https://images.unsplash.com/photo-1566174053879-31528523f8ae?auto=format&fit=crop&q=80&w=800',
-      'discount': null,
-    },
-    {
-      'name': 'store_kids',
-      'category': 'cat_kids',
-      'rating': 4.9,
-      'location': const StoreLocation(32.9000, 13.1650), // TODO: عدّل إحداثيات المتجر
-      'imageUrl': 'https://images.unsplash.com/photo-1621451537084-482c73073a0f?auto=format&fit=crop&q=80&w=800',
-      'discount': '25%',
-    },
-    {
-      'name': 'store_top',
-      'category': 'cat_men',
-      'rating': 4.9,
-      'location': const StoreLocation(32.8850, 13.1700), // TODO: عدّل إحداثيات المتجر
-      'imageUrl': 'https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=800',
-      'discount': null,
-    },
-  ];
+  final MarketingCampaignsManager _campaignsManager = MarketingCampaignsManager();
+
+  List<Map<String, dynamic>> get _stores => StoreCatalog.stores;
 
   @override
   void initState() {
@@ -122,16 +80,35 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  double _distanceKmForStore(Map<String, dynamic> store) {
+  double? _liveDistanceKmForStore(Map<String, dynamic> store) {
     final lat = _userLat;
     final lng = _userLng;
     final loc = store['location'] as StoreLocation?;
-    if (lat == null || lng == null || loc == null) return 9999;
+    if (lat == null || lng == null || loc == null) return null;
     return _locationService.distanceKm(
       fromLat: lat,
       fromLng: lng,
       toLat: loc.lat,
       toLng: loc.lng,
+    );
+  }
+
+  String _distanceTextForStore(Map<String, dynamic> store) {
+    final live = _liveDistanceKmForStore(store);
+    if (live != null) return live.toStringAsFixed(1);
+
+    final fallback = store['displayDistanceKm'] as num?;
+    if (fallback != null) return fallback.toStringAsFixed(1);
+
+    return '--';
+  }
+
+  SliverGridDelegateWithFixedCrossAxisCount get _homeGridDelegate {
+    return const SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: 2,
+      mainAxisSpacing: _gridGap,
+      crossAxisSpacing: _gridGap,
+      mainAxisExtent: _cardExtent,
     );
   }
 
@@ -142,16 +119,15 @@ class _HomeScreenState extends State<HomeScreen> {
       final translatedCategory = context.tr(store['category']).toLowerCase();
       final nameMatches = translatedName.contains(q) || translatedCategory.contains(q);
       
-      bool categoryMatches = _selectedCategoryKey == 'all';
-      if (_selectedCategoryKey == 'men') {
-        categoryMatches = store['category'] == 'cat_men';
-      } else if (_selectedCategoryKey == 'women') {
-        categoryMatches = store['category'] == 'cat_women';
-      } else if (_selectedCategoryKey == 'kids') {
-        categoryMatches = store['category'] == 'cat_kids';
+      final isElectronic = store['isElectronic'] as bool? ?? false;
+      bool typeMatches = _selectedStoreTypeKey == 'all';
+      if (_selectedStoreTypeKey == 'electronic') {
+        typeMatches = isElectronic;
+      } else if (_selectedStoreTypeKey == 'non_electronic') {
+        typeMatches = !isElectronic;
       }
-      
-      return nameMatches && categoryMatches;
+
+      return nameMatches && typeMatches;
     }).toList();
 
     // Apply Sorting
@@ -167,16 +143,10 @@ class _HomeScreenState extends State<HomeScreen> {
         );
         return bRating.compareTo(aRating);
       });
-    } else if (_selectedSortKey == 'offers') {
-      filtered.sort((a, b) {
-        if (a['discount'] != null && b['discount'] == null) return -1;
-        if (a['discount'] == null && b['discount'] != null) return 1;
-        return 0;
-      });
     } else if (_selectedSortKey == 'nearest') {
       filtered.sort((a, b) {
-        final distA = _distanceKmForStore(a);
-        final distB = _distanceKmForStore(b);
+        final distA = _liveDistanceKmForStore(a) ?? (a['displayDistanceKm'] as num?)?.toDouble() ?? 9999;
+        final distB = _liveDistanceKmForStore(b) ?? (b['displayDistanceKm'] as num?)?.toDouble() ?? 9999;
         return distA.compareTo(distB);
       });
     }
@@ -240,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
           context.tr('order_confirmed'),
           style: GoogleFonts.cairo(),
         ),
-        backgroundColor: const Color(0xFF1E5BB3),
+        backgroundColor: const Color(0xFFA855F7),
       ),
     );
   }
@@ -248,6 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: context.trendy.pageBackground,
       body: SafeArea(
         child: _buildBody(),
       ),
@@ -293,36 +264,20 @@ class _HomeScreenState extends State<HomeScreen> {
               // Header
               _buildHeader(),
               const SizedBox(height: 20),
-              // Welcome Banner
               _buildWelcomeBanner(),
-              const SizedBox(height: 24),
-              // Search and Filter
+              const SizedBox(height: 20),
+              _buildAdCampaignsSection(),
+              const SizedBox(height: 20),
               _buildSearchSection(),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
               // Stores Section Title
               Text(
                 '${context.tr('stores_available')} (${_filteredStores.length})',
                 textAlign: context.isRtl ? TextAlign.right : TextAlign.left,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: context.isRtl ? Alignment.centerRight : Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: _isLocating ? null : _refreshUserLocation,
-                  icon: Icon(
-                    _isLocating ? Icons.my_location : Icons.location_searching,
-                    color: Colors.blueAccent,
-                    size: 18,
-                  ),
-                  label: Text(
-                    context.tr('update_location'),
-                    style: GoogleFonts.cairo(color: Colors.blueAccent, fontSize: 12),
-                  ),
+                  color: context.trendy.titleColor,
                 ),
               ),
               const SizedBox(height: 20),
@@ -334,7 +289,7 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20),
           sliver: _buildStoreGrid(),
         ),
-        const SliverToBoxAdapter(child: SizedBox(height: 30)),
+        const SliverToBoxAdapter(child: SizedBox(height: 24)),
       ],
     );
   }
@@ -347,7 +302,7 @@ class _HomeScreenState extends State<HomeScreen> {
           color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.55),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
@@ -355,11 +310,11 @@ class _HomeScreenState extends State<HomeScreen> {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: context.trendy.titleColor,
               ),
             ),
-            SizedBox(width: 8),
-            Icon(Icons.checkroom_rounded, color: Colors.blueAccent, size: 24),
+            const SizedBox(width: 8),
+            const Icon(Icons.checkroom_rounded, color: Color(0xFF3B82F6), size: 24),
           ],
         ),
       ),
@@ -420,143 +375,55 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          // Left side: Icons (Second child in RTL becomes Left)
-          Row(
-            children: [
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const MarketingCampaignsScreen()),
-                  );
-                },
-                child: _buildBannerIcon(Icons.campaign_outlined),
-              ),
-              const SizedBox(width: 12),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ChatThreadsScreen()),
-                  );
-                },
-                child: ListenableBuilder(
-                  listenable: AppLocale.instance,
-                  builder: (context, _) {
-                    return Stack(
-                      children: [
-                        _buildBannerIcon(Icons.chat_bubble_outline),
-                        if (!FirebaseState().ready.value)
-                          const SizedBox.shrink()
-                        else
-                        StreamBuilder<User?>(
-                          stream: FirebaseAuth.instance.authStateChanges(),
-                          builder: (context, authSnap) {
-                            final uid = authSnap.data?.uid;
-                            final stream = uid == null
-                                ? const Stream<fs.QuerySnapshot<Map<String, dynamic>>>.empty()
-                                : fs.FirebaseFirestore.instance
-                                    .collection('chatThreads')
-                                    .where('customerUid', isEqualTo: uid)
-                                    .snapshots();
-                            return StreamBuilder<fs.QuerySnapshot<Map<String, dynamic>>>(
-                              stream: stream,
-                              builder: (context, snap) {
-                                final count = snap.data?.docs.length ?? 0;
-                                if (count <= 0) return const SizedBox.shrink();
-                                return Positioned(
-                                  top: 0,
-                                  right: 0,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: const BoxDecoration(
-                                      color: Colors.redAccent,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    constraints: const BoxConstraints(
-                                      minWidth: 16,
-                                      minHeight: 16,
-                                    ),
-                                    child: Text(
-                                      '$count',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(width: 12),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ComplaintsScreen()),
-                  );
-                },
-                child: _buildBannerIcon(Icons.support_agent_outlined),
-              ),
-              const SizedBox(width: 12),
-              GestureDetector(
-                onTap: () async {
-                  final tapped = await Navigator.push<NotificationItem?>(
-                    context,
-                    MaterialPageRoute(builder: (context) => const NotificationsScreen()),
-                  );
-                  if (!mounted) return;
-                  if (tapped != null && tapped.targetTab == 'orders') {
-                    setState(() => _selectedIndex = 3);
-                  }
-                },
-                child: ListenableBuilder(
-                  listenable: NotificationManager(),
-                  builder: (context, _) {
-                    final unread = NotificationManager().unreadCount;
-                    return Stack(
-                      children: [
-                        _buildBannerIcon(Icons.notifications_none),
-                        if (unread > 0)
-                          Positioned(
-                            top: 0,
-                            right: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(
-                                color: Colors.redAccent,
-                                shape: BoxShape.circle,
-                              ),
-                              constraints: const BoxConstraints(
-                                minWidth: 16,
-                                minHeight: 16,
-                              ),
-                              child: Text(
-                                '$unread',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
+          // Left side: notifications only
+          GestureDetector(
+            onTap: () async {
+              final tapped = await Navigator.push<NotificationItem?>(
+                context,
+                MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+              );
+              if (!mounted) return;
+              if (tapped != null && tapped.targetTab == 'orders') {
+                setState(() => _selectedIndex = 3);
+              }
+            },
+            child: ListenableBuilder(
+              listenable: NotificationManager(),
+              builder: (context, _) {
+                final unread = NotificationManager().unreadCount;
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    _buildBannerIcon(Icons.notifications_none),
+                    if (unread > 0)
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.redAccent,
+                            shape: BoxShape.circle,
                           ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ],
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: Text(
+                            '$unread',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -574,6 +441,100 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildAdCampaignsSection() {
+    final campaigns = _campaignsManager.homeFeatured;
+    if (campaigns.isEmpty) return const SizedBox.shrink();
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 12.0;
+        final cellWidth = (constraints.maxWidth - 32 - gap * 2) / 3;
+        final cardHeight = (cellWidth * 1.55).clamp(155.0, 195.0);
+
+        return Container(
+          padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
+          decoration: BoxDecoration(
+            gradient: CampaignVisuals.sectionGradient,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: CampaignVisuals.sectionBorder),
+            boxShadow: const [
+              BoxShadow(
+                color: CampaignVisuals.sectionGlow,
+                blurRadius: 24,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Theme.of(context).colorScheme.primary,
+                          Theme.of(context).colorScheme.secondary,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(Icons.campaign, color: Colors.white, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      context.tr('home_ad_campaigns'),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: gap,
+                  crossAxisSpacing: gap,
+                  mainAxisExtent: cardHeight,
+                ),
+                itemCount: campaigns.length,
+                itemBuilder: (context, index) {
+                  final campaign = campaigns[index];
+                  return _HomeCampaignCard(
+                    campaign: campaign,
+                    cardHeight: cardHeight,
+                    visual: CampaignVisuals.forCampaign(campaign.id),
+                    onOpenDetails: () => CampaignPromoDialog.show(
+                      context,
+                      campaign: campaign,
+                      userLat: _userLat,
+                      userLng: _userLng,
+                    ),
+                    onStoreTap: (storeKey) => StoreNavigation.open(
+                      context,
+                      storeKey: storeKey,
+                      userLat: _userLat,
+                      userLng: _userLng,
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildSearchSection() {
     return Column(
       children: [
@@ -583,7 +544,6 @@ class _HomeScreenState extends State<HomeScreen> {
           onChanged: (value) => setState(() => _searchQuery = value),
           decoration: InputDecoration(
             hintText: context.tr('search_store'),
-            hintStyle: GoogleFonts.cairo(color: Colors.white38, fontSize: 13),
             prefixIcon: const Icon(Icons.search_rounded),
           ),
         ),
@@ -593,43 +553,39 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Expanded(
               child: _buildModernDropdown(
+                value: _selectedStoreTypeKey,
+                itemKeys: const ['all', 'electronic', 'non_electronic'],
+                labelForKey: (k) {
+                  switch (k) {
+                    case 'all':
+                      return context.tr('filter_all_types');
+                    case 'electronic':
+                      return context.tr('filter_electronic_stores');
+                    case 'non_electronic':
+                      return context.tr('filter_non_electronic_stores');
+                    default:
+                      return k;
+                  }
+                },
+                onChanged: (val) => setState(() => _selectedStoreTypeKey = val!),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildModernDropdown(
                 value: _selectedSortKey,
-                itemKeys: const ['nearest', 'rating', 'offers'],
+                itemKeys: const ['nearest', 'rating'],
                 labelForKey: (k) {
                   switch (k) {
                     case 'nearest':
                       return context.tr('sort_nearest');
                     case 'rating':
                       return context.tr('sort_rating');
-                    case 'offers':
-                      return context.tr('sort_offers');
                     default:
                       return k;
                   }
                 },
                 onChanged: (val) => setState(() => _selectedSortKey = val!),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildModernDropdown(
-                value: _selectedCategoryKey,
-                itemKeys: const ['all', 'men', 'women', 'kids'],
-                labelForKey: (k) {
-                  switch (k) {
-                    case 'all':
-                      return context.tr('cat_all');
-                    case 'men':
-                      return context.tr('cat_men');
-                    case 'women':
-                      return context.tr('cat_women');
-                    case 'kids':
-                      return context.tr('cat_kids');
-                    default:
-                      return k;
-                  }
-                },
-                onChanged: (val) => setState(() => _selectedCategoryKey = val!),
               ),
             ),
           ],
@@ -644,22 +600,24 @@ class _HomeScreenState extends State<HomeScreen> {
     required String Function(String key) labelForKey,
     required void Function(String?) onChanged,
   }) {
+    final trendy = context.trendy;
     final align = context.isRtl ? Alignment.centerRight : Alignment.centerLeft;
     final tAlign = context.isRtl ? TextAlign.right : TextAlign.left;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withOpacity(0.2),
+        color: trendy.cardFill,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: trendy.cardBorder),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
-          dropdownColor: const Color(0xFF0A1931),
-          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white54, size: 20),
+          dropdownColor: trendy.surfaceColor,
+          icon: Icon(Icons.keyboard_arrow_down, color: trendy.subtitleColor, size: 20),
           isExpanded: true,
           style: GoogleFonts.cairo(
-            color: Colors.white,
+            color: trendy.titleColor,
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
@@ -684,37 +642,24 @@ class _HomeScreenState extends State<HomeScreen> {
     final stores = _filteredStores;
 
     return SliverGrid(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-        mainAxisExtent: 260,
-      ),
+      gridDelegate: _homeGridDelegate,
       delegate: SliverChildBuilderDelegate(
         (context, index) {
           final store = stores[index];
-          final distKm = _distanceKmForStore(store);
-          final distText = distKm >= 9999 ? '--' : distKm.toStringAsFixed(1);
-          return GestureDetector(
+          final distText = _distanceTextForStore(store);
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: GestureDetector(
             onTap: () {
-              Navigator.push(
+              StoreNavigation.open(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => StoreDetailsScreen(
-                    storeName: store['name'],
-                    storeCategory: store['category'],
-                    storeRating: store['rating'],
-                    storeDistance: distText,
-                    storeImageUrl: store['imageUrl'],
-                    storeDiscount: store['discount'],
-                    storeLocation: store['location'] as StoreLocation?,
-                  ),
-                ),
+                storeKey: store['name'] as String,
+                userLat: _userLat,
+                userLng: _userLng,
               );
             },
             child: _buildStoreCard(
               name: store['name'],
-              category: store['category'],
               rating: _ratingsManager.storeRatingOrBase(
                 store['name'].toString(),
                 (store['rating'] as num).toDouble(),
@@ -722,6 +667,8 @@ class _HomeScreenState extends State<HomeScreen> {
               distance: distText,
               imageUrl: store['imageUrl'],
               discount: store['discount'],
+              isElectronic: store['isElectronic'] as bool? ?? false,
+            ),
             ),
           );
         },
@@ -732,17 +679,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildStoreCard({
     required String name,
-    required String category,
     required double rating,
     required String distance,
     required String imageUrl,
+    required bool isElectronic,
     String? discount,
   }) {
+    final trendy = context.trendy;
+    final typeColor = isElectronic ? Colors.greenAccent : Colors.orangeAccent;
+    final typeIcon = isElectronic ? Icons.smartphone_outlined : Icons.storefront_outlined;
+    final typeLabel = isElectronic
+        ? context.tr('store_type_electronic')
+        : context.tr('store_type_physical');
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1E5BB3).withOpacity(0.15),
+        color: trendy.cardFill,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: trendy.cardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -753,30 +706,11 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                  child: Image.network(
-                    imageUrl,
-                    height: double.infinity,
+                  child: StoreCoverImage(
+                    imageUrl: imageUrl,
                     width: double.infinity,
+                    height: double.infinity,
                     fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Center(
-                        child: CircularProgressIndicator(
-                          value: loadingProgress.expectedTotalBytes != null
-                              ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                              : null,
-                          color: Colors.blueAccent,
-                        ),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.white10,
-                        child: const Center(
-                          child: Icon(Icons.broken_image_outlined, color: Colors.white24, size: 40),
-                        ),
-                      );
-                    },
                   ),
                 ),
                 // Discount Badge (matching current mockup)
@@ -787,12 +721,23 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF00D1FF).withOpacity(0.8), // Cyan/Light Blue
+                        color: const Color(0xFF3B82F6).withValues(alpha: 0.9),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text(
-                        '${context.tr('sort_offers').split(' ')[0]} $discount', // Simple workaround for "Discount 40%"
-                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.local_offer_outlined, color: Colors.white, size: 12),
+                          const SizedBox(width: 4),
+                          Text(
+                            context.tr('discount_up_to').replaceAll('{percent}', discount),
+                            style: GoogleFonts.cairo(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -806,35 +751,76 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  context.tr(category),
-                  style: const TextStyle(color: Colors.blueAccent, fontSize: 11, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                Text(
                   context.tr(name),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: trendy.titleColor,
+                  ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 10),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Text(rating.toString(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.star, color: Colors.amber, size: 14),
+                    Expanded(
+                      child: _storeMetaChip(
+                        icon: typeIcon,
+                        iconColor: typeColor,
+                        label: typeLabel,
+                        labelColor: typeColor,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: _storeMetaChip(
+                        icon: Icons.location_on_outlined,
+                        iconColor: const Color(0xFF3B82F6),
+                        label: '$distance${context.tr('km_suffix')}',
+                        labelColor: trendy.subtitleColor,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: _storeMetaChip(
+                        icon: Icons.star,
+                        iconColor: Colors.amber,
+                        label: rating.toStringAsFixed(1),
+                        labelColor: trendy.titleColor,
+                        iconAfterLabel: true,
+                      ),
+                    ),
                   ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '$distance${context.tr('km_suffix')}',
-                  style: const TextStyle(color: Colors.white70, fontSize: 11),
                 ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _storeMetaChip({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required Color labelColor,
+    bool iconAfterLabel = false,
+  }) {
+    final iconWidget = Icon(icon, color: iconColor, size: 12);
+    final textWidget = Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
+      style: GoogleFonts.cairo(color: labelColor, fontSize: 9, fontWeight: FontWeight.w600),
+    );
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: iconAfterLabel
+          ? [Flexible(child: textWidget), const SizedBox(width: 2), iconWidget]
+          : [iconWidget, const SizedBox(width: 2), Flexible(child: textWidget)],
     );
   }
 
@@ -846,15 +832,17 @@ class _HomeScreenState extends State<HomeScreen> {
         _ordersManager,
         _ratingsManager,
         AppLocale.instance,
+        AppThemeMode.instance,
       ]),
       builder: (context, _) {
+        final navTheme = Theme.of(context).bottomNavigationBarTheme;
         return BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: (index) => setState(() => _selectedIndex = index),
           type: BottomNavigationBarType.fixed,
-          backgroundColor: const Color(0xFF0A1931),
-          selectedItemColor: Colors.blueAccent,
-          unselectedItemColor: Colors.white54,
+          backgroundColor: navTheme.backgroundColor,
+          selectedItemColor: navTheme.selectedItemColor,
+          unselectedItemColor: navTheme.unselectedItemColor,
           selectedLabelStyle: GoogleFonts.cairo(fontSize: 11, fontWeight: FontWeight.bold),
           unselectedLabelStyle: GoogleFonts.cairo(fontSize: 11),
           items: [
@@ -901,7 +889,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Container(
               padding: const EdgeInsets.all(4),
               decoration: const BoxDecoration(
-                color: Colors.blueAccent,
+                color: const Color(0xFF3B82F6),
                 shape: BoxShape.circle,
               ),
               child: Text(
@@ -911,6 +899,133 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _HomeCampaignCard extends StatelessWidget {
+  final MarketingCampaign campaign;
+  final double cardHeight;
+  final CampaignVisual visual;
+  final VoidCallback onOpenDetails;
+  final void Function(String storeKey) onStoreTap;
+
+  const _HomeCampaignCard({
+    required this.campaign,
+    required this.cardHeight,
+    required this.visual,
+    required this.onOpenDetails,
+    required this.onStoreTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final badge = campaign.badgeKey != null ? context.tr(campaign.badgeKey!) : null;
+    final imageUrl = campaign.imageUrl ?? visual.imageUrl;
+    final storeColor = Theme.of(context).colorScheme.primary;
+    final stores = campaign.storeKeys.take(2).toList();
+
+    return GestureDetector(
+      onTap: onOpenDetails,
+      child: SizedBox(
+        height: cardHeight,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: visual.cardGradient,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: storeColor.withValues(alpha: 0.35), width: 1.2),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                flex: 7,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ColoredBox(color: visual.gradientEnd),
+                    if (imageUrl != null)
+                      Positioned.fill(
+                        child: StoreCoverImage(
+                          imageUrl: imageUrl,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    if (badge != null)
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: visual.badgeColor,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            badge,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.cairo(
+                              color: Colors.white,
+                              fontSize: 7,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Expanded(
+                flex: 3,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(6, 4, 6, 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        campaign.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          height: 1.15,
+                        ),
+                      ),
+                      const Spacer(),
+                      ...stores.map(
+                        (key) => GestureDetector(
+                          onTap: () => onStoreTap(key),
+                          behavior: HitTestBehavior.opaque,
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 1),
+                            child: Text(
+                              context.tr(key),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.right,
+                              style: GoogleFonts.cairo(
+                                color: storeColor,
+                                fontSize: 7,
+                                fontWeight: FontWeight.bold,
+                                height: 1.1,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

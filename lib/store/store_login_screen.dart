@@ -55,7 +55,7 @@ class _StoreLoginScreenState extends State<StoreLoginScreen> {
   Widget build(BuildContext context) {
     if (!FirebaseState().ready.value) {
       return Scaffold(
-        backgroundColor: const Color(0xFF0A1931),
+        backgroundColor: const Color(0xFF121026),
         appBar: AppBar(
           title: Text(context.tr('store_login_title'), style: GoogleFonts.cairo()),
         ),
@@ -73,7 +73,7 @@ class _StoreLoginScreenState extends State<StoreLoginScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A1931),
+      backgroundColor: const Color(0xFF121026),
       appBar: AppBar(
         title: Text(context.tr('store_login_title'), style: GoogleFonts.cairo()),
       ),
@@ -124,7 +124,7 @@ class _StoreLoginScreenState extends State<StoreLoginScreen> {
               child: ElevatedButton(
                 onPressed: _loading ? null : _login,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00D1FF),
+                  backgroundColor: const Color(0xFF3B82F6),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   elevation: 0,

@@ -3,7 +3,6 @@ import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 import 'home_screen.dart';
 import 'l10n/app_strings.dart';
-import 'store/store_login_screen.dart';
 import 'models/customer_profile.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -14,6 +13,9 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  static final _emailRegex = RegExp(r'^[\w.\-+]+@[\w.\-]+\.[a-zA-Z]{2,}$');
+
+  final _formKey = GlobalKey<FormState>();
   final TextEditingController _email = TextEditingController();
   final TextEditingController _password = TextEditingController();
 
@@ -22,6 +24,58 @@ class _LoginScreenState extends State<LoginScreen> {
     _email.dispose();
     _password.dispose();
     super.dispose();
+  }
+
+  InputDecoration _fieldDecoration(BuildContext context, String hint) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+      filled: true,
+      fillColor: Colors.black.withValues(alpha: 0.05),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      errorStyle: const TextStyle(color: Color(0xFFFFCDD2), fontSize: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.white30),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.white30),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.white),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFFCA5A5)),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFFCA5A5)),
+      ),
+    );
+  }
+
+  void _submitLogin() {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    final email = _email.text.trim();
+    final nameGuess = email.split('@').first;
+
+    CustomerProfileStore().setProfile(
+      name: nameGuess.isEmpty ? '—' : nameGuess,
+      email: email,
+      phone: '',
+    );
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => HomeScreen(
+          userName: nameGuess.isEmpty ? '—' : nameGuess,
+        ),
+      ),
+    );
   }
 
   @override
@@ -86,7 +140,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 child: Directionality(
                   textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
-                  child: Column(
+                  child: Form(
+                    key: _formKey,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
@@ -117,29 +174,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      TextField(
+                      TextFormField(
                         controller: _email,
                         keyboardType: TextInputType.emailAddress,
+                        autocorrect: false,
+                        textInputAction: TextInputAction.next,
                         style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          hintText: context.tr('hint_email'),
-                          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
-                          filled: true,
-                          fillColor: Colors.black.withValues(alpha: 0.05),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.white30),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.white30),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.white),
-                          ),
-                        ),
+                        decoration: _fieldDecoration(context, context.tr('hint_email')),
+                        validator: (value) {
+                          final v = value?.trim() ?? '';
+                          if (v.isEmpty) return context.tr('login_email_required');
+                          if (!_emailRegex.hasMatch(v)) return context.tr('login_email_invalid');
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 20),
                       
@@ -153,29 +200,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      TextField(
+                      TextFormField(
                         controller: _password,
                         obscureText: true,
+                        textInputAction: TextInputAction.done,
                         style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          hintText: context.tr('hint_password'),
-                          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
-                          filled: true,
-                          fillColor: Colors.black.withValues(alpha: 0.05),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.white30),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.white30),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Colors.white),
-                          ),
-                        ),
+                        decoration: _fieldDecoration(context, context.tr('hint_password')),
+                        validator: (value) {
+                          final v = value ?? '';
+                          if (v.isEmpty) return context.tr('login_password_required');
+                          if (v.length < 6) return context.tr('pwd_short');
+                          return null;
+                        },
+                        onFieldSubmitted: (_) => _submitLogin(),
                       ),
                       
                       const SizedBox(height: 12),
@@ -212,25 +249,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: () {
-                            final email = _email.text.trim();
-                            final nameGuess = email.contains('@') ? email.split('@').first : email;
-                            CustomerProfileStore().setProfile(
-                              name: nameGuess.isEmpty ? '—' : nameGuess,
-                              email: email,
-                              phone: '',
-                            );
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => HomeScreen(
-                                  userName: nameGuess.isEmpty ? '—' : nameGuess,
-                                ),
-                              ),
-                            );
-                          },
+                          onPressed: _submitLogin,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF00D1FF), // Cyan/Light Blue
+                            backgroundColor: const Color(0xFF3B82F6), // Cyan/Light Blue
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -279,30 +300,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
 
-                      const SizedBox(height: 12),
-
-                      // Store Login Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const StoreLoginScreen()),
-                            );
-                          },
-                          child: Text(
-                            context.tr('login_as_store'),
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      
                       const SizedBox(height: 24),
                       
                       // Create Account Text
@@ -334,6 +331,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 10),
                     ],
+                    ),
                   ),
                 ),
               ),

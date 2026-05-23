@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'cart_item.dart';
 import 'product.dart';
 
+/// يُرمى عند محاولة إضافة منتج من متجر مختلف عن منتجات السلة الحالية.
+class CartSingleStoreException implements Exception {
+  const CartSingleStoreException();
+}
+
 class CartManager extends ChangeNotifier {
-  // Singleton Pattern
   static final CartManager _instance = CartManager._internal();
   factory CartManager() => _instance;
   CartManager._internal();
@@ -16,27 +20,32 @@ class CartManager extends ChangeNotifier {
 
   double get totalPrice => _items.fold(0.0, (sum, item) => sum + item.totalPrice);
 
+  /// مفتاح المتجر الحالي في السلة، أو null إذا كانت فارغة.
+  String? get currentStoreKey =>
+      _items.isEmpty ? null : _items.first.product.storeName;
+
   void addToCart(Product product, {String color = 'أسود', String size = 'M', int quantity = 1}) {
-    // Check if item with same options already exists
-    final index = _items.indexWhere((item) => 
-      item.product.name == product.name && 
-      item.selectedColor == color && 
-      item.selectedSize == size
+    final index = _items.indexWhere(
+      (item) =>
+          item.product.name == product.name &&
+          item.selectedColor == color &&
+          item.selectedSize == size,
     );
 
     if (index >= 0) {
-      // Allow quantity increment again
       _items[index].quantity += quantity;
     } else {
-      // We allow adding from different stores now
-
-
-      _items.add(CartItem(
-        product: product,
-        selectedColor: color,
-        selectedSize: size,
-        quantity: quantity,
-      ));
+      if (_items.isNotEmpty && _items.first.product.storeName != product.storeName) {
+        throw const CartSingleStoreException();
+      }
+      _items.add(
+        CartItem(
+          product: product,
+          selectedColor: color,
+          selectedSize: size,
+          quantity: quantity,
+        ),
+      );
     }
     notifyListeners();
   }
