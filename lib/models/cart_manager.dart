@@ -60,8 +60,25 @@ class CartManager extends ChangeNotifier {
   }
 
   void updateAttributes(CartItem item, {String? color, String? size}) {
-    if (color != null && color.isNotEmpty) item.selectedColor = color;
-    if (size != null && size.isNotEmpty) item.selectedSize = size;
+    final newColor = (color != null && color.isNotEmpty) ? color : item.selectedColor;
+    final newSize = (size != null && size.isNotEmpty) ? size : item.selectedSize;
+    if (newColor == item.selectedColor && newSize == item.selectedSize) return;
+
+    final duplicateIndex = _items.indexWhere(
+      (i) =>
+          i != item &&
+          i.product.name == item.product.name &&
+          i.selectedColor == newColor &&
+          i.selectedSize == newSize,
+    );
+
+    if (duplicateIndex >= 0) {
+      _items[duplicateIndex].quantity += item.quantity;
+      _items.remove(item);
+    } else {
+      item.selectedColor = newColor;
+      item.selectedSize = newSize;
+    }
     notifyListeners();
   }
 

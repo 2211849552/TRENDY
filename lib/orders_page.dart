@@ -9,7 +9,6 @@ import 'l10n/app_strings.dart';
 import 'theme/app_theme_mode.dart';
 import 'theme/trendy_theme_extension.dart';
 import 'order_rating_screen.dart';
-import 'widgets/product_color_image.dart';
 import 'widgets/app_back_button.dart';
 import 'widgets/store_cover_image.dart';
 import 'widgets/gradient_button.dart';
@@ -334,10 +333,8 @@ class _OrdersPageState extends State<OrdersPage> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: ProductColorImage(
-              productKey: line.product.name,
-              colorKey: line.selectedColor,
-              baseImageUrl: line.product.imageUrl,
+            child: StoreCoverImage(
+              imageUrl: line.product.imageUrl,
               width: 72,
               height: 72,
               fit: BoxFit.cover,

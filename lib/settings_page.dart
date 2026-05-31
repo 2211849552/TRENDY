@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'models/notification_manager.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'addresses_screen.dart';
 import 'complaints_screen.dart';
 import 'wallet_screen.dart';
 import 'models/wallet_manager.dart';
@@ -209,6 +210,19 @@ class _SettingsPageState extends State<SettingsPage> {
                         context,
                         MaterialPageRoute<void>(
                           builder: (context) => const WalletScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildQuickLink(
+                    title: context.tr('my_addresses'),
+                    subtitle: context.tr('my_addresses_sub'),
+                    icon: Icons.location_on_outlined,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (context) => const AddressesScreen(),
                         ),
                       );
                     },

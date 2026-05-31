@@ -5,10 +5,7 @@ import 'favorites_page.dart';
 import 'cart_page.dart';
 import 'models/favorites_manager.dart';
 import 'models/cart_manager.dart';
-import 'models/cart_item.dart';
-import 'models/order.dart';
 import 'models/orders_manager.dart';
-import 'models/wallet_manager.dart';
 import 'models/notification_manager.dart';
 import 'models/notification_item.dart';
 import 'models/ratings_manager.dart';
@@ -19,6 +16,7 @@ import 'settings_page.dart';
 import 'locale/app_locale.dart';
 import 'l10n/app_strings.dart';
 import 'data/store_catalog.dart';
+import 'data/store_delivery.dart';
 import 'data/campaign_visuals.dart';
 import 'theme/app_theme_mode.dart';
 import 'theme/trendy_theme_extension.dart';
@@ -27,6 +25,7 @@ import 'models/marketing_campaigns_manager.dart';
 import 'utils/store_navigation.dart';
 import 'widgets/campaign_promo_dialog.dart';
 import 'widgets/store_cover_image.dart';
+import 'widgets/store_delivery_meta.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool isGuest;
@@ -154,67 +153,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return filtered;
   }
 
-  void _onWalletCheckout(String storeName, [List<CartItem>? selectedItems]) {
-    if (_cartManager.items.isEmpty) return;
-
-    final storeItems = (selectedItems ?? _cartManager.items)
-        .where((item) => item.product.storeName == storeName)
-        .toList();
-    if (storeItems.isEmpty) return;
-
-    double total = storeItems.fold(0.0, (sum, item) => sum + item.totalPrice);
-    
-    final orderId = DateTime.now().millisecondsSinceEpoch.toString();
-    if (!WalletManager().payOrderFromWallet(orderId: orderId, amount: total)) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.tr('wallet_insufficient'),
-            style: GoogleFonts.cairo(),
-          ),
-          backgroundColor: Colors.redAccent.shade700,
-        ),
-      );
-      return;
-    }
-    final items = storeItems
-        .map(
-          (e) => CartItem(
-            product: e.product,
-            selectedColor: e.selectedColor,
-            selectedSize: e.selectedSize,
-            quantity: e.quantity,
-          ),
-        )
-        .toList();
-    _ordersManager.addOrder(
-      Order(
-        id: orderId,
-        date: DateTime.now(),
-        items: items,
-        totalPrice: total,
-        status: 'status_pending',
-        storeName: storeName,
-        paymentMethod: 'wallet',
-      ),
-    );
-    setState(() => _selectedIndex = 3);
-    for (var item in storeItems) {
-      _cartManager.removeFromCart(item);
-    }
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          context.tr('order_confirmed'),
-          style: GoogleFonts.cairo(),
-        ),
-        backgroundColor: const Color(0xFFA855F7),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -238,7 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return CartPage(
           isGuest: widget.isGuest,
           onBrowseStores: () => setState(() => _selectedIndex = 0),
-          onWalletPay: _onWalletCheckout,
+          onOrderPlaced: () => setState(() => _selectedIndex = 3),
         );
       case 3:
         return OrdersPage(
@@ -647,6 +585,11 @@ class _HomeScreenState extends State<HomeScreen> {
         (context, index) {
           final store = stores[index];
           final distText = _distanceTextForStore(store);
+          final liveKm = _liveDistanceKmForStore(store);
+          final deliveryFee = StoreDelivery.feeFor(
+            store,
+            distanceKm: liveKm ?? (store['displayDistanceKm'] as num?)?.toDouble(),
+          );
           return Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: GestureDetector(
@@ -665,6 +608,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 (store['rating'] as num).toDouble(),
               ),
               distance: distText,
+              deliveryFee: deliveryFee,
               imageUrl: store['imageUrl'],
               discount: store['discount'],
               isElectronic: store['isElectronic'] as bool? ?? false,
@@ -681,16 +625,12 @@ class _HomeScreenState extends State<HomeScreen> {
     required String name,
     required double rating,
     required String distance,
+    required double deliveryFee,
     required String imageUrl,
     required bool isElectronic,
     String? discount,
   }) {
     final trendy = context.trendy;
-    final typeColor = isElectronic ? Colors.greenAccent : Colors.orangeAccent;
-    final typeIcon = isElectronic ? Icons.smartphone_outlined : Icons.storefront_outlined;
-    final typeLabel = isElectronic
-        ? context.tr('store_type_electronic')
-        : context.tr('store_type_physical');
     return Container(
       decoration: BoxDecoration(
         color: trendy.cardFill,
@@ -760,67 +700,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: trendy.titleColor,
                   ),
                 ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _storeMetaChip(
-                        icon: typeIcon,
-                        iconColor: typeColor,
-                        label: typeLabel,
-                        labelColor: typeColor,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: _storeMetaChip(
-                        icon: Icons.location_on_outlined,
-                        iconColor: const Color(0xFF3B82F6),
-                        label: '$distance${context.tr('km_suffix')}',
-                        labelColor: trendy.subtitleColor,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: _storeMetaChip(
-                        icon: Icons.star,
-                        iconColor: Colors.amber,
-                        label: rating.toStringAsFixed(1),
-                        labelColor: trendy.titleColor,
-                        iconAfterLabel: true,
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 8),
+                StoreDeliveryMeta(
+                  rating: rating,
+                  deliveryFee: deliveryFee,
+                  distanceText: distance,
+                  isElectronic: isElectronic,
                 ),
               ],
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _storeMetaChip({
-    required IconData icon,
-    required Color iconColor,
-    required String label,
-    required Color labelColor,
-    bool iconAfterLabel = false,
-  }) {
-    final iconWidget = Icon(icon, color: iconColor, size: 12);
-    final textWidget = Text(
-      label,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      textAlign: TextAlign.center,
-      style: GoogleFonts.cairo(color: labelColor, fontSize: 9, fontWeight: FontWeight.w600),
-    );
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: iconAfterLabel
-          ? [Flexible(child: textWidget), const SizedBox(width: 2), iconWidget]
-          : [iconWidget, const SizedBox(width: 2), Flexible(child: textWidget)],
     );
   }
 

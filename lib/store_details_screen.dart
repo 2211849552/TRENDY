@@ -11,6 +11,7 @@ import 'widgets/app_back_button.dart';
 import 'theme/app_colors.dart';
 import 'theme/trendy_theme_extension.dart';
 import 'widgets/store_cover_image.dart';
+import 'widgets/store_delivery_meta.dart';
 import 'data/store_products_data.dart';
 
 class StoreDetailsScreen extends StatefulWidget {
@@ -21,6 +22,8 @@ class StoreDetailsScreen extends StatefulWidget {
   final String storeImageUrl;
   final String? storeDiscount;
   final StoreLocation? storeLocation;
+  final bool isElectronic;
+  final double deliveryFee;
 
   const StoreDetailsScreen({
     super.key,
@@ -29,6 +32,8 @@ class StoreDetailsScreen extends StatefulWidget {
     required this.storeRating,
     required this.storeDistance,
     required this.storeImageUrl,
+    required this.isElectronic,
+    required this.deliveryFee,
     this.storeDiscount,
     this.storeLocation,
   });
@@ -378,15 +383,12 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 18),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${widget.storeRating} ? ${widget.storeDistance}${widget.storeDistance == '--' ? '' : context.tr('km_suffix')}',
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                  ],
+                StoreDeliveryMeta(
+                  rating: widget.storeRating,
+                  deliveryFee: widget.deliveryFee,
+                  distanceText: widget.storeDistance,
+                  isElectronic: widget.isElectronic,
+                  compact: false,
                 ),
                 const SizedBox(height: 12),
                 Row(

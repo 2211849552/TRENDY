@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/store_catalog.dart';
+import '../data/store_delivery.dart';
 import '../models/ratings_manager.dart';
 import '../services/location_service.dart';
 import '../services/store_location.dart';
@@ -19,18 +20,24 @@ class StoreNavigation {
     if (store == null) return;
 
     var distText = '--';
+    double? liveKm;
     final loc = store['location'] as StoreLocation?;
     if (userLat != null && userLng != null && loc != null) {
-      final km = const LocationService().distanceKm(
+      liveKm = const LocationService().distanceKm(
         fromLat: userLat,
         fromLng: userLng,
         toLat: loc.lat,
         toLng: loc.lng,
       );
-      distText = km.toStringAsFixed(1);
+      distText = liveKm.toStringAsFixed(1);
     }
 
     final baseRating = (store['rating'] as num).toDouble();
+    final deliveryFee = StoreDelivery.feeFor(
+      store,
+      distanceKm: liveKm ?? (store['displayDistanceKm'] as num?)?.toDouble(),
+    );
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -45,6 +52,8 @@ class StoreNavigation {
           storeImageUrl: store['imageUrl'] as String,
           storeDiscount: store['discount'] as String?,
           storeLocation: loc,
+          isElectronic: store['isElectronic'] as bool? ?? false,
+          deliveryFee: deliveryFee,
         ),
       ),
     );
