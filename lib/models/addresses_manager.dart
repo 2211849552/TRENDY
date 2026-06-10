@@ -1,43 +1,11 @@
 import 'package:flutter/foundation.dart';
 
-class SavedAddress {
-  final String id;
-  final String label;
-  final String streetLine;
-  final String city;
-  final String? description;
-  final double lat;
-  final double lng;
+import 'auth_session.dart';
+import '../services/api/addresses_api.dart';
+import '../services/api/api_exception.dart';
+import 'saved_address.dart';
 
-  const SavedAddress({
-    required this.id,
-    required this.label,
-    required this.streetLine,
-    required this.city,
-    this.description,
-    required this.lat,
-    required this.lng,
-  });
-
-  SavedAddress copyWith({
-    String? label,
-    String? streetLine,
-    String? city,
-    String? description,
-    double? lat,
-    double? lng,
-  }) {
-    return SavedAddress(
-      id: id,
-      label: label ?? this.label,
-      streetLine: streetLine ?? this.streetLine,
-      city: city ?? this.city,
-      description: description ?? this.description,
-      lat: lat ?? this.lat,
-      lng: lng ?? this.lng,
-    );
-  }
-}
+export 'saved_address.dart';
 
 class AddressesManager extends ChangeNotifier {
   static final AddressesManager _instance = AddressesManager._();
@@ -47,35 +15,14 @@ class AddressesManager extends ChangeNotifier {
   static const defaultLat = 32.8872;
   static const defaultLng = 13.1913;
 
-  final List<SavedAddress> _addresses = [
-    const SavedAddress(
-      id: 'addr_1',
-      label: 'جرابه',
-      streetLine: 'شارع عوف بن عفراء',
-      city: 'طرابلس',
-      lat: defaultLat,
-      lng: defaultLng,
-    ),
-    const SavedAddress(
-      id: 'addr_2',
-      label: 'المنصوره',
-      streetLine: 'شارع الجمهورية',
-      city: 'طرابلس',
-      lat: 32.8920,
-      lng: 13.1800,
-    ),
-    const SavedAddress(
-      id: 'addr_3',
-      label: 'مطعم التقسيم جرابه',
-      streetLine: 'جرابه',
-      city: 'طرابلس',
-      lat: 32.9000,
-      lng: 13.1650,
-    ),
-  ];
+  final AddressesApi _api = AddressesApi();
+  final List<SavedAddress> _addresses = [];
+  String _selectedId = '';
+  bool _loading = false;
+  String? _error;
 
-  String _selectedId = 'addr_1';
-
+  bool get isLoading => _loading;
+  String? get error => _error;
   List<SavedAddress> get addresses => List.unmodifiable(_addresses);
   String get selectedId => _selectedId;
 
@@ -86,6 +33,38 @@ class AddressesManager extends ChangeNotifier {
     return _addresses.isEmpty ? null : _addresses.first;
   }
 
+  /// جلب العناوين من GET /api/addresses للزبون المسجّل.
+  Future<void> syncFromApi() async {
+    if (!AuthSession.instance.isAuthenticated) {
+      _addresses.clear();
+      _selectedId = '';
+      _error = null;
+      notifyListeners();
+      return;
+    }
+
+    _loading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final list = await _api.fetchAddresses();
+      _addresses
+        ..clear()
+        ..addAll(list);
+      if (_selectedId.isEmpty || !_addresses.any((a) => a.id == _selectedId)) {
+        _selectedId = _addresses.isEmpty ? '' : _addresses.first.id;
+      }
+    } on ApiException catch (e) {
+      _error = e.message;
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
   void select(String id) {
     if (_selectedId == id) return;
     if (!_addresses.any((a) => a.id == id)) return;
@@ -93,7 +72,39 @@ class AddressesManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  void upsert(SavedAddress address, {bool selectAfter = false}) {
+  Future<bool> upsert(SavedAddress address, {bool selectAfter = false}) async {
+    _error = null;
+
+    if (AuthSession.instance.isAuthenticated) {
+      try {
+        final fallbackPhone = AuthSession.instance.user?.phone;
+        final payload = address.apiId == null
+            ? await _api.createAddress(
+                _withFallbackPhone(address, fallbackPhone),
+              )
+            : await _api.updateAddress(
+                _withFallbackPhone(address, fallbackPhone),
+              );
+        final index = _addresses.indexWhere((a) => a.id == address.id);
+        if (index >= 0) {
+          _addresses[index] = payload;
+        } else {
+          _addresses.add(payload);
+        }
+        if (selectAfter) _selectedId = payload.id;
+        notifyListeners();
+        return true;
+      } on ApiException catch (e) {
+        _error = e.message;
+        notifyListeners();
+        return false;
+      } catch (e) {
+        _error = e.toString();
+        notifyListeners();
+        return false;
+      }
+    }
+
     final index = _addresses.indexWhere((a) => a.id == address.id);
     if (index >= 0) {
       _addresses[index] = address;
@@ -102,17 +113,46 @@ class AddressesManager extends ChangeNotifier {
     }
     if (selectAfter) _selectedId = address.id;
     notifyListeners();
+    return true;
   }
 
-  void remove(String id) {
-    _addresses.removeWhere((a) => a.id == id);
+  Future<bool> remove(String id) async {
+    _error = null;
+    final index = _addresses.indexWhere((a) => a.id == id);
+    if (index < 0) return false;
+
+    final address = _addresses[index];
+    if (AuthSession.instance.isAuthenticated && address.apiId != null) {
+      try {
+        await _api.deleteAddress(address.apiId!);
+      } on ApiException catch (e) {
+        _error = e.message;
+        notifyListeners();
+        return false;
+      } catch (e) {
+        _error = e.toString();
+        notifyListeners();
+        return false;
+      }
+    }
+
+    _addresses.removeAt(index);
     if (_addresses.isEmpty) {
       _selectedId = '';
     } else if (_selectedId == id) {
       _selectedId = _addresses.first.id;
     }
     notifyListeners();
+    return true;
   }
 
   String nextId() => 'addr_${DateTime.now().millisecondsSinceEpoch}';
+
+  SavedAddress _withFallbackPhone(SavedAddress address, String? phone) {
+    if (address.phone != null && address.phone!.trim().isNotEmpty) {
+      return address;
+    }
+    if (phone == null || phone.trim().isEmpty) return address;
+    return address.copyWith(phone: phone.trim());
+  }
 }

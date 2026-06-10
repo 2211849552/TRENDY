@@ -4,6 +4,7 @@ import 'l10n/app_strings.dart';
 import 'models/complaint.dart';
 import 'models/complaints_manager.dart';
 import 'widgets/app_back_button.dart';
+import 'widgets/trendy_brand.dart';
 import 'widgets/new_complaint_dialog.dart';
 
 class ComplaintsScreen extends StatefulWidget {
@@ -15,6 +16,26 @@ class ComplaintsScreen extends StatefulWidget {
 
 class _ComplaintsScreenState extends State<ComplaintsScreen> {
   final ComplaintsManager _manager = ComplaintsManager();
+
+  @override
+  void initState() {
+    super.initState();
+    _manager.syncFromApi();
+  }
+
+  void _showError(String? message) {
+    if (message == null || message.isEmpty || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<void> _openNewComplaint() async {
+    final created = await NewComplaintDialog.show(context);
+    if (!mounted) return;
+    if (created == false) _showError(_manager.error);
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,12 +61,22 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
-                      onPressed: () => NewComplaintDialog.show(context),
+                      onPressed: _manager.isLoading ? null : _openNewComplaint,
                       icon: const Icon(Icons.add),
                       label: Text(context.tr('complaint_new')),
                     ),
                     const SizedBox(height: 20),
-                    if (_manager.complaints.isEmpty) _buildEmptyState() else _buildComplaintsList(),
+                    if (_manager.isLoading)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 48),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (_manager.error != null && _manager.complaints.isEmpty)
+                      _buildErrorState()
+                    else if (_manager.complaints.isEmpty)
+                      _buildEmptyState()
+                    else
+                      _buildComplaintsList(),
                     const SizedBox(height: 40),
                   ],
                 ),
@@ -65,8 +96,33 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
           label: context.tr('back'),
           onPressed: () => Navigator.pop(context),
         ),
-        const Text('Trendy', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
+        const TrendyBrandBadge(),
       ],
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFFA855F7).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        children: [
+          Text(
+            _manager.error!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white70),
+          ),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: _manager.syncFromApi,
+            child: Text(context.tr('retry')),
+          ),
+        ],
+      ),
     );
   }
 
@@ -119,10 +175,17 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                   color: const Color(0xFF3B82F6).withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(context.tr(c.statusKey), style: const TextStyle(color: const Color(0xFF3B82F6), fontSize: 11)),
+                child: Text(context.tr(c.statusKey), style: const TextStyle(color: Color(0xFF3B82F6), fontSize: 11)),
               ),
             ],
           ),
+          if (c.ticketNumber != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              c.ticketNumber!,
+              style: const TextStyle(color: Colors.white38, fontSize: 11),
+            ),
+          ],
           const SizedBox(height: 6),
           Text(c.details, style: const TextStyle(color: Colors.white70)),
           const SizedBox(height: 4),
@@ -186,32 +249,23 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
               ),
             ),
           ],
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Row(
-              children: [
-                TextButton.icon(
-                  onPressed: () => _showReplyDialog(c.id),
-                  icon: const Icon(Icons.reply_outlined, size: 16),
-                  label: Text(context.tr('add_reply')),
-                ),
-                if (c.statusKey != 'complaint_status_closed')
-                  TextButton.icon(
-                    onPressed: () => _manager.closeComplaint(c.id),
-                    icon: const Icon(Icons.check_circle_outline, size: 16),
-                    label: Text(context.tr('close_complaint')),
-                  ),
-              ],
+          if (c.statusKey != 'complaint_status_closed')
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => _showReplyDialog(c.id),
+                icon: const Icon(Icons.reply_outlined, size: 16),
+                label: Text(context.tr('add_reply')),
+              ),
             ),
-          ),
         ],
       ),
     );
   }
 
-  void _showReplyDialog(String complaintId) {
+  Future<void> _showReplyDialog(String complaintId) async {
     final controller = TextEditingController();
-    showDialog(
+    final sent = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1E1B4B),
@@ -222,18 +276,25 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
           decoration: InputDecoration(hintText: context.tr('reply_hint')),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(context.tr('cancel'))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(context.tr('cancel'))),
           ElevatedButton(
             onPressed: () {
               if (controller.text.trim().isEmpty) return;
-              _manager.addReply(complaintId: complaintId, message: controller.text.trim());
-              Navigator.pop(ctx);
+              Navigator.pop(ctx, true);
             },
             child: Text(context.tr('save_changes')),
           ),
         ],
       ),
     );
-  }
 
+    if (sent != true || !mounted) return;
+    final ok = await _manager.addReply(
+      complaintId: complaintId,
+      message: controller.text.trim(),
+    );
+    if (!mounted) return;
+    if (!ok) _showError(_manager.error);
+    setState(() {});
+  }
 }

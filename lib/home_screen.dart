@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'notifications_screen.dart';
@@ -18,14 +20,21 @@ import 'l10n/app_strings.dart';
 import 'data/store_catalog.dart';
 import 'data/store_delivery.dart';
 import 'data/campaign_visuals.dart';
-import 'theme/app_theme_mode.dart';
-import 'theme/trendy_theme_extension.dart';
+import 'models/auth_session.dart';
 import 'models/marketing_campaign.dart';
 import 'models/marketing_campaigns_manager.dart';
+import 'models/product_search_item.dart';
+import 'services/api/api_exception.dart';
+import 'services/api/campaigns_api.dart';
+import 'services/api/products_api.dart';
+import 'services/api/stores_api.dart';
+import 'theme/app_theme_mode.dart';
+import 'theme/trendy_theme_extension.dart';
 import 'utils/store_navigation.dart';
 import 'widgets/campaign_promo_dialog.dart';
 import 'widgets/store_cover_image.dart';
 import 'widgets/store_delivery_meta.dart';
+import 'widgets/trendy_brand.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool isGuest;
@@ -46,6 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final RatingsManager _ratingsManager = RatingsManager();
   final LocationService _locationService = const LocationService();
   int _selectedIndex = 0;
+  final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
   /// مفاتيح داخلية ثابتة — التسميات تُعرَض عبر [tr] حسب اللغة.
   String _selectedStoreTypeKey = 'all';
@@ -55,13 +65,144 @@ class _HomeScreenState extends State<HomeScreen> {
   double? _userLng;
 
   final MarketingCampaignsManager _campaignsManager = MarketingCampaignsManager();
+  final NotificationManager _notificationManager = NotificationManager();
+  final StoresApi _storesApi = StoresApi();
+  final CampaignsApi _campaignsApi = CampaignsApi();
+  final ProductsApi _productsApi = ProductsApi();
 
-  List<Map<String, dynamic>> get _stores => StoreCatalog.stores;
+  List<Map<String, dynamic>> _stores = StoreCatalog.stores;
+  List<MarketingCampaign> _apiCampaigns = [];
+  List<ProductSearchItem> _productResults = [];
+  bool _isLoadingStores = true;
+  bool _isLoadingCampaigns = true;
+  bool _isSearchingProducts = false;
+  String? _loadError;
+  Timer? _searchDebounce;
 
   @override
   void initState() {
     super.initState();
     _refreshUserLocation();
+    _loadHomeData();
+    if (!widget.isGuest && AuthSession.instance.isAuthenticated) {
+      NotificationManager().syncFromApi();
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadHomeData() async {
+    await Future.wait([
+      _loadStores(),
+      _loadCampaigns(),
+    ]);
+  }
+
+  String? _apiStoreType() {
+    switch (_selectedStoreTypeKey) {
+      case 'electronic':
+        return 'electronic';
+      case 'non_electronic':
+        return 'local';
+      default:
+        return null;
+    }
+  }
+
+  Future<void> _loadStores() async {
+    setState(() {
+      _isLoadingStores = true;
+      _loadError = null;
+    });
+    try {
+      final items = await _storesApi.fetchStores(
+        name: _searchQuery.trim().isEmpty ? null : _searchQuery.trim(),
+        type: _apiStoreType(),
+      );
+      if (!mounted) return;
+      final maps = items.map((s) => s.toLegacyMap()).toList();
+      if (!mounted) return;
+      setState(() {
+        _stores = maps.isNotEmpty ? maps : StoreCatalog.stores;
+      });
+      if (maps.isNotEmpty) StoreCatalog.setApiStores(maps);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = e.message;
+        _stores = StoreCatalog.stores;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _stores = StoreCatalog.stores;
+      });
+    } finally {
+      if (mounted) setState(() => _isLoadingStores = false);
+    }
+  }
+
+  Future<void> _loadCampaigns() async {
+    setState(() => _isLoadingCampaigns = true);
+    try {
+      final items = await _campaignsApi.fetchActiveCampaigns(limit: 6);
+      if (!mounted) return;
+      setState(() => _apiCampaigns = items);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _apiCampaigns = []);
+    } finally {
+      if (mounted) setState(() => _isLoadingCampaigns = false);
+    }
+  }
+
+  Future<void> _searchProducts(String query) async {
+    final q = query.trim();
+    if (q.length < 2) {
+      if (!mounted) return;
+      setState(() {
+        _productResults = [];
+        _isSearchingProducts = false;
+      });
+      return;
+    }
+
+    setState(() => _isSearchingProducts = true);
+    try {
+      final items = await _productsApi.searchProducts(query: q);
+      if (!mounted) return;
+      setState(() => _productResults = items);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _productResults = []);
+    } finally {
+      if (mounted) setState(() => _isSearchingProducts = false);
+    }
+  }
+
+  void _onSearchChanged(String value) {
+    if (_searchController.text != value) {
+      _searchController.text = value;
+      _searchController.selection = TextSelection.collapsed(offset: value.length);
+    }
+    setState(() => _searchQuery = value);
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 450), () {
+      _loadStores();
+      _searchProducts(value);
+    });
+  }
+
+  void _onFilterChanged({String? typeKey, String? sortKey}) {
+    if (typeKey != null) _selectedStoreTypeKey = typeKey;
+    if (sortKey != null) _selectedSortKey = sortKey;
+    setState(() {});
+    _loadStores();
   }
 
   Future<void> _refreshUserLocation() async {
@@ -112,22 +253,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   List<Map<String, dynamic>> get _filteredStores {
-    List<Map<String, dynamic>> filtered = _stores.where((store) {
-      final q = _searchQuery.toLowerCase();
-      final translatedName = context.tr(store['name']).toLowerCase();
-      final translatedCategory = context.tr(store['category']).toLowerCase();
-      final nameMatches = translatedName.contains(q) || translatedCategory.contains(q);
-      
-      final isElectronic = store['isElectronic'] as bool? ?? false;
-      bool typeMatches = _selectedStoreTypeKey == 'all';
-      if (_selectedStoreTypeKey == 'electronic') {
-        typeMatches = isElectronic;
-      } else if (_selectedStoreTypeKey == 'non_electronic') {
-        typeMatches = !isElectronic;
-      }
-
-      return nameMatches && typeMatches;
-    }).toList();
+    final filtered = List<Map<String, dynamic>>.from(_stores);
 
     // Apply Sorting
     if (_selectedSortKey == 'rating') {
@@ -207,6 +333,17 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildAdCampaignsSection(),
               const SizedBox(height: 20),
               _buildSearchSection(),
+              if (_searchQuery.trim().length >= 2) ...[
+                const SizedBox(height: 16),
+                _buildProductSearchSection(),
+              ],
+              if (_loadError != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _loadError!,
+                  style: TextStyle(color: Colors.orange.shade300, fontSize: 12),
+                ),
+              ],
               const SizedBox(height: 24),
               // Stores Section Title
               Text(
@@ -223,40 +360,25 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         // Stores Grid
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          sliver: _buildStoreGrid(),
-        ),
+        if (_isLoadingStores)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            sliver: _buildStoreGrid(),
+          ),
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
       ],
     );
   }
 
   Widget _buildHeader() {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.55),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Trendy',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: context.trendy.titleColor,
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(Icons.checkroom_rounded, color: Color(0xFF3B82F6), size: 24),
-          ],
-        ),
-      ),
-    );
+    return const Center(child: TrendyBrandBadge(textSize: 24));
   }
 
   Widget _buildWelcomeBanner() {
@@ -316,6 +438,10 @@ class _HomeScreenState extends State<HomeScreen> {
           // Left side: notifications only
           GestureDetector(
             onTap: () async {
+              if (AuthSession.instance.isAuthenticated) {
+                await _notificationManager.syncFromApi();
+              }
+              if (!mounted) return;
               final tapped = await Navigator.push<NotificationItem?>(
                 context,
                 MaterialPageRoute(builder: (context) => const NotificationsScreen()),
@@ -326,9 +452,9 @@ class _HomeScreenState extends State<HomeScreen> {
               }
             },
             child: ListenableBuilder(
-              listenable: NotificationManager(),
+              listenable: _notificationManager,
               builder: (context, _) {
-                final unread = NotificationManager().unreadCount;
+                final unread = _notificationManager.unreadCount;
                 return Stack(
                   clipBehavior: Clip.none,
                   children: [
@@ -380,7 +506,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildAdCampaignsSection() {
-    final campaigns = _campaignsManager.homeFeatured;
+    if (_isLoadingCampaigns) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))),
+      );
+    }
+
+    final campaigns = _apiCampaigns.isNotEmpty
+        ? _apiCampaigns.take(3).toList()
+        : _campaignsManager.homeFeatured;
     if (campaigns.isEmpty) return const SizedBox.shrink();
 
     return LayoutBuilder(
@@ -478,11 +613,18 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         // Search Bar
         TextField(
+          controller: _searchController,
           textAlign: context.isRtl ? TextAlign.right : TextAlign.left,
-          onChanged: (value) => setState(() => _searchQuery = value),
+          onChanged: _onSearchChanged,
           decoration: InputDecoration(
             hintText: context.tr('search_store'),
             prefixIcon: const Icon(Icons.search_rounded),
+            suffixIcon: _searchQuery.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => _onSearchChanged(''),
+                  )
+                : null,
           ),
         ),
         const SizedBox(height: 16),
@@ -505,7 +647,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       return k;
                   }
                 },
-                onChanged: (val) => setState(() => _selectedStoreTypeKey = val!),
+                onChanged: (val) => _onFilterChanged(typeKey: val),
               ),
             ),
             const SizedBox(width: 12),
@@ -523,7 +665,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       return k;
                   }
                 },
-                onChanged: (val) => setState(() => _selectedSortKey = val!),
+                onChanged: (val) => _onFilterChanged(sortKey: val),
               ),
             ),
           ],
@@ -576,8 +718,111 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-    Widget _buildStoreGrid() {
+  Widget _buildProductSearchSection() {
+    if (_isSearchingProducts) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(12),
+          child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)),
+        ),
+      );
+    }
+
+    if (_productResults.isEmpty) {
+      return Text(
+        context.tr('search_no_result'),
+        style: TextStyle(color: context.trendy.subtitleColor, fontSize: 13),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          context.tr('search_products_title'),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: context.trendy.titleColor,
+          ),
+        ),
+        const SizedBox(height: 10),
+        ..._productResults.take(5).map(
+          (product) => Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: context.trendy.cardFill,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: context.trendy.cardBorder),
+            ),
+            child: Row(
+              children: [
+                if (product.thumbnail.isNotEmpty)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      product.thumbnail,
+                      width: 44,
+                      height: 44,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported_outlined),
+                    ),
+                  )
+                else
+                  const Icon(Icons.shopping_bag_outlined),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: context.trendy.titleColor,
+                        ),
+                      ),
+                      if (product.storeName.isNotEmpty)
+                        Text(
+                          product.storeName,
+                          style: TextStyle(fontSize: 12, color: context.trendy.subtitleColor),
+                        ),
+                    ],
+                  ),
+                ),
+                Text(
+                  '${product.price.toStringAsFixed(0)} ${context.tr('currency_lyd')}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStoreGrid() {
     final stores = _filteredStores;
+    if (stores.isEmpty) {
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: Center(
+            child: Text(
+              context.tr('search_no_result'),
+              style: TextStyle(color: context.trendy.subtitleColor),
+            ),
+          ),
+        ),
+      );
+    }
 
     return SliverGrid(
       gridDelegate: _homeGridDelegate,
@@ -597,19 +842,21 @@ class _HomeScreenState extends State<HomeScreen> {
               StoreNavigation.open(
                 context,
                 storeKey: store['name'] as String,
+                storeData: store,
                 userLat: _userLat,
                 userLng: _userLng,
               );
             },
             child: _buildStoreCard(
-              name: store['name'],
+              name: store['displayName'] as String? ?? store['name'] as String,
+              useTranslation: store['displayName'] == null,
               rating: _ratingsManager.storeRatingOrBase(
                 store['name'].toString(),
                 (store['rating'] as num).toDouble(),
               ),
               distance: distText,
               deliveryFee: deliveryFee,
-              imageUrl: store['imageUrl'],
+              imageUrl: '${store['imageUrl'] ?? ''}',
               discount: store['discount'],
               isElectronic: store['isElectronic'] as bool? ?? false,
             ),
@@ -621,6 +868,31 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildStoreCardImage(String imageUrl, TrendyTheme trendy) {
+    final isApiLogo = StoreCoverImage.isRemoteUrl(imageUrl);
+    if (isApiLogo) {
+      return Container(
+        width: double.infinity,
+        height: double.infinity,
+        color: trendy.pageBackground,
+        alignment: Alignment.center,
+        child: StoreCoverImage(
+          imageUrl: imageUrl,
+          asLogo: true,
+          width: 88,
+          height: 88,
+        ),
+      );
+    }
+
+    return StoreCoverImage(
+      imageUrl: imageUrl,
+      width: double.infinity,
+      height: double.infinity,
+      fit: BoxFit.cover,
+    );
+  }
+
   Widget _buildStoreCard({
     required String name,
     required double rating,
@@ -629,6 +901,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required String imageUrl,
     required bool isElectronic,
     String? discount,
+    bool useTranslation = true,
   }) {
     final trendy = context.trendy;
     return Container(
@@ -640,18 +913,13 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // Store Image with badges
+          // شعار المتجر من API أو صورة الغلاف المحلية
           Expanded(
             child: Stack(
               children: [
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                  child: StoreCoverImage(
-                    imageUrl: imageUrl,
-                    width: double.infinity,
-                    height: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
+                  child: _buildStoreCardImage(imageUrl, trendy),
                 ),
                 // Discount Badge (matching current mockup)
                 if (discount != null)
@@ -691,7 +959,7 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  context.tr(name),
+                  useTranslation ? context.tr(name) : name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -814,7 +1082,16 @@ class _HomeCampaignCard extends StatelessWidget {
     final badge = campaign.badgeKey != null ? context.tr(campaign.badgeKey!) : null;
     final imageUrl = campaign.imageUrl ?? visual.imageUrl;
     final storeColor = Theme.of(context).colorScheme.primary;
-    final stores = campaign.storeKeys.take(2).toList();
+    // المتاجر المشتركة من API (الاسم الفعلي) أو مفاتيح الترجمة للحملات المحلية
+    final stores = campaign.stores.isNotEmpty
+        ? campaign.stores
+            .take(2)
+            .map((s) => (key: s.navigationKey, label: s.name))
+            .toList()
+        : campaign.storeKeys
+            .take(2)
+            .map((key) => (key: key, label: context.tr(key)))
+            .toList();
 
     return GestureDetector(
       onTap: onOpenDetails,
@@ -889,13 +1166,13 @@ class _HomeCampaignCard extends StatelessWidget {
                       ),
                       const Spacer(),
                       ...stores.map(
-                        (key) => GestureDetector(
-                          onTap: () => onStoreTap(key),
+                        (store) => GestureDetector(
+                          onTap: () => onStoreTap(store.key),
                           behavior: HitTestBehavior.opaque,
                           child: Padding(
                             padding: const EdgeInsets.only(top: 1),
                             child: Text(
-                              context.tr(key),
+                              store.label,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.right,

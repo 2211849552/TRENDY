@@ -2,19 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../l10n/app_strings.dart';
-import '../models/complaint.dart';
+import '../models/auth_session.dart';
 import '../models/complaints_manager.dart';
-import '../models/order.dart';
-import '../models/orders_manager.dart';
-import '../theme/app_colors.dart';
+import '../services/api/complaints_api.dart';
 import 'gradient_button.dart';
 
 /// نافذة إنشاء شكوى جديدة — مطابقة لتصميم النموذج (قائمة نوع الشكوى + الطلب المرتبط).
 class NewComplaintDialog extends StatefulWidget {
   const NewComplaintDialog({super.key});
 
-  static Future<void> show(BuildContext context) {
-    return showDialog<void>(
+  /// يُعيد `true` عند الإرسال بنجاح، `false` عند الفشل، `null` عند الإغلاق.
+  static Future<bool?> show(BuildContext context) {
+    return showDialog<bool?>(
       context: context,
       barrierColor: Colors.black54,
       builder: (ctx) => const NewComplaintDialog(),
@@ -41,24 +40,49 @@ class NewComplaintDialog extends StatefulWidget {
 
 class _NewComplaintDialogState extends State<NewComplaintDialog> {
   final ComplaintsManager _complaintsManager = ComplaintsManager();
-  final OrdersManager _ordersManager = OrdersManager();
+  final OrdersApi _ordersApi = OrdersApi();
 
   String _selectedTypeKey = 'complaint_type_general';
   String _selectedOrderKey = NewComplaintDialog._noneOrder;
   bool _typeMenuOpen = false;
   bool _orderMenuOpen = false;
+  bool _loadingOrders = false;
+  bool _submitting = false;
+  List<ComplaintOrderOption> _orderOptions = const [];
 
   final _subjectController = TextEditingController();
   final _detailsController = TextEditingController();
 
-  bool get _needsRelatedOrder =>
-      _selectedTypeKey == 'complaint_type_order' || _selectedTypeKey == 'complaint_type_store';
+  @override
+  void initState() {
+    super.initState();
+    _loadOrders();
+  }
 
   @override
   void dispose() {
     _subjectController.dispose();
     _detailsController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadOrders() async {
+    if (!AuthSession.instance.isAuthenticated) return;
+    setState(() => _loadingOrders = true);
+    try {
+      final orders = await _ordersApi.fetchOrdersForComplaints();
+      if (!mounted) return;
+      setState(() {
+        _orderOptions = orders;
+        if (orders.isNotEmpty && _selectedOrderKey == NewComplaintDialog._noneOrder) {
+          _selectedOrderKey = '${orders.first.id}';
+        }
+      });
+    } catch (_) {
+      // يُعرض للمستخدم عند الإرسال إن لم يُختر طلب.
+    } finally {
+      if (mounted) setState(() => _loadingOrders = false);
+    }
   }
 
   void _closeMenus() {
@@ -70,40 +94,56 @@ class _NewComplaintDialogState extends State<NewComplaintDialog> {
     }
   }
 
-  void _submit() {
+  Future<void> _submit() async {
+    if (_submitting) return;
+
+    if (!AuthSession.instance.isAuthenticated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.tr('login_required_complaint'))),
+      );
+      return;
+    }
+
     final subject = _subjectController.text.trim();
     final details = _detailsController.text.trim();
     if (subject.isEmpty || details.isEmpty) return;
 
-    final relatedOrderId =
-        _needsRelatedOrder && _selectedOrderKey != NewComplaintDialog._noneOrder ? _selectedOrderKey : null;
+    final orderId = int.tryParse(_selectedOrderKey);
+    if (orderId == null || orderId <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.tr('complaint_order_required'))),
+      );
+      return;
+    }
 
-    _complaintsManager.addComplaint(
-      Complaint(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        typeKey: _selectedTypeKey,
-        subject: subject,
-        details: details,
-        createdAt: DateTime.now(),
-        statusKey: 'complaint_status_open',
-        relatedOrderId: relatedOrderId,
-      ),
+    setState(() => _submitting = true);
+    final ok = await _complaintsManager.submitComplaint(
+      typeKey: _selectedTypeKey,
+      subject: subject,
+      details: details,
+      orderId: orderId,
     );
+    if (!mounted) return;
+    setState(() => _submitting = false);
 
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(context.tr('complaint_sent'))),
-    );
+    if (ok) {
+      Navigator.of(context).pop(true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.tr('complaint_sent'))),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_complaintsManager.error ?? context.tr('error_generic'))),
+      );
+    }
   }
 
-  String _orderLabel(Order order) => '#${order.id} · ${order.storeName}';
-
-  List<({String value, String label})> get _orderOptions {
+  List<({String value, String label})> get _orderPickerOptions {
     final options = <({String value, String label})>[
       (value: NewComplaintDialog._noneOrder, label: context.tr('complaint_no_order')),
     ];
-    for (final o in _ordersManager.orders) {
-      options.add((value: o.id, label: _orderLabel(o)));
+    for (final o in _orderOptions) {
+      options.add((value: '${o.id}', label: o.label));
     }
     return options;
   }
@@ -132,7 +172,7 @@ class _NewComplaintDialogState extends State<NewComplaintDialog> {
                   Align(
                     alignment: AlignmentDirectional.topEnd,
                     child: IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: _submitting ? null : () => Navigator.of(context).pop(),
                       icon: const Icon(Icons.close, color: Colors.white38, size: 22),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -169,37 +209,36 @@ class _NewComplaintDialogState extends State<NewComplaintDialog> {
                     onSelect: (v) => setState(() {
                       _selectedTypeKey = v;
                       _typeMenuOpen = false;
-                      if (v != 'complaint_type_order' && v != 'complaint_type_store') {
-                        _selectedOrderKey = NewComplaintDialog._noneOrder;
-                      }
                     }),
                   ),
-                  if (_needsRelatedOrder) ...[
-                    const SizedBox(height: 16),
-                    _buildPicker(
-                      label: context.tr('complaint_related_order'),
-                      isOpen: _orderMenuOpen,
-                      selectedLabel: _orderOptions
-                          .firstWhere((o) => o.value == _selectedOrderKey)
-                          .label,
-                      onToggle: () => setState(() {
-                        _typeMenuOpen = false;
-                        _orderMenuOpen = !_orderMenuOpen;
-                      }),
-                      options: _orderOptions,
-                      selectedValue: _selectedOrderKey,
-                      onSelect: (v) => setState(() {
-                        _selectedOrderKey = v;
-                        _orderMenuOpen = false;
-                      }),
-                    ),
-                  ],
+                  const SizedBox(height: 16),
+                  _buildPicker(
+                    label: context.tr('complaint_related_order'),
+                    isOpen: _orderMenuOpen,
+                    enabled: !_loadingOrders && !_submitting,
+                    selectedLabel: _loadingOrders
+                        ? context.tr('loading')
+                        : _orderPickerOptions
+                            .firstWhere((o) => o.value == _selectedOrderKey)
+                            .label,
+                    onToggle: () => setState(() {
+                      _typeMenuOpen = false;
+                      _orderMenuOpen = !_orderMenuOpen;
+                    }),
+                    options: _orderPickerOptions,
+                    selectedValue: _selectedOrderKey,
+                    onSelect: (v) => setState(() {
+                      _selectedOrderKey = v;
+                      _orderMenuOpen = false;
+                    }),
+                  ),
                   const SizedBox(height: 16),
                   _buildLabel(context.tr('complaint_subject')),
                   const SizedBox(height: 8),
                   _buildTextField(
                     controller: _subjectController,
                     hint: context.tr('complaint_subject_hint'),
+                    enabled: !_submitting,
                   ),
                   const SizedBox(height: 16),
                   _buildLabel(context.tr('complaint_details')),
@@ -208,15 +247,22 @@ class _NewComplaintDialogState extends State<NewComplaintDialog> {
                     controller: _detailsController,
                     hint: context.tr('complaint_details_hint'),
                     maxLines: 4,
+                    enabled: !_submitting,
                   ),
                   const SizedBox(height: 22),
                   Align(
                     alignment: AlignmentDirectional.centerStart,
-                    child: GradientButton(
-                      onPressed: _submit,
-                      label: context.tr('send_complaint'),
-                      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                    ),
+                    child: _submitting
+                        ? const SizedBox(
+                            width: 28,
+                            height: 28,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : GradientButton(
+                            onPressed: _submit,
+                            label: context.tr('send_complaint'),
+                            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                          ),
                   ),
                 ],
               ),
@@ -239,10 +285,12 @@ class _NewComplaintDialogState extends State<NewComplaintDialog> {
     required TextEditingController controller,
     required String hint,
     int maxLines = 1,
+    bool enabled = true,
   }) {
     return TextField(
       controller: controller,
       maxLines: maxLines,
+      enabled: enabled,
       style: GoogleFonts.cairo(color: Colors.white, fontSize: 14),
       textAlign: TextAlign.right,
       decoration: InputDecoration(
@@ -272,6 +320,7 @@ class _NewComplaintDialogState extends State<NewComplaintDialog> {
     required List<({String value, String label})> options,
     required String selectedValue,
     required void Function(String value) onSelect,
+    bool enabled = true,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -281,7 +330,7 @@ class _NewComplaintDialogState extends State<NewComplaintDialog> {
         Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: onToggle,
+            onTap: enabled ? onToggle : null,
             borderRadius: BorderRadius.circular(10),
             child: Ink(
               decoration: BoxDecoration(
@@ -299,7 +348,10 @@ class _NewComplaintDialogState extends State<NewComplaintDialog> {
                       child: Text(
                         selectedLabel,
                         textAlign: TextAlign.right,
-                        style: GoogleFonts.cairo(color: Colors.white, fontSize: 14),
+                        style: GoogleFonts.cairo(
+                          color: enabled ? Colors.white : Colors.white38,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                     Icon(

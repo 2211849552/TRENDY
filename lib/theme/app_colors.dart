@@ -20,6 +20,14 @@ class AppColors {
   static const outline = Color(0x1AFFFFFF);
   static const error = Color(0xFFFF4D6D);
 
+  /// خلفية شاشات ما قبل تسجيل الدخول — مطابقة لورق الشعار.
+  static const authBackground = Color(0xFFEFEFF0);
+  /// خلفية شاشة الإقلاع — مطابقة لخلفية ملف الشعار (#F7F5F6).
+  static const splashBranding = Color(0xFFF7F5F6);
+  static const authTextMuted = Color(0xFF64748B);
+  /// لون حرف T في الشعار — لمربعات تسجيل الدخول.
+  static const authNavy = Color(0xFF33416E);
+
   static const brandGradient = LinearGradient(
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,

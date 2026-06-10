@@ -3,7 +3,9 @@ import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 import 'home_screen.dart';
 import 'l10n/app_strings.dart';
-import 'models/customer_profile.dart';
+import 'services/api/api_exception.dart';
+import 'services/api/auth_api.dart';
+import 'theme/app_colors.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,8 +18,10 @@ class _LoginScreenState extends State<LoginScreen> {
   static final _emailRegex = RegExp(r'^[\w.\-+]+@[\w.\-]+\.[a-zA-Z]{2,}$');
 
   final _formKey = GlobalKey<FormState>();
+  final _authApi = AuthApi();
   final TextEditingController _email = TextEditingController();
   final TextEditingController _password = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -57,23 +61,51 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void _submitLogin() {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+  Future<void> _submitLogin() async {
+    if (_isLoading || !(_formKey.currentState?.validate() ?? false)) return;
 
-    final email = _email.text.trim();
-    final nameGuess = email.split('@').first;
-
-    CustomerProfileStore().setProfile(
-      name: nameGuess.isEmpty ? '—' : nameGuess,
-      email: email,
-      phone: '',
-    );
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => HomeScreen(
-          userName: nameGuess.isEmpty ? '—' : nameGuess,
+    setState(() => _isLoading = true);
+    try {
+      final user = await _authApi.login(
+        email: _email.text.trim(),
+        password: _password.text,
+      );
+      if (!mounted) return;
+      final displayName = user.name.isNotEmpty ? user.name : _email.text.trim().split('@').first;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => HomeScreen(userName: displayName),
         ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      _showError(e.message.isNotEmpty ? e.message : context.tr('auth_login_failed'));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _continueAsGuest() async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+    try {
+      await _authApi.continueAsGuest();
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen(isGuest: true)),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(fontFamily: 'Cairo')),
+        backgroundColor: Colors.redAccent.shade700,
       ),
     );
   }
@@ -81,63 +113,23 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              const SizedBox(height: 40),
-              // Logo and Title Section
-              Center(
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
+                        color: AppColors.card,
+                        borderRadius: BorderRadius.circular(24),
                       ),
-                      child: const Icon(
-                        Icons.storefront_outlined,
-                        size: 60,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      context.tr('login_brand'),
-                      style: const TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      context.tr('login_subtitle'),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 40),
-              // Login Card Section
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topRight,
-                    end: Alignment.bottomLeft,
-                    colors: [
-                      Theme.of(context).colorScheme.primary.withValues(alpha: 0.95),
-                      Theme.of(context).colorScheme.secondary.withValues(alpha: 0.85),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                ),
                 child: Directionality(
                   textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
                   child: Form(
@@ -209,7 +201,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         validator: (value) {
                           final v = value ?? '';
                           if (v.isEmpty) return context.tr('login_password_required');
-                          if (v.length < 6) return context.tr('pwd_short');
+                          if (v.length < 8) return context.tr('pwd_short');
                           return null;
                         },
                         onFieldSubmitted: (_) => _submitLogin(),
@@ -249,22 +241,31 @@ class _LoginScreenState extends State<LoginScreen> {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: _submitLogin,
+                          onPressed: _isLoading ? null : _submitLogin,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF3B82F6), // Cyan/Light Blue
+                            backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                             elevation: 0,
                           ),
-                          child: Text(
-                            context.tr('login_title'),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  context.tr('login_title'),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                         ),
                       ),
                       
@@ -275,14 +276,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         width: double.infinity,
                         height: 50,
                         child: OutlinedButton(
-                          onPressed: () {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const HomeScreen(isGuest: true),
-                              ),
-                            );
-                          },
+                          onPressed: _isLoading ? null : _continueAsGuest,
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.white,
                             side: const BorderSide(color: Colors.white30),
@@ -334,10 +328,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
+                    ),
+                  ),
+                ),
               ),
-              const SizedBox(height: 30),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

@@ -44,6 +44,12 @@ class _AddressPickerSheet extends StatefulWidget {
 class _AddressPickerSheetState extends State<_AddressPickerSheet> {
   final AddressesManager _manager = AddressesManager();
 
+  @override
+  void initState() {
+    super.initState();
+    _manager.syncFromApi();
+  }
+
   Future<void> _openEdit(SavedAddress address) async {
     await AddressEditSheet.show(context, address: address, isNew: false);
     if (mounted) setState(() {});
@@ -78,7 +84,7 @@ class _AddressPickerSheetState extends State<_AddressPickerSheet> {
       ),
     );
     if (ok == true) {
-      _manager.remove(address.id);
+      await _manager.remove(address.id);
       if (mounted) setState(() {});
     }
   }

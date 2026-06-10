@@ -9,6 +9,7 @@ import 'theme/trendy_theme_extension.dart';
 import 'widgets/app_back_button.dart';
 import 'widgets/store_cover_image.dart';
 import 'widgets/gradient_button.dart';
+import 'widgets/trendy_brand.dart';
 
 class FavoritesPage extends StatefulWidget {
   final VoidCallback onBrowseStores;
@@ -73,28 +74,11 @@ class _FavoritesPageState extends State<FavoritesPage> {
   }
 
   Widget _buildHeader() {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: const Color(0xFFA855F7).withOpacity(0.3),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Trendy',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: context.trendy.titleColor,
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(Icons.checkroom_rounded, color: Color(0xFF3B82F6), size: 24),
-          ],
-        ),
+    return const Center(
+      child: TrendyBrandBadge(
+        textSize: 24,
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        borderRadius: 12,
       ),
     );
   }
@@ -139,6 +123,8 @@ class _FavoritesPageState extends State<FavoritesPage> {
 
   Widget _buildFavoriteCard(Product p) {
     final t = context.trendy;
+    const imageHeight = 280.0;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
       decoration: BoxDecoration(
@@ -149,14 +135,19 @@ class _FavoritesPageState extends State<FavoritesPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Large Image
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            child: StoreCoverImage(
-              imageUrl: p.imageUrl,
-              height: 200,
+            child: Container(
+              height: imageHeight,
               width: double.infinity,
-              fit: BoxFit.cover,
+              color: t.inputFill,
+              alignment: Alignment.center,
+              child: StoreCoverImage(
+                imageUrl: p.imageUrl,
+                height: imageHeight,
+                width: double.infinity,
+                fit: BoxFit.contain,
+              ),
             ),
           ),
           Padding(

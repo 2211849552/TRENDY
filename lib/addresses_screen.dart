@@ -20,9 +20,24 @@ class AddressesScreen extends StatefulWidget {
 class _AddressesScreenState extends State<AddressesScreen> {
   final AddressesManager _manager = AddressesManager();
 
+  @override
+  void initState() {
+    super.initState();
+    _manager.syncFromApi();
+  }
+
+  void _showError(String? message) {
+    if (message == null || message.isEmpty || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message, style: GoogleFonts.cairo())),
+    );
+  }
+
   Future<void> _openEdit(SavedAddress address) async {
-    await AddressEditSheet.show(context, address: address, isNew: false);
-    if (mounted) setState(() {});
+    final ok = await AddressEditSheet.show(context, address: address, isNew: false);
+    if (!mounted) return;
+    if (ok == false) _showError(_manager.error);
+    setState(() {});
   }
 
   Future<void> _openNewAddress() async {
@@ -48,8 +63,10 @@ class _AddressesScreenState extends State<AddressesScreen> {
       lng: fromMap.lng,
     );
 
-    await AddressEditSheet.show(context, address: withLocation, isNew: true);
-    if (mounted) setState(() {});
+    final ok = await AddressEditSheet.show(context, address: withLocation, isNew: true);
+    if (!mounted) return;
+    if (ok == false) _showError(_manager.error);
+    setState(() {});
   }
 
   Future<void> _confirmDelete(SavedAddress address) async {
@@ -75,8 +92,10 @@ class _AddressesScreenState extends State<AddressesScreen> {
       ),
     );
     if (ok == true) {
-      _manager.remove(address.id);
-      if (mounted) setState(() {});
+      final removed = await _manager.remove(address.id);
+      if (!mounted) return;
+      if (!removed) _showError(_manager.error);
+      setState(() {});
     }
   }
 
@@ -114,24 +133,61 @@ class _AddressesScreenState extends State<AddressesScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  Expanded(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: list.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final address = list[index];
-                        final selected = _manager.selectedId == address.id;
-                        return _AddressCard(
-                          address: address,
-                          selected: selected,
-                          onSelect: () => _manager.select(address.id),
-                          onEdit: () => _openEdit(address),
-                          onDelete: () => _confirmDelete(address),
-                        );
-                      },
+                  if (_manager.isLoading)
+                    const Expanded(
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (_manager.error != null && list.isEmpty)
+                    Expanded(
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _manager.error!,
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.cairo(color: t.subtitleColor),
+                              ),
+                              const SizedBox(height: 16),
+                              TextButton(
+                                onPressed: _manager.syncFromApi,
+                                child: Text(context.tr('retry'), style: GoogleFonts.cairo()),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                  else if (list.isEmpty)
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          context.tr('no_addresses'),
+                          style: GoogleFonts.cairo(color: t.subtitleColor, fontSize: 16),
+                        ),
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        itemCount: list.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final address = list[index];
+                          final selected = _manager.selectedId == address.id;
+                          return _AddressCard(
+                            address: address,
+                            selected: selected,
+                            onSelect: () => _manager.select(address.id),
+                            onEdit: () => _openEdit(address),
+                            onDelete: () => _confirmDelete(address),
+                          );
+                        },
+                      ),
                     ),
-                  ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
                     child: Align(
@@ -139,7 +195,7 @@ class _AddressesScreenState extends State<AddressesScreen> {
                       child: Material(
                         color: Colors.transparent,
                         child: InkWell(
-                          onTap: _openNewAddress,
+                          onTap: _manager.isLoading ? null : _openNewAddress,
                           borderRadius: BorderRadius.circular(14),
                           child: Ink(
                             decoration: BoxDecoration(

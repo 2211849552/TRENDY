@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'home_screen.dart';
 import 'l10n/app_strings.dart';
-import 'models/customer_profile.dart';
+import 'services/api/api_exception.dart';
+import 'services/api/auth_api.dart';
+import 'theme/app_colors.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -12,11 +14,87 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  static final _emailRegex = RegExp(r'^[\w.\-+]+@[\w.\-]+\.[a-zA-Z]{2,}$');
+
+  final _authApi = AuthApi();
+  bool _isLoading = false;
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
+
+  Future<void> _submitRegister() async {
+    if (_isLoading) return;
+
+    if (_nameController.text.trim().isEmpty ||
+        _emailController.text.trim().isEmpty ||
+        _phoneController.text.trim().isEmpty ||
+        _passwordController.text.isEmpty ||
+        _confirmPasswordController.text.isEmpty) {
+      _showError(context.tr('pwd_fill_all'));
+      return;
+    }
+    if (!_emailRegex.hasMatch(_emailController.text.trim())) {
+      _showError(context.tr('login_email_invalid'));
+      return;
+    }
+    if (_passwordController.text.length < 8) {
+      _showError(context.tr('pwd_short'));
+      return;
+    }
+    if (_passwordController.text != _confirmPasswordController.text) {
+      _showError(context.tr('pwd_mismatch'));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final result = await _authApi.register(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        phone: _phoneController.text.trim(),
+        password: _passwordController.text,
+      );
+      if (!mounted) return;
+
+      if (result.verified && result.user != null) {
+        final displayName = result.user!.name.isNotEmpty
+            ? result.user!.name
+            : _nameController.text.trim();
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => HomeScreen(userName: displayName)),
+        );
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result.message.isNotEmpty ? result.message : context.tr('auth_register_success'),
+            style: const TextStyle(fontFamily: 'Cairo'),
+          ),
+          backgroundColor: Colors.green.shade700,
+        ),
+      );
+      Navigator.pop(context);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      _showError(e.message.isNotEmpty ? e.message : context.tr('auth_register_failed'));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(fontFamily: 'Cairo')),
+        backgroundColor: Colors.redAccent.shade700,
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -31,54 +109,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              const SizedBox(height: 40),
-              Center(
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
+                        color: AppColors.card,
+                        borderRadius: BorderRadius.circular(24),
                       ),
-                      child: const Icon(
-                        Icons.person_add_outlined,
-                        size: 60,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      context.tr('register_title'),
-                      style: const TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      context.tr('register_subtitle'),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 40),
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20),
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFA855F7),
-                  borderRadius: BorderRadius.circular(24),
-                ),
                 child: Directionality(
                   textDirection: TextDirection.rtl,
                   child: Column(
@@ -158,58 +205,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: () {
-                            if (_nameController.text.isEmpty || 
-                                _emailController.text.isEmpty || 
-                                _phoneController.text.isEmpty || 
-                                _passwordController.text.isEmpty || 
-                                _confirmPasswordController.text.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(context.tr('pwd_fill_all'), style: const TextStyle(fontFamily: 'Cairo')),
-                                  backgroundColor: Colors.redAccent.shade700,
-                                ),
-                              );
-                              return;
-                            }
-                            if (_passwordController.text != _confirmPasswordController.text) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(context.tr('pwd_mismatch'), style: const TextStyle(fontFamily: 'Cairo')),
-                                  backgroundColor: Colors.redAccent.shade700,
-                                ),
-                              );
-                              return;
-                            }
-                            CustomerProfileStore().setProfile(
-                              name: _nameController.text,
-                              email: _emailController.text,
-                              phone: _phoneController.text,
-                            );
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => HomeScreen(
-                                  userName: _nameController.text.trim().isEmpty ? '—' : _nameController.text.trim(),
-                                ),
-                              ),
-                            );
-                          },
+                          onPressed: _isLoading ? null : _submitRegister,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF3B82F6),
+                            backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                             elevation: 0,
                           ),
-                          child: Text(
-                            context.tr('register_btn'),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  context.tr('register_btn'),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                         ),
                       ),
                       
@@ -240,10 +260,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ],
                   ),
                 ),
+                    ),
+                  ),
+                ),
               ),
-              const SizedBox(height: 30),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

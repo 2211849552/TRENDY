@@ -14,7 +14,11 @@ import 'l10n/app_strings.dart';
 import 'login_screen.dart';
 import 'widgets/app_back_button.dart';
 import 'widgets/gradient_button.dart';
+import 'widgets/trendy_brand.dart';
+import 'models/auth_session.dart';
 import 'models/customer_profile.dart';
+import 'services/api/api_exception.dart';
+import 'services/api/auth_api.dart';
 
 class SettingsPage extends StatefulWidget {
   final VoidCallback onBrowseStores;
@@ -30,6 +34,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
   final NotificationManager _notifManager = NotificationManager();
   final CustomerProfileStore _profileStore = CustomerProfileStore();
+  final AuthApi _authApi = AuthApi();
+  bool _isLoggingOut = false;
+  bool _isChangingPassword = false;
 
   late final TextEditingController _fullName;
   late final TextEditingController _email;
@@ -86,7 +93,9 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  void _changePassword() {
+  Future<void> _changePassword() async {
+    if (_isChangingPassword) return;
+
     final cur = _currentPassword.text;
     final newP = _newPassword.text;
     final conf = _confirmPassword.text;
@@ -108,7 +117,7 @@ class _SettingsPageState extends State<SettingsPage> {
       );
       return;
     }
-    if (newP.length < 6) {
+    if (newP.length < 8) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(context.tr('pwd_short'), style: GoogleFonts.cairo()),
@@ -117,15 +126,46 @@ class _SettingsPageState extends State<SettingsPage> {
       );
       return;
     }
-    _currentPassword.clear();
-    _newPassword.clear();
-    _confirmPassword.clear();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(context.tr('pwd_changed_ok'), style: GoogleFonts.cairo()),
-        backgroundColor: const Color(0xFFA855F7),
-      ),
-    );
+    if (!AuthSession.instance.isAuthenticated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.tr('login_required_complaint'), style: GoogleFonts.cairo()),
+          backgroundColor: Colors.redAccent.shade700,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isChangingPassword = true);
+    try {
+      final message = await _authApi.changePassword(
+        currentPassword: cur,
+        newPassword: newP,
+      );
+      if (!mounted) return;
+      _currentPassword.clear();
+      _newPassword.clear();
+      _confirmPassword.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            message.isNotEmpty ? message : context.tr('pwd_changed_ok'),
+            style: GoogleFonts.cairo(),
+          ),
+          backgroundColor: const Color(0xFFA855F7),
+        ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message, style: GoogleFonts.cairo()),
+          backgroundColor: Colors.redAccent.shade700,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isChangingPassword = false);
+    }
   }
 
   @override
@@ -134,7 +174,7 @@ class _SettingsPageState extends State<SettingsPage> {
       color: context.trendy.pageBackground,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: ListenableBuilder(
-        listenable: Listenable.merge([_wallet, AppLocale.instance, AppThemeMode.instance]),
+        listenable: Listenable.merge([_wallet, _notifManager, AppLocale.instance, AppThemeMode.instance]),
         builder: (context, _) {
           return Directionality(
             textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
@@ -341,8 +381,10 @@ class _SettingsPageState extends State<SettingsPage> {
                   Align(
                     alignment: AlignmentDirectional.centerStart,
                     child: GradientButton(
-                      onPressed: _changePassword,
-                      label: context.tr('change_password_btn'),
+                      onPressed: _isChangingPassword ? null : _changePassword,
+                      label: _isChangingPassword
+                          ? context.tr('loading')
+                          : context.tr('change_password_btn'),
                     ),
                   ),
                 ],
@@ -357,28 +399,51 @@ class _SettingsPageState extends State<SettingsPage> {
                 children: [
                   // Notifications Toggle
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            context.tr('enable_notifications'),
-                            style: GoogleFonts.cairo(
-                              color: context.trendy.titleColor,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              context.tr('enable_notifications'),
+                              style: GoogleFonts.cairo(
+                                color: context.trendy.titleColor,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          Text(
-                            context.tr('notifications_desc'),
-                            style: GoogleFonts.cairo(color: context.trendy.subtitleColor, fontSize: 13),
-                          ),
-                        ],
+                            const SizedBox(height: 4),
+                            Text(
+                              context.tr('notifications_desc'),
+                              style: GoogleFonts.cairo(
+                                color: context.trendy.subtitleColor,
+                                fontSize: 13,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 12),
                       Switch(
                         value: _notifManager.notificationsEnabled,
-                        onChanged: (val) => _notifManager.setNotificationsEnabled(val),
+                        onChanged: _notifManager.isUpdatingPreference
+                            ? null
+                            : (val) async {
+                                final ok = await _notifManager.setNotificationsEnabled(val);
+                                if (!context.mounted) return;
+                                if (!ok && _notifManager.preferenceError != null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        _notifManager.preferenceError!,
+                                        style: GoogleFonts.cairo(),
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
                       ),
                     ],
                   ),
@@ -469,17 +534,30 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 24),
 
               // Logout Section
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(context.tr('logout'), style: GoogleFonts.cairo(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold)),
-                      Text(context.tr('logout_desc'), style: GoogleFonts.cairo(color: context.trendy.subtitleColor, fontSize: 13)),
-                    ],
+                  Text(
+                    context.tr('logout'),
+                    style: GoogleFonts.cairo(
+                      color: Colors.redAccent,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  ElevatedButton.icon(
+                  const SizedBox(height: 4),
+                  Text(
+                    context.tr('logout_desc'),
+                    style: GoogleFonts.cairo(
+                      color: context.trendy.subtitleColor,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: ElevatedButton.icon(
                     onPressed: () {
                       showDialog(
                         context: context,
@@ -495,14 +573,23 @@ class _SettingsPageState extends State<SettingsPage> {
                             ),
                             ElevatedButton(
                               style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-                              onPressed: () {
-                                Navigator.pop(ctx);
-                                _profileStore.clear();
-                                Navigator.of(context).pushAndRemoveUntil(
-                                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                                  (route) => false,
-                                );
-                              },
+                              onPressed: _isLoggingOut
+                                  ? null
+                                  : () async {
+                                      final navigator = Navigator.of(context);
+                                      Navigator.pop(ctx);
+                                      setState(() => _isLoggingOut = true);
+                                      try {
+                                        await _authApi.logout();
+                                      } finally {
+                                        if (mounted) setState(() => _isLoggingOut = false);
+                                      }
+                                      if (!mounted) return;
+                                      navigator.pushAndRemoveUntil(
+                                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                                        (route) => false,
+                                      );
+                                    },
                               child: Text(context.tr('logout_btn'), style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold)),
                             ),
                           ],
@@ -515,6 +602,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       backgroundColor: Colors.redAccent.withValues(alpha: 0.8),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
                     ),
                   ),
                 ],
@@ -539,24 +627,7 @@ class _SettingsPageState extends State<SettingsPage> {
             onPressed: widget.onBrowseStores,
           ),
         ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: const Color(0xFFA855F7).withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Trendy',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-              SizedBox(width: 6),
-              Icon(Icons.checkroom_rounded, color: const Color(0xFF3B82F6), size: 20),
-            ],
-          ),
-        ),
+        const TrendyBrandBadge(),
       ],
     );
   }

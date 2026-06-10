@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../data/campaign_visuals.dart';
+import '../services/api/campaigns_api.dart';
 import 'marketing_campaign.dart';
 
 class MarketingCampaignsManager extends ChangeNotifier {
@@ -8,7 +9,11 @@ class MarketingCampaignsManager extends ChangeNotifier {
   static final MarketingCampaignsManager _instance = MarketingCampaignsManager._();
   factory MarketingCampaignsManager() => _instance;
 
-  final List<MarketingCampaign> _campaigns = [
+  final CampaignsApi _api = CampaignsApi();
+  bool _useApi = false;
+  bool _isLoading = false;
+
+  final List<MarketingCampaign> _fallbackCampaigns = [
     MarketingCampaign(
       id: 'cmp_001',
       name: 'عروض الجمعة البيضاء',
@@ -48,49 +53,38 @@ class MarketingCampaignsManager extends ChangeNotifier {
       endAt: DateTime(2026, 6, 30),
       imageUrl: CampaignVisuals.forCampaign('cmp_003').imageUrl,
     ),
-    MarketingCampaign(
-      id: 'cmp_004',
-      name: 'بضاعة جديدة وصلت',
-      storeKeys: ['store_fashion'],
-      statusKey: 'campaign_status_planned',
-      badgeKey: 'campaign_badge_new',
-      summary: 'تشكيلة رجالية جديدة قريباً',
-      description: 'بوتيك الموضة: تشكيلة رجالية جديدة قريباً. تابعونا للتفاصيل.',
-      startAt: DateTime(2026, 6, 1),
-      endAt: DateTime(2026, 7, 15),
-      imageUrl: CampaignVisuals.forCampaign('cmp_004').imageUrl,
-    ),
-    MarketingCampaign(
-      id: 'cmp_005',
-      name: 'عرض خاص: حقيبة + إكسسوار',
-      storeKeys: ['store_luxury'],
-      statusKey: 'campaign_status_paused',
-      badgeKey: 'campaign_badge_gift',
-      summary: 'حقيبة يد + إكسسوار مجاناً',
-      description: 'متجر الفخامة: عند شراء حقيبة يد فاخرة تحصل على إكسسوار مجاناً. العرض متوقف مؤقتاً.',
-      startAt: DateTime(2026, 4, 1),
-      endAt: DateTime(2026, 5, 15),
-      imageUrl: CampaignVisuals.forCampaign('cmp_005').imageUrl,
-    ),
-    MarketingCampaign(
-      id: 'cmp_006',
-      name: 'تخفيضات محدودة على الأحذية',
-      storeKeys: ['store_top'],
-      statusKey: 'campaign_status_ended',
-      badgeKey: 'campaign_badge_discount',
-      summary: 'انتهى العرض',
-      description: 'توب فاشن: خصم على الأحذية. انتهى العرض، انتظروا عروضاً جديدة.',
-      startAt: DateTime(2026, 2, 10),
-      endAt: DateTime(2026, 2, 20),
-      imageUrl: CampaignVisuals.forCampaign('cmp_006').imageUrl,
-    ),
   ];
 
-  List<MarketingCampaign> get campaigns => List.unmodifiable(_campaigns);
+  List<MarketingCampaign> _apiCampaigns = [];
+
+  bool get isLoading => _isLoading;
+
+  List<MarketingCampaign> get campaigns =>
+      _useApi ? _apiCampaigns : _fallbackCampaigns;
 
   List<MarketingCampaign> get homeFeatured {
-    final active = _campaigns.where((c) => c.statusKey == 'campaign_status_active').toList();
-    active.sort((a, b) => b.startAt.compareTo(a.startAt));
-    return active.take(3).toList();
+    final source = campaigns
+        .where((c) => c.statusKey == 'campaign_status_active')
+        .toList();
+    source.sort((a, b) => b.startAt.compareTo(a.startAt));
+    return source.take(3).toList();
+  }
+
+  Future<void> loadFromApi({int limit = 6}) async {
+    if (_isLoading) return;
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final items = await _api.fetchActiveCampaigns(limit: limit);
+      if (items.isNotEmpty) {
+        _apiCampaigns = items;
+        _useApi = true;
+      }
+    } catch (_) {
+      // نُبقي الحملات الاحتياطية عند فشل الاتصال.
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 }

@@ -1,12 +1,12 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import 'locale/app_locale.dart';
 import 'l10n/app_strings.dart';
+import 'models/auth_session.dart';
 import 'models/wallet_manager.dart';
+import 'wallet_top_up_screen.dart';
 import 'widgets/app_back_button.dart';
+import 'widgets/trendy_brand.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
@@ -17,6 +17,14 @@ class WalletScreen extends StatefulWidget {
 
 class _WalletScreenState extends State<WalletScreen> {
   final WalletManager _wallet = WalletManager();
+
+  @override
+  void initState() {
+    super.initState();
+    if (AuthSession.instance.isAuthenticated) {
+      _wallet.syncFromApi();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,27 +103,7 @@ class _WalletScreenState extends State<WalletScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         // Trendy Logo
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: const Color(0xFFA855F7).withOpacity(0.3),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: const Row(
-            children: [
-              Text(
-                'Trendy',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              SizedBox(width: 6),
-              Icon(Icons.checkroom_rounded, color: const Color(0xFF3B82F6), size: 20),
-            ],
-          ),
-        ),
+        const TrendyBrandBadge(),
       ],
     );
   }
@@ -206,7 +194,7 @@ class _WalletScreenState extends State<WalletScreen> {
           Align(
             alignment: AlignmentDirectional.centerStart,
             child: InkWell(
-              onTap: _showRechargeDialog,
+              onTap: _openTopUpScreen,
               borderRadius: BorderRadius.circular(24),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
@@ -379,245 +367,22 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  void _showRechargeDialog() {
-    showDialog<void>(
-      context: context,
-      barrierColor: Colors.black54,
-      builder: (dialogContext) => _SadadTopUpDialog(
-        onConfirm: (phone, _, amount) {
-          final err = WalletManager().addSadadTopUp(phone: phone, amount: amount);
-          if (!mounted) return;
-          if (err != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(err, style: GoogleFonts.cairo()),
-                backgroundColor: Colors.redAccent.shade700,
-              ),
-            );
-          }
-        },
-      ),
-    );
-  }
-}
-
-/// نافذة شحن الرصيد عبر سداد (حقول: هاتف، سنة الميلاد، المبلغ).
-class _SadadTopUpDialog extends StatefulWidget {
-  const _SadadTopUpDialog({required this.onConfirm});
-
-  final void Function(String phone, String birthYear, double amount) onConfirm;
-
-  @override
-  State<_SadadTopUpDialog> createState() => _SadadTopUpDialogState();
-}
-
-class _SadadTopUpDialogState extends State<_SadadTopUpDialog> {
-  final TextEditingController _phone = TextEditingController();
-  final TextEditingController _birthYear = TextEditingController();
-  final TextEditingController _amount = TextEditingController();
-
-  @override
-  void dispose() {
-    _phone.dispose();
-    _birthYear.dispose();
-    _amount.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final raw = _amount.text.trim().replaceAll(',', '.');
-    final value = double.tryParse(raw);
-    if (value == null || value < WalletManager.minTopUp) {
+  Future<void> _openTopUpScreen() async {
+    if (!AuthSession.instance.isAuthenticated) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            context.tr('sadad_amount_err'),
-            style: GoogleFonts.cairo(),
-          ),
+          content: Text(context.tr('wallet_login_required'), style: GoogleFonts.cairo()),
           backgroundColor: Colors.redAccent.shade700,
         ),
       );
       return;
     }
-    Navigator.of(context).pop();
-    widget.onConfirm(_phone.text.trim(), _birthYear.text.trim(), value);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: const Color(0xFF1E1B4B),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Directionality(
-        textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close, color: Colors.white54, size: 20),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
-                ),
-                Text(
-                  context.tr('sadad_dialog_title'),
-                  style: GoogleFonts.cairo(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  context.tr('sadad_dialog_sub'),
-                  style: GoogleFonts.cairo(color: Colors.white54, fontSize: 14),
-                ),
-                const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFA855F7),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.account_balance_wallet_outlined,
-                    color: Colors.white,
-                    size: 32,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Text(
-                      context.tr('sadad_name'),
-                      style: GoogleFonts.cairo(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _sadadField(
-                  context: context,
-                  controller: _phone,
-                  hint: context.tr('sadad_phone'),
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                ),
-                const SizedBox(height: 16),
-                _sadadField(
-                  context: context,
-                  controller: _birthYear,
-                  hint: context.tr('sadad_year'),
-                  readOnly: true,
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: DateTime(2000),
-                      firstDate: DateTime(1920),
-                      lastDate: DateTime.now(),
-                      builder: (context, child) {
-                        return Theme(
-                          data: Theme.of(context).copyWith(
-                            colorScheme: const ColorScheme.dark(
-                              primary: Color(0xFF3B82F6),
-                              surface: Color(0xFF1E1B4B),
-                            ),
-                          ),
-                          child: child!,
-                        );
-                      },
-                    );
-                    if (date != null) {
-                      _birthYear.text = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                _sadadField(
-                  context: context,
-                  controller: _amount,
-                  hint: context.tr('sadad_amount'),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
-                ),
-                const SizedBox(height: 32),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3B82F6),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      context.tr('sadad_confirm'),
-                      style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+    final ok = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const WalletTopUpScreen()),
     );
-  }
-
-  Widget _sadadField({
-    required BuildContext context,
-    required TextEditingController controller,
-    required String hint,
-    TextInputType? keyboardType,
-    List<TextInputFormatter>? inputFormatters,
-    bool readOnly = false,
-    VoidCallback? onTap,
-  }) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      inputFormatters: inputFormatters,
-      readOnly: readOnly,
-      onTap: onTap,
-      textAlign: context.isRtl ? TextAlign.right : TextAlign.left,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: GoogleFonts.cairo(color: Colors.white54, fontSize: 14),
-        filled: true,
-        fillColor: Colors.white.withOpacity(0.05),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF3B82F6)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.transparent),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF3B82F6)),
-        ),
-      ),
-    );
+    if (ok == true && mounted) {
+      await _wallet.syncFromApi();
+    }
   }
 }

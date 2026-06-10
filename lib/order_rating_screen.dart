@@ -72,22 +72,37 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
   }
 
   bool get _canSubmit {
-    final storeOk = _storeAlreadyRated || _storeStars >= 1;
-    if (!storeOk) return false;
-    for (final item in _pendingProducts) {
-      if ((_productStars[item.product.name] ?? 0) < 1) return false;
+    if (_pendingProducts.isEmpty) {
+      return !_storeAlreadyRated && _storeStars >= 1;
     }
-    if (_pendingProducts.isNotEmpty) return true;
-    return !_storeAlreadyRated;
+    return _pendingProducts.every(
+      (item) => (_productStars[item.product.name] ?? 0) >= 1,
+    );
+  }
+
+  double _effectiveStoreRating() {
+    if (_storeAlreadyRated) {
+      return _ratings.storeRatingForOrder(widget.order.id) ?? _storeStars;
+    }
+    if (_storeStars >= 1) return _storeStars;
+    final productRatings = _pendingProducts
+        .map((e) => _productStars[e.product.name] ?? 0)
+        .where((s) => s >= 1)
+        .toList();
+    if (productRatings.isEmpty) return 0;
+    return productRatings.reduce((a, b) => a + b) / productRatings.length;
   }
 
   void _submit() {
-    if (!_storeAlreadyRated && _storeStars >= 1) {
-      _ratings.submitStoreRating(
-        orderId: widget.order.id,
-        storeKey: widget.order.storeName,
-        rating: _storeStars,
-      );
+    if (!_storeAlreadyRated) {
+      final storeRating = _effectiveStoreRating();
+      if (storeRating >= 1) {
+        _ratings.submitStoreRating(
+          orderId: widget.order.id,
+          storeKey: widget.order.storeName,
+          rating: storeRating,
+        );
+      }
     }
     for (final item in _pendingProducts) {
       final key = item.product.name;
@@ -224,12 +239,18 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
                   onPressed: _canSubmit ? _submit : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFA855F7),
+                    foregroundColor: Colors.white,
                     disabledBackgroundColor: Colors.white12,
+                    disabledForegroundColor: Colors.white38,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                   child: Text(
                     context.tr('submit_rating'),
-                    style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: GoogleFonts.cairo(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),

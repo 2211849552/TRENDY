@@ -240,7 +240,9 @@ class _CampaignCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    campaign.storeKeys.map((k) => context.tr(k)).join(' • '),
+                    campaign.stores.isNotEmpty
+                        ? campaign.stores.map((s) => s.name).join(' • ')
+                        : campaign.storeKeys.map((k) => context.tr(k)).join(' • '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.cairo(color: Colors.white54, fontSize: 12),

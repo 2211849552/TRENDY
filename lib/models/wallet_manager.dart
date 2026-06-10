@@ -3,7 +3,10 @@ import 'package:flutter/foundation.dart';
 import '../locale/app_locale.dart';
 import '../l10n/app_strings.dart';
 
-/// معاملات تُسجَّل فقط عند شحن سداد أو الدفع من المحفظة.
+import '../services/api/wallet_api.dart';
+import '../models/auth_session.dart';
+
+/// معاملات تُسجَّل عند شحن المحفظة أو الدفع منها.
 class WalletTransaction {
   WalletTransaction({
     required this.title,
@@ -33,8 +36,37 @@ class WalletManager extends ChangeNotifier {
   static const double minTopUp = 10;
   static const double maxBalance = 10000;
 
-  static String _formatNowDate() {
-    final now = DateTime.now();
+  final WalletApi _walletApi = WalletApi();
+
+  /// مزامنة الرصيد والمعاملات من API (للزبون المسجّل).
+  Future<void> syncFromApi() async {
+    if (!AuthSession.instance.isAuthenticated) return;
+    try {
+      final balance = await _walletApi.fetchBalance();
+      _balance = balance.balance;
+
+      final logs = await _walletApi.fetchLogs();
+      _transactions
+        ..clear()
+        ..addAll(
+          logs.map(
+            (e) => WalletTransaction(
+              title: e.title,
+              date: _formatDate(e.date),
+              time: _formatTime(e.date),
+              amount: e.amount,
+            ),
+          ),
+        );
+      notifyListeners();
+    } catch (_) {
+      // نُبقي البيانات المحلية عند فشل الشبكة.
+    }
+  }
+
+  static String _formatNowDate() => _formatDate(DateTime.now());
+
+  static String _formatDate(DateTime now) {
     final lang = AppLocale.instance.locale.languageCode;
     if (lang == 'ar') {
       const monthsAr = [
@@ -50,8 +82,9 @@ class WalletManager extends ChangeNotifier {
     return '${monthsEn[now.month]} ${now.day}, ${now.year}';
   }
 
-  static String _formatNowTime() {
-    final now = DateTime.now();
+  static String _formatNowTime() => _formatTime(DateTime.now());
+
+  static String _formatTime(DateTime now) {
     final lang = AppLocale.instance.locale.languageCode;
     if (lang == 'ar') {
       final hour24 = now.hour;

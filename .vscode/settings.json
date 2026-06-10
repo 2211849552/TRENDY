@@ -1,0 +1,5 @@
+{
+  "dart.flutterDeviceId": "chrome",
+  "dart.flutterRunAdditionalArgs": ["-d", "chrome"],
+  "dart.flutterTestAdditionalArgs": ["-d", "chrome"]
+}

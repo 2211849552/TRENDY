@@ -12,6 +12,7 @@ import 'order_rating_screen.dart';
 import 'widgets/app_back_button.dart';
 import 'widgets/store_cover_image.dart';
 import 'widgets/gradient_button.dart';
+import 'widgets/trendy_brand.dart';
 
 class OrdersPage extends StatefulWidget {
   final VoidCallback onBrowseStores;
@@ -172,32 +173,11 @@ class _OrdersPageState extends State<OrdersPage> {
   }
 
   Widget _buildHeader() {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-
-
-
-
-        decoration: BoxDecoration(
-          color: const Color(0xFFA855F7).withOpacity(0.3),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Trendy',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: context.trendy.titleColor,
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(Icons.checkroom_rounded, color: Color(0xFF3B82F6), size: 24),
-          ],
-        ),
+    return const Center(
+      child: TrendyBrandBadge(
+        textSize: 24,
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        borderRadius: 12,
       ),
     );
   }

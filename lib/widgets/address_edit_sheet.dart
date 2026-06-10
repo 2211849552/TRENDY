@@ -17,12 +17,13 @@ class AddressEditSheet extends StatefulWidget {
   final SavedAddress address;
   final bool isNew;
 
-  static Future<void> show(
+  /// يُعيد `true` عند الحفظ بنجاح، `false` عند الفشل، `null` عند الإغلاق بدون حفظ.
+  static Future<bool?> show(
     BuildContext context, {
     required SavedAddress address,
     required bool isNew,
   }) {
-    return showModalBottomSheet<void>(
+    return showModalBottomSheet<bool?>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -39,6 +40,7 @@ class _AddressEditSheetState extends State<AddressEditSheet> {
   late final TextEditingController _labelCtrl;
   late final TextEditingController _descCtrl;
   final AddressesManager _manager = AddressesManager();
+  bool _saving = false;
 
   @override
   void initState() {
@@ -73,34 +75,55 @@ class _AddressEditSheetState extends State<AddressEditSheet> {
     });
   }
 
-  void _save() {
+  Future<void> _save() async {
+    if (_saving) return;
     final label = _labelCtrl.text.trim();
     if (label.isEmpty) return;
+
+    setState(() => _saving = true);
     final updated = _draft.copyWith(
       label: label,
       description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
     );
-    _manager.upsert(updated, selectAfter: widget.isNew || _manager.selectedId == updated.id);
-    Navigator.pop(context);
+    final ok = await _manager.upsert(
+      updated,
+      selectAfter: widget.isNew || _manager.selectedId == updated.id,
+    );
+    if (!mounted) return;
+    setState(() => _saving = false);
+    if (ok) {
+      Navigator.pop(context, true);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _manager.error ?? context.tr('error_generic'),
+            style: GoogleFonts.cairo(),
+          ),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final t = context.trendy;
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.92;
 
     return Directionality(
       textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
       child: Padding(
         padding: EdgeInsets.only(bottom: bottom),
         child: Container(
+          constraints: BoxConstraints(maxHeight: maxHeight),
           decoration: BoxDecoration(
             color: t.surfaceColor,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: SafeArea(
             top: false,
-            child: Padding(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -156,7 +179,7 @@ class _AddressEditSheetState extends State<AddressEditSheet> {
                           ),
                         ),
                         TextButton.icon(
-                          onPressed: _changeLocation,
+                          onPressed: _saving ? null : _changeLocation,
                           icon: Icon(Icons.edit_outlined, size: 18, color: AppColors.primary),
                           label: Text(
                             context.tr('change_location'),
@@ -173,11 +196,13 @@ class _AddressEditSheetState extends State<AddressEditSheet> {
                   _field(
                     label: context.tr('addr_name_label'),
                     controller: _labelCtrl,
+                    enabled: !_saving,
                   ),
                   const SizedBox(height: 16),
                   _field(
                     label: context.tr('addr_desc_optional'),
                     controller: _descCtrl,
+                    enabled: !_saving,
                   ),
                   const SizedBox(height: 24),
                   SizedBox(
@@ -190,19 +215,28 @@ class _AddressEditSheetState extends State<AddressEditSheet> {
                       child: Material(
                         color: Colors.transparent,
                         child: InkWell(
-                          onTap: _save,
+                          onTap: _saving ? null : _save,
                           borderRadius: BorderRadius.circular(12),
                           child: Center(
-                            child: Text(
-                              widget.isNew
-                                  ? context.tr('save_address')
-                                  : context.tr('update_address'),
-                              style: GoogleFonts.cairo(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
+                            child: _saving
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(
+                                    widget.isNew
+                                        ? context.tr('save_address')
+                                        : context.tr('update_address'),
+                                    style: GoogleFonts.cairo(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
                           ),
                         ),
                       ),
@@ -217,9 +251,11 @@ class _AddressEditSheetState extends State<AddressEditSheet> {
     );
   }
 
+
   Widget _field({
     required String label,
     required TextEditingController controller,
+    bool enabled = true,
   }) {
     final t = context.trendy;
     return Column(
@@ -236,6 +272,7 @@ class _AddressEditSheetState extends State<AddressEditSheet> {
         const SizedBox(height: 8),
         TextField(
           controller: controller,
+          enabled: enabled,
           style: GoogleFonts.cairo(color: t.titleColor, fontSize: 15),
           decoration: InputDecoration(
             filled: true,

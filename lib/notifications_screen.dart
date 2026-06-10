@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'models/auth_session.dart';
 import 'models/notification_manager.dart';
 import 'models/notification_item.dart';
 import 'l10n/app_strings.dart';
 import 'widgets/app_back_button.dart';
+import 'widgets/trendy_brand.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -14,6 +16,14 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   final NotificationManager _manager = NotificationManager();
+
+  @override
+  void initState() {
+    super.initState();
+    if (AuthSession.instance.isAuthenticated) {
+      _manager.syncFromApi();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +59,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         ),
                         if (notifications.isNotEmpty)
                           TextButton(
-                            onPressed: () => _manager.markAllAsRead(),
+                            onPressed: () async => _manager.markAllAsRead(),
                             child: Text(
                               context.tr('mark_all_read'),
                               style: GoogleFonts.cairo(color: const Color(0xFF3B82F6), fontWeight: FontWeight.bold),
@@ -85,13 +95,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             color: const Color(0xFFA855F7).withOpacity(0.3),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: const Row(
-            children: [
-              Text('Trendy', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-              SizedBox(width: 8),
-              Icon(Icons.checkroom_rounded, color: const Color(0xFF3B82F6), size: 20),
-            ],
-          ),
+          child: const TrendyBrandBadge(),
         ),
       ],
     );
@@ -110,8 +114,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Widget _buildNotificationCard(NotificationItem item) {
     return GestureDetector(
-      onTap: () {
-        _manager.markAsRead(item.id);
+      onTap: () async {
+        await _manager.markAsRead(item.id);
+        if (!context.mounted) return;
         Navigator.pop(context, item);
       },
       child: Container(
@@ -147,9 +152,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       PopupMenuButton<String>(
                         icon: const Icon(Icons.more_vert, color: Colors.white54, size: 18),
                         color: const Color(0xFF1E1B4B),
-                        onSelected: (value) {
+                        onSelected: (value) async {
                           if (value == 'toggle') {
-                            _manager.toggleRead(item.id);
+                            await _manager.toggleRead(item.id);
                           } else if (value == 'delete') {
                             _manager.removeNotification(item.id);
                           }

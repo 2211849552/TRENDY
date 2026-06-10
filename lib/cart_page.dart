@@ -15,6 +15,7 @@ import 'widgets/app_back_button.dart';
 import 'data/product_color_variants.dart';
 import 'widgets/store_cover_image.dart';
 import 'widgets/gradient_button.dart';
+import 'widgets/trendy_brand.dart';
 
 class CartPage extends StatefulWidget {
   final VoidCallback onBrowseStores;
@@ -35,7 +36,6 @@ class CartPage extends StatefulWidget {
 
 class _CartPageState extends State<CartPage> {
   final CartManager _cartManager = CartManager();
-  final Set<CartItem> _selectedItems = {};
   String _search = '';
 
   static const _availableSizes = ['S', 'M', 'L', 'XL', 'XXL'];
@@ -49,7 +49,7 @@ class _CartPageState extends State<CartPage> {
 
         return Container(
           color: context.trendy.pageBackground,
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Directionality(
             textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
             child: Column(
@@ -74,28 +74,11 @@ class _CartPageState extends State<CartPage> {
   }
 
   Widget _buildBrandingHeader() {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: const Color(0xFFA855F7).withOpacity(0.3),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Trendy',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: context.trendy.titleColor,
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(Icons.checkroom_rounded, color: Color(0xFF3B82F6), size: 24),
-          ],
-        ),
+    return const Center(
+      child: TrendyBrandBadge(
+        textSize: 24,
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        borderRadius: 12,
       ),
     );
   }
@@ -140,33 +123,18 @@ class _CartPageState extends State<CartPage> {
   }
 
   Widget _buildStoreCartView(String storeName, List<CartItem> storeItems) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return ListView(
       children: [
-        // Products List on the RIGHT (shown first in RTL Row)
-        Expanded(
-          flex: 2,
-          child: ListView.builder(
-            itemCount: storeItems.length,
-            itemBuilder: (context, index) {
-              return _buildCartItemCard(storeItems[index]);
-            },
-          ),
-        ),
-        const SizedBox(width: 24),
-        // Order Summary on the LEFT (shown second in RTL Row)
-        Expanded(
-          flex: 1,
-          child: _buildOrderSummary(storeName, storeItems),
-        ),
+        ...storeItems.map(_buildCartItemCard),
+        const SizedBox(height: 8),
+        _buildOrderSummary(storeName, storeItems),
+        const SizedBox(height: 24),
       ],
     );
   }
 
   Widget _buildOrderSummary(String storeName, List<CartItem> storeItems) {
-    final selectedStoreItems = storeItems.where((e) => _selectedItems.contains(e)).toList();
-    final activeItems = selectedStoreItems.isEmpty ? storeItems : selectedStoreItems;
-    final productsTotal = activeItems.fold(0.0, (sum, item) => sum + item.totalPrice);
+    final productsTotal = storeItems.fold(0.0, (sum, item) => sum + item.totalPrice);
     final deliveryFee = _deliveryFeeForStore(storeName);
     final grandTotal = productsTotal + deliveryFee;
     final suffix = context.tr('currency_suffix');
@@ -217,26 +185,32 @@ class _CartPageState extends State<CartPage> {
                   (route) => false,
                 );
               } else {
-                _goToCheckout(storeName, activeItems, productsTotal, deliveryFee);
+                _goToCheckout(storeName, storeItems, productsTotal, deliveryFee);
               }
             },
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
-                Text(
-                  '${grandTotal.toStringAsFixed(0)}$suffix',
-                  style: GoogleFonts.cairo(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
+                Flexible(
+                  child: Text(
+                    '${grandTotal.toStringAsFixed(0)}$suffix',
+                    style: GoogleFonts.cairo(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     widget.isGuest
                         ? context.tr('cart_login_prompt')
                         : context.tr('continue_btn'),
                     textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.cairo(
                       color: Colors.white,
                       fontSize: 15,
@@ -250,18 +224,9 @@ class _CartPageState extends State<CartPage> {
           const SizedBox(height: 16),
           Center(
             child: TextButton(
-              onPressed: () {
-                if (_selectedItems.isEmpty) {
-                  _cartManager.clearCart();
-                } else {
-                  for (final item in _selectedItems.toList()) {
-                    _cartManager.removeFromCart(item);
-                  }
-                  setState(() => _selectedItems.clear());
-                }
-              },
+              onPressed: () => _cartManager.clearCart(),
               child: Text(
-                _selectedItems.isEmpty ? context.tr('cart_clear') : context.tr('clear_selected_items'),
+                context.tr('cart_clear'),
                 style: GoogleFonts.cairo(color: const Color(0xFF3B82F6), fontWeight: FontWeight.bold),
               ),
             ),
@@ -295,98 +260,103 @@ class _CartPageState extends State<CartPage> {
 
   Widget _buildSummaryRow(String label, String value, {Color color = Colors.white70, Color valueColor = Colors.white, double fontSize = 16}) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: GoogleFonts.cairo(fontSize: fontSize, color: color)),
-        Text(value, style: GoogleFonts.cairo(fontSize: fontSize + 2, fontWeight: FontWeight.bold, color: valueColor)),
+        Expanded(
+          child: Text(
+            label,
+            style: GoogleFonts.cairo(fontSize: fontSize, color: color),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          value,
+          style: GoogleFonts.cairo(
+            fontSize: fontSize + 2,
+            fontWeight: FontWeight.bold,
+            color: valueColor,
+          ),
+        ),
       ],
     );
   }
 
   Widget _buildCartItemCard(CartItem item) {
-    final isSelected = _selectedItems.contains(item);
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xFFA855F7).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white10),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. Info and text on the LEFT
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: StoreCoverImage(
+                  imageUrl: item.product.imageUrl,
+                  height: 88,
+                  width: 88,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Checkbox(
-                      value: isSelected,
-                      onChanged: (v) {
-                        setState(() {
-                          if (v == true) {
-                            _selectedItems.add(item);
-                          } else {
-                            _selectedItems.remove(item);
-                          }
-                        });
-                      },
+                    Text(
+                      context.tr(item.product.name),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.cairo(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        height: 1.3,
+                      ),
                     ),
-                    Text(context.tr('select_item'), style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                    const SizedBox(height: 8),
+                    _buildEditableAttributeRow(
+                      label: context.tr('color'),
+                      value: context.tr(item.selectedColor),
+                      onTap: () => _showColorPicker(item),
+                    ),
+                    const SizedBox(height: 4),
+                    _buildEditableAttributeRow(
+                      label: context.tr('size'),
+                      value: item.selectedSize,
+                      onTap: () => _showSizePicker(item),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${item.product.price}${context.tr('currency_suffix')}',
+                      style: GoogleFonts.cairo(
+                        fontSize: 18,
+                        color: const Color(0xFF3B82F6),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
-                Text(
-                  context.tr(item.product.name),
-                  style: GoogleFonts.cairo(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-                const SizedBox(height: 6),
-                _buildEditableAttributeRow(
-                  label: context.tr('color'),
-                  value: context.tr(item.selectedColor),
-                  onTap: () => _showColorPicker(item),
-                ),
-                const SizedBox(height: 4),
-                _buildEditableAttributeRow(
-                  label: context.tr('size'),
-                  value: item.selectedSize,
-                  onTap: () => _showSizePicker(item),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  '${item.product.price}${context.tr('currency_suffix')}',
-                  style: GoogleFonts.cairo(fontSize: 20, color: const Color(0xFF3B82F6), fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(width: 20),
-
-          // 2. Actions (Trash and counter) in the MIDDLE
-          Column(
-            children: [
+              ),
               IconButton(
                 icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 22),
                 onPressed: () => _cartManager.removeFromCart(item),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               ),
-              const SizedBox(height: 12),
-              _buildQuantityCounter(item),
             ],
           ),
-
-          const SizedBox(width: 20),
-
-          // 3. Image on the RIGHT — نفس صورة المنتج دائماً؛ اللون في الوصف فقط
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: StoreCoverImage(
-              imageUrl: item.product.imageUrl,
-              height: 100,
-              width: 100,
-              fit: BoxFit.cover,
-            ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: _buildQuantityCounter(item),
           ),
         ],
       ),
@@ -438,21 +408,23 @@ class _CartPageState extends State<CartPage> {
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               '$label: ',
               style: const TextStyle(color: Colors.white38, fontSize: 13),
             ),
-            Text(
-              value,
-              style: GoogleFonts.cairo(
-                color: const Color(0xFF3B82F6),
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+            Expanded(
+              child: Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.cairo(
+                  color: const Color(0xFF3B82F6),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-            const SizedBox(width: 6),
             const Icon(Icons.edit_outlined, size: 14, color: Color(0xFF3B82F6)),
           ],
         ),

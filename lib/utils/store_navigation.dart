@@ -15,8 +15,9 @@ class StoreNavigation {
     required String storeKey,
     double? userLat,
     double? userLng,
+    Map<String, dynamic>? storeData,
   }) {
-    final store = StoreCatalog.findByKey(storeKey);
+    final store = storeData ?? StoreCatalog.findByKey(storeKey);
     if (store == null) return;
 
     var distText = '--';
@@ -38,20 +39,27 @@ class StoreNavigation {
       distanceKm: liveKm ?? (store['displayDistanceKm'] as num?)?.toDouble(),
     );
 
+    final resolvedKey = store['name'] as String;
+    final displayName = store['displayName'] as String?;
+    final category = store['category'] as String? ?? '';
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => StoreDetailsScreen(
-          storeName: store['name'] as String,
-          storeCategory: store['category'] as String,
+          storeName: resolvedKey,
+          storeDisplayName: displayName,
+          storeId: int.tryParse('${store['id'] ?? ''}'),
+          storeCategory: category,
           storeRating: RatingsManager().storeRatingOrBase(
-            store['name'].toString(),
+            resolvedKey,
             baseRating,
           ),
           storeDistance: distText,
-          storeImageUrl: store['imageUrl'] as String,
+          storeImageUrl: '${store['imageUrl'] ?? ''}',
           storeDiscount: store['discount'] as String?,
           storeLocation: loc,
+          storeMapUrl: store['googleMapUrl'] as String?,
           isElectronic: store['isElectronic'] as bool? ?? false,
           deliveryFee: deliveryFee,
         ),

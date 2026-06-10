@@ -62,9 +62,14 @@ class MarketingCampaignDetailsScreen extends StatelessWidget {
                 runSpacing: 10,
                 children: [
                   _chip(context.tr(campaign.statusKey)),
-                  ...campaign.storeKeys.map(
-                    (key) => _chip('${context.tr('marketing_store')}: ${context.tr(key)}'),
-                  ),
+                  if (campaign.stores.isNotEmpty)
+                    ...campaign.stores.map(
+                      (store) => _chip('${context.tr('marketing_store')}: ${store.name}'),
+                    )
+                  else
+                    ...campaign.storeKeys.map(
+                      (key) => _chip('${context.tr('marketing_store')}: ${context.tr(key)}'),
+                    ),
                   _chip('${context.tr('marketing_campaign_id')}: ${campaign.id}'),
                   _chip('${context.tr('marketing_campaign_period')}: ${_dateText(context, campaign.startAt)} → ${_dateText(context, campaign.endAt)}'),
                 ],
@@ -97,27 +102,59 @@ class MarketingCampaignDetailsScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              ...campaign.storeKeys.map(
-                (key) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () => StoreNavigation.open(context, storeKey: key),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF3B82F6),
-                        side: const BorderSide(color: const Color(0xFF3B82F6)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              if (campaign.stores.isNotEmpty)
+                ...campaign.stores.map(
+                  (store) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () =>
+                            StoreNavigation.open(context, storeKey: store.navigationKey),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF3B82F6),
+                          side: const BorderSide(color: Color(0xFF3B82F6)),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        icon: store.logoUrl.isEmpty
+                            ? const Icon(Icons.storefront_outlined, size: 22)
+                            : StoreCoverImage(
+                                imageUrl: store.logoUrl,
+                                asLogo: true,
+                                width: 28,
+                                height: 28,
+                              ),
+                        label: Text(
+                          store.name,
+                          style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
                       ),
-                      child: Text(
-                        context.tr(key),
-                        style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                  ),
+                )
+              else
+                ...campaign.storeKeys.map(
+                  (key) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: () => StoreNavigation.open(context, storeKey: key),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF3B82F6),
+                          side: const BorderSide(color: Color(0xFF3B82F6)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: Text(
+                          context.tr(key),
+                          style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ),

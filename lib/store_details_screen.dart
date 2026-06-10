@@ -16,18 +16,27 @@ import 'data/store_products_data.dart';
 
 class StoreDetailsScreen extends StatefulWidget {
   final String storeName;
+  final String? storeDisplayName;
+
+  /// معرف المتجر في API — يُستخدم لمحادثة الخادم (زبون ↔ متجر).
+  final int? storeId;
   final String storeCategory;
   final double storeRating;
   final String storeDistance;
   final String storeImageUrl;
   final String? storeDiscount;
   final StoreLocation? storeLocation;
+
+  /// رابط موقع المتجر في Google Maps (حقل google_map_url من API).
+  final String? storeMapUrl;
   final bool isElectronic;
   final double deliveryFee;
 
   const StoreDetailsScreen({
     super.key,
     required this.storeName,
+    this.storeDisplayName,
+    this.storeId,
     required this.storeCategory,
     required this.storeRating,
     required this.storeDistance,
@@ -36,6 +45,7 @@ class StoreDetailsScreen extends StatefulWidget {
     required this.deliveryFee,
     this.storeDiscount,
     this.storeLocation,
+    this.storeMapUrl,
   });
 
   @override
@@ -57,14 +67,25 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
     super.dispose();
   }
 
+  /// هل يوجد موقع جغرافي للمتجر (رابط Google Maps من API أو إحداثيات محلية)؟
+  bool get _hasMapTarget =>
+      (widget.storeMapUrl?.trim().isNotEmpty ?? false) || widget.storeLocation != null;
+
   Future<void> _openInGoogleMaps() async {
-    final loc = widget.storeLocation;
-    if (loc == null) return;
-    setState(() => _openingMap = true);
-    try {
-      final uri = Uri.parse(
+    Uri? uri;
+    final mapUrl = widget.storeMapUrl?.trim();
+    if (mapUrl != null && mapUrl.isNotEmpty) {
+      uri = Uri.tryParse(mapUrl);
+    } else if (widget.storeLocation != null) {
+      final loc = widget.storeLocation!;
+      uri = Uri.parse(
         'https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}&travelmode=driving',
       );
+    }
+    if (uri == null) return;
+
+    setState(() => _openingMap = true);
+    try {
       final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (!ok && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -162,43 +183,37 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: _buildProductSearchBar(),
                   ),
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _buildPriceFilter(),
+                  ),
                   const SizedBox(height: 24),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // ???? ?????? (RTL): ??????
-                        Expanded(
-                          flex: 1,
-                          child: _buildPriceFilter(),
-                        ),
-                        const SizedBox(width: 24),
-                        // ???? ??????: ????????
-                        Expanded(
-                          flex: 2,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    context.tr('products'),
-                                    style: GoogleFonts.cairo(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  Text(
-                                    '${_filteredProducts.length} ${context.tr('products')}',
-                                    style: GoogleFonts.cairo(fontSize: 13, color: Colors.white54),
-                                  ),
-                                ],
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                context.tr('products'),
+                                style: GoogleFonts.cairo(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
                               ),
-                              const SizedBox(height: 16),
-                              _filteredProducts.isEmpty
+                            ),
+                            Text(
+                              '${_filteredProducts.length} ${context.tr('products')}',
+                              style: GoogleFonts.cairo(fontSize: 13, color: Colors.white54),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _filteredProducts.isEmpty
                                   ? Center(
                                       child: Padding(
                                         padding: const EdgeInsets.symmetric(vertical: 32),
@@ -232,15 +247,18 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                                   : LayoutBuilder(
                                       builder: (context, constraints) {
                                         const gap = 12.0;
-                                        final cellWidth =
-                                            (constraints.maxWidth - gap * 2) / 3;
+                                        final crossAxisCount =
+                                            constraints.maxWidth >= 520 ? 3 : 2;
+                                        final cellWidth = (constraints.maxWidth -
+                                                gap * (crossAxisCount - 1)) /
+                                            crossAxisCount;
                                         final cardHeight =
-                                            (cellWidth * 1.55).clamp(220.0, 280.0);
+                                            (cellWidth * 1.45).clamp(200.0, 280.0);
                                         return GridView.builder(
                                           shrinkWrap: true,
                                           physics: const NeverScrollableScrollPhysics(),
                                           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                            crossAxisCount: 3,
+                                            crossAxisCount: crossAxisCount,
                                             mainAxisSpacing: gap,
                                             crossAxisSpacing: gap,
                                             mainAxisExtent: cardHeight,
@@ -255,9 +273,6 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                                         );
                                       },
                                     ),
-                            ],
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -272,6 +287,11 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
   }
 
   Widget _buildStoreHeader() {
+    final isApiLogo = StoreCoverImage.isRemoteUrl(widget.storeImageUrl);
+    final coverProvider = StoreCoverImage.imageProvider(
+      isApiLogo ? '' : widget.storeImageUrl,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -281,11 +301,31 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
               height: 220,
               width: double.infinity,
               decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: StoreCoverImage.imageProvider(widget.storeImageUrl),
-                  fit: BoxFit.cover,
-                ),
+                gradient: isApiLogo || coverProvider == null
+                    ? LinearGradient(
+                        begin: Alignment.topRight,
+                        end: Alignment.bottomLeft,
+                        colors: [
+                          Theme.of(context).colorScheme.primary.withValues(alpha: 0.55),
+                          Theme.of(context).colorScheme.secondary.withValues(alpha: 0.35),
+                          context.trendy.pageBackground,
+                        ],
+                      )
+                    : null,
+                image: coverProvider != null
+                    ? DecorationImage(image: coverProvider, fit: BoxFit.cover)
+                    : null,
               ),
+              child: isApiLogo
+                  ? Center(
+                      child: StoreCoverImage(
+                        imageUrl: widget.storeImageUrl,
+                        asLogo: true,
+                        width: 120,
+                        height: 120,
+                      ),
+                    )
+                  : null,
             ),
             Positioned(
               top: 12,
@@ -348,7 +388,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                         children: [
                           Expanded(
                             child: Text(
-                              context.tr(widget.storeName),
+                              widget.storeDisplayName ?? context.tr(widget.storeName),
                               textAlign: TextAlign.right,
                               style: GoogleFonts.cairo(
                                 fontSize: 24,
@@ -357,14 +397,6 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                               ),
                             ),
                           ),
-                          if (widget.storeLocation != null) ...[
-                            _buildStoreHeaderIcon(
-                              icon: Icons.map_outlined,
-                              tooltip: context.tr('open_in_maps'),
-                              onPressed: _openingMap ? null : _openInGoogleMaps,
-                            ),
-                            const SizedBox(width: 6),
-                          ],
                           _buildStoreHeaderIcon(
                             icon: Icons.chat_bubble_outline,
                             tooltip: context.tr('chat_open'),
@@ -372,11 +404,24 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => ChatWithStoreScreen(storeKey: widget.storeName),
+                                  builder: (_) => ChatWithStoreScreen(
+                                    storeKey: widget.storeName,
+                                    storeId: widget.storeId,
+                                    storeDisplayName: widget.storeDisplayName,
+                                  ),
                                 ),
                               );
                             },
                           ),
+                          // الموقع الجغرافي للمتجر في Google Maps (بدل الشعار)
+                          if (_hasMapTarget) ...[
+                            const SizedBox(width: 12),
+                            _buildStoreHeaderIcon(
+                              icon: Icons.location_on_outlined,
+                              tooltip: context.tr('open_in_maps'),
+                              onPressed: _openingMap ? null : _openInGoogleMaps,
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -637,7 +682,10 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Row(
+                      Wrap(
+                        spacing: 4,
+                        runSpacing: 2,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Text(
                             '${p.price}${context.tr('currency_suffix')}',
@@ -647,18 +695,15 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                               fontSize: 12,
                             ),
                           ),
-                          const SizedBox(width: 6),
                           if (p.originalPrice != null)
-                            Expanded(
-                              child: Text(
-                                '${p.originalPrice}${context.tr('currency_suffix')}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white24,
-                                  fontSize: 9,
-                                  decoration: TextDecoration.lineThrough,
-                                ),
+                            Text(
+                              '${p.originalPrice}${context.tr('currency_suffix')}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white24,
+                                fontSize: 9,
+                                decoration: TextDecoration.lineThrough,
                               ),
                             ),
                         ],

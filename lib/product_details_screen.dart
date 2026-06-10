@@ -126,7 +126,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              Row(
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -143,12 +146,16 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  const Icon(Icons.star, color: Colors.amber, size: 18),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${widget.product.rating}',
-                    style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.star, color: Colors.amber, size: 18),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${widget.product.rating}',
+                        style: const TextStyle(color: Colors.white70, fontSize: 14),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -163,9 +170,12 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
+        Wrap(
+          spacing: 12,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-             Text(
+            Text(
               '${widget.product.price}${context.tr('currency_suffix')}',
               style: GoogleFonts.cairo(
                 fontSize: 32,
@@ -173,8 +183,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 color: const Color(0xFF3B82F6),
               ),
             ),
-            if (widget.product.originalPrice != null) ...[
-              const SizedBox(width: 16),
+            if (widget.product.originalPrice != null)
               Text(
                 '${widget.product.originalPrice}${context.tr('currency_suffix')}',
                 style: const TextStyle(
@@ -183,9 +192,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   decoration: TextDecoration.lineThrough,
                 ),
               ),
-            ],
-            if (widget.product.discount != null && widget.product.discount!.isNotEmpty) ...[
-              const SizedBox(width: 16),
+            if (widget.product.discount != null && widget.product.discount!.isNotEmpty)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
@@ -194,10 +201,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 ),
                 child: Text(
                   '${widget.product.discount} ${context.tr('sort_offers').split(' ')[0]}',
-                  style: const TextStyle(color: Color(0xFF3B82F6), fontSize: 12, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: Color(0xFF3B82F6),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ],
           ],
         ),
         const SizedBox(height: 12),
@@ -279,14 +289,15 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   }
 
   Widget _buildSizeSelector() {
-    return Row(
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
       children: _sizes.map((size) {
-        bool isSelected = _selectedSize == size;
+        final isSelected = _selectedSize == size;
         return GestureDetector(
           onTap: () => setState(() => _selectedSize = size),
           child: Container(
-            margin: const EdgeInsets.only(left: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
             decoration: BoxDecoration(
               color: isSelected ? const Color(0xFFA855F7) : Colors.white.withOpacity(0.05),
               borderRadius: BorderRadius.circular(12),

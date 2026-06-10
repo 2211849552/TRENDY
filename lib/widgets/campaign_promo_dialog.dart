@@ -132,17 +132,37 @@ class CampaignPromoDialog extends StatelessWidget {
                   Wrap(
                     spacing: 8,
                     runSpacing: 6,
-                    children: campaign.storeKeys.map((key) {
-                      return ActionChip(
-                        label: Text(context.tr(key), style: GoogleFonts.cairo(fontSize: 12)),
-                        backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
-                        side: BorderSide(
-                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
-                        ),
-                        labelStyle: const TextStyle(color: Colors.white),
-                        onPressed: () => _visitStore(context, key),
-                      );
-                    }).toList(),
+                    children: campaign.stores.isNotEmpty
+                        ? campaign.stores.map((store) {
+                            return ActionChip(
+                              avatar: store.logoUrl.isEmpty
+                                  ? null
+                                  : StoreCoverImage(
+                                      imageUrl: store.logoUrl,
+                                      asLogo: true,
+                                      width: 22,
+                                      height: 22,
+                                    ),
+                              label: Text(store.name, style: GoogleFonts.cairo(fontSize: 12)),
+                              backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
+                              side: BorderSide(
+                                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
+                              ),
+                              labelStyle: const TextStyle(color: Colors.white),
+                              onPressed: () => _visitStore(context, store.navigationKey),
+                            );
+                          }).toList()
+                        : campaign.storeKeys.map((key) {
+                            return ActionChip(
+                              label: Text(context.tr(key), style: GoogleFonts.cairo(fontSize: 12)),
+                              backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
+                              side: BorderSide(
+                                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
+                              ),
+                              labelStyle: const TextStyle(color: Colors.white),
+                              onPressed: () => _visitStore(context, key),
+                            );
+                          }).toList(),
                   ),
                   const SizedBox(height: 12),
                   Text(
