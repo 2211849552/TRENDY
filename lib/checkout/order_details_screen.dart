@@ -10,13 +10,15 @@ import '../locale/app_locale.dart';
 import '../models/addresses_manager.dart';
 import '../models/cart_item.dart';
 import '../models/cart_manager.dart';
-import '../models/order.dart';
 import '../models/orders_manager.dart';
-import '../models/wallet_manager.dart';
+import '../services/api/api_exception.dart';
+import '../services/api/cart_api.dart';
 import '../theme/app_colors.dart';
 import '../theme/trendy_theme_extension.dart';
+import '../data/product_images.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/schematic_map_tiles.dart';
+import '../widgets/store_cover_image.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
   const OrderDetailsScreen({
@@ -103,60 +105,58 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   Future<void> _placeOrder() async {
     if (_paymentMethod == null) return;
 
-    final orderId = DateTime.now().millisecondsSinceEpoch.toString();
-    final total = _grandTotal;
-
-    if (_paymentMethod == 'payment_wallet') {
-      if (!WalletManager().payOrderFromWallet(orderId: orderId, amount: total)) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.tr('wallet_insufficient'), style: GoogleFonts.cairo()),
-            backgroundColor: AppColors.error,
-          ),
-        );
-        return;
-      }
+    final address = AddressesManager().selected;
+    if (address?.apiId == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.tr('select_your_address'), style: GoogleFonts.cairo()),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
     }
 
-    final orderItems = widget.items
-        .map(
-          (e) => CartItem(
-            product: e.product,
-            selectedColor: e.selectedColor,
-            selectedSize: e.selectedSize,
-            quantity: e.quantity,
+    final paymentType = _paymentMethod == 'payment_wallet' ? 'wallet' : 'cash';
+
+    try {
+      final created = await CartApi().checkout(
+        paymentType: paymentType,
+        shippingAddressId: address!.apiId!,
+        googleMapUrl: address.googleMapUrl,
+      );
+
+      await CartManager().syncFromApi();
+      await OrdersManager().syncFromApi();
+
+      widget.onOrderPlaced();
+
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      Navigator.pop(context);
+      final orderLabel = created.isNotEmpty
+          ? '${created.first['order_number'] ?? created.first['id'] ?? ''}'
+          : '';
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            orderLabel.isNotEmpty
+                ? '${context.tr('order_confirmed')} #$orderLabel'
+                : context.tr('order_confirmed'),
+            style: GoogleFonts.cairo(),
           ),
-        )
-        .toList();
-
-    OrdersManager().addOrder(
-      Order(
-        id: orderId,
-        date: DateTime.now(),
-        items: orderItems,
-        totalPrice: total,
-        status: 'status_pending',
-        storeName: widget.storeKey,
-        paymentMethod: _paymentMethod!,
-      ),
-    );
-
-    for (final item in widget.items) {
-      CartManager().removeFromCart(item);
+          backgroundColor: AppColors.primary,
+        ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message, style: GoogleFonts.cairo()),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
-
-    widget.onOrderPlaced();
-
-    if (!mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    Navigator.pop(context);
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(context.tr('order_confirmed'), style: GoogleFonts.cairo()),
-        backgroundColor: AppColors.primary,
-      ),
-    );
   }
 
   String _paymentLabel(BuildContext context) {
@@ -493,25 +493,40 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               if (_orderSummaryExpanded) ...[
                 const Divider(color: Colors.white12, height: 20),
                 ...widget.items.map(
-                  (item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      children: [
-                        Text(
-                          '×${item.quantity}',
-                          style: GoogleFonts.cairo(color: t.subtitleColor, fontSize: 12),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            context.tr(item.product.name),
-                            textAlign: TextAlign.end,
-                            style: GoogleFonts.cairo(color: t.titleColor, fontSize: 12),
+                  (item) {
+                    final imageUrl = item.product.imageUrl.trim().isNotEmpty
+                        ? item.product.imageUrl
+                        : ProductImages.forProductKey(item.product.name);
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          Text(
+                            '×${item.quantity}',
+                            style: GoogleFonts.cairo(color: t.subtitleColor, fontSize: 12),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
+                          const SizedBox(width: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: StoreCoverImage(
+                              imageUrl: imageUrl,
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              context.tr(item.product.name),
+                              textAlign: TextAlign.end,
+                              style: GoogleFonts.cairo(color: t.titleColor, fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
               ],
             ],

@@ -8,7 +8,6 @@ import '../models/wallet_manager.dart';
 import '../theme/app_colors.dart';
 import '../theme/trendy_theme_extension.dart';
 import '../wallet_screen.dart';
-import '../widgets/address_edit_sheet.dart';
 import '../widgets/gradient_button.dart';
 
 /// اختيار عنوان التوصيل من قائمة العناوين المحفوظة.
@@ -48,11 +47,6 @@ class _AddressPickerSheetState extends State<_AddressPickerSheet> {
   void initState() {
     super.initState();
     _manager.syncFromApi();
-  }
-
-  Future<void> _openEdit(SavedAddress address) async {
-    await AddressEditSheet.show(context, address: address, isNew: false);
-    if (mounted) setState(() {});
   }
 
   Future<void> _confirmDelete(SavedAddress address) async {
@@ -144,7 +138,6 @@ class _AddressPickerSheetState extends State<_AddressPickerSheet> {
                         _manager.select(address.id);
                         Navigator.pop(context);
                       },
-                      onEdit: () => _openEdit(address),
                       onDelete: () => _confirmDelete(address),
                     );
                   },
@@ -163,14 +156,12 @@ class _SheetAddressRow extends StatelessWidget {
     required this.address,
     required this.selected,
     required this.onSelect,
-    required this.onEdit,
     required this.onDelete,
   });
 
   final SavedAddress address;
   final bool selected;
   final VoidCallback onSelect;
-  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
@@ -205,11 +196,6 @@ class _SheetAddressRow extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-              ),
-              IconButton(
-                onPressed: onEdit,
-                icon: Icon(Icons.edit_outlined, color: t.titleColor, size: 20),
-                tooltip: context.tr('edit'),
               ),
               IconButton(
                 onPressed: onDelete,

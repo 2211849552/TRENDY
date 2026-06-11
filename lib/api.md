@@ -94,9 +94,14 @@ Route::prefix('v1/auth')->group(function () {
     // -------------------------------------------------------------------------
     Route::post('/stores/join', [\App\Http\Controllers\Api\V1\StoreJoinController::class, 'store']);
 
-    // عرض الحملات الترويجية النشطة للزبائن والزوار
-    // GET /api/v1/campaigns
+    // عرض الحملات الترويجية النشطة للزبائن والزوار (تتضمن المتاجر المشتركة)
+    // GET /api/campaigns
     Route::get('/campaigns', [\App\Http\Controllers\Api\V1\Public\CampaignController::class, 'index']);
+
+    // تفاصيل حملة نشطة مع المتاجر المشتركة
+    // GET /api/campaigns/{id}
+    Route::get('/campaigns/{campaign}', [\App\Http\Controllers\Api\V1\Public\CampaignController::class, 'show'])
+        ->whereNumber('campaign');
 
 
     // =========================================================================
@@ -257,6 +262,10 @@ Route::prefix('v1/auth')->group(function () {
             Route::get('/total-customers', [\App\Http\Controllers\Api\V1\Admin\AdminDashboardController::class, 'totalCustomers']);
             Route::get('/total-orders', [\App\Http\Controllers\Api\V1\Admin\AdminDashboardController::class, 'totalOrders']);
 
+            Route::middleware('role:super_admin,accountant')->group(function () {
+                Route::get('/payment-methods-stats', [\App\Http\Controllers\Api\V1\Admin\AdminDashboardController::class, 'paymentMethodsStats']);
+            });
+
             // صلاحية للمدير العام فقط (super_admin)
             Route::middleware('role:super_admin')->group(function () {
                 Route::get('/total-platform-staff', [\App\Http\Controllers\Api\V1\Admin\AdminDashboardController::class, 'totalPlatformStaff']);
@@ -370,6 +379,10 @@ Route::prefix('v1/auth')->group(function () {
     // GET /api/v1/products/{id}
     Route::get('/products/{id}', [\App\Http\Controllers\Api\V1\ProductController::class, 'show']);
 
+    // عرض التنوعات المرتبطة بكل منتج
+    // GET /api/products/{id}/variants
+    Route::get('/products/{id}/variants', [\App\Http\Controllers\Api\V1\ProductController::class, 'variants']);
+
     // [5.2] + [5.7] عرض منتجات متجر معين مع الفلترة والـ Pagination:
     // يعرض فقط المنتجات النشطة للمتجر المحدد.
     // معاملات الفلترة المدعومة [5.7]:
@@ -438,7 +451,7 @@ Route::prefix('v1/auth')->group(function () {
     // ─── ج) تقييم المنتج — customer فقط ─────────────────────────────────────
     // [5.8] إضافة تقييم (نجوم + تعليق + صورة واقعية اختيارية):
     // القيود المُطبَّقة في RatingService:
-    //   1. يجب أن يكون الزبون قد اشترى المنتج فعلياً (order_id في الـ body)
+    //   1. يجب أن يكون الزبون قد اشترى المنتج فعلياً (التحقق عبر سجل الطلبات للزبون)
     //   2. لا يُسمح بتقييم نفس المنتج أكثر من مرة واحدة
     //   3. صورة واحدة فقط مسموح بها لكل تقييم (حد أقصى: 5MB)
     // النجوم: من 1 (الأقل) إلى 5 (الأعلى)
@@ -515,6 +528,10 @@ Route::prefix('v1/auth')->group(function () {
         // POST /api/v1/inventory/shipments
         Route::post('/shipments', [\App\Http\Controllers\Api\V1\InventoryController::class, 'store']);
 
+        // عرض قائمة الشحنات مع الفلترة والبحث
+        // GET /api/v1/inventory/shipments
+        Route::get('/shipments', [\App\Http\Controllers\Api\V1\InventoryController::class, 'listShipments']);
+
         // 2 & 6 & 7. عرض القائمة والبحث والفلترة
         // GET /api/v1/inventory
         Route::get('/', [\App\Http\Controllers\Api\V1\InventoryController::class, 'index']);
@@ -570,8 +587,8 @@ Route::prefix('v1/auth')->group(function () {
         // GET /api/v1/finance/export
         Route::get('/export', [\App\Http\Controllers\Api\V1\FinanceController::class, 'export']);
 
-        // 8. إحصائيات ونسب طرق الدفع (محفظة إلكترونية / نقدي)
-        // GET /api/finance/payment-method-percentages?start_date=&end_date=
+        // 8. إحصائيات ونسب طرق الدفع
+        // GET /api/v1/finance/payment-method-percentages
         Route::get('/payment-method-percentages', [\App\Http\Controllers\Api\V1\FinanceController::class, 'paymentMethodStats']);
     });
 
@@ -722,6 +739,17 @@ Route::prefix('v1/auth')->group(function () {
     });
 
     // =========================================================================
+    // [14.5] الملف الشخصي للزبون (Customer Profile)
+    // ─────────────────────────────────────────────────────────────────────────
+    Route::prefix('customer')->middleware('role:customer')->group(function () {
+        // GET /api/customer/profile
+        Route::get('/profile', [\App\Http\Controllers\Api\V1\CustomerProfileController::class, 'show']);
+
+        // PATCH /api/customer/profile — body: name, email, phone, default_address?
+        Route::patch('/profile', [\App\Http\Controllers\Api\V1\CustomerProfileController::class, 'update']);
+    });
+
+    // =========================================================================
     // [15] إدارة عناوين الشحن (Shipping Addresses)
     // ─────────────────────────────────────────────────────────────────────────
     // تشمل: إضافة عنوان الشحن، عرض قائمة العناوين للزبون.
@@ -744,16 +772,21 @@ Route::prefix('v1/auth')->group(function () {
     Route::prefix('wallet')->middleware('auth:sanctum')->group(function () {
 
         // 1. عرض الرصيد المتاح
-        // GET /api/v1/wallet/balance
+        // GET /api/wallet/balance
         Route::get('/balance', [\App\Http\Controllers\Api\V1\WalletController::class, 'balance']);
 
-        // 2. شحن المحفظة
-        // POST /api/v1/wallet/top-up
+        // 2. إنشاء payment_method_id من بيانات البطاقة (Stripe) قبل الشحن
+        // POST /api/wallet/payment-method
+        Route::post('/payment-method', [\App\Http\Controllers\Api\V1\WalletController::class, 'createPaymentMethod'])
+            ->middleware('role:customer');
+
+        // 3. شحن المحفظة
+        // POST /api/wallet/top-up
         Route::post('/top-up', [\App\Http\Controllers\Api\V1\WalletController::class, 'topUp'])
             ->middleware('role:customer');
 
         // 4. عرض سجل الحركات المالية
-        // GET /api/v1/wallet/logs
+        // GET /api/wallet/logs
         Route::get('/logs', [\App\Http\Controllers\Api\V1\WalletController::class, 'logs']);
     });
 
@@ -797,28 +830,36 @@ Route::prefix('v1/auth')->group(function () {
     Route::prefix('orders')->middleware('auth:sanctum')->group(function () {
 
         // 1 & 5 & 6. عرض القائمة والبحث والفلترة
-        // GET /api/v1/orders
+        // GET /api/orders
         Route::get('/', [\App\Http\Controllers\Api\V1\OrderController::class, 'index']);
-
-        // 2. عرض تفاصيل الطلب
-        // GET /api/v1/orders/{id}
-        Route::get('/{id}', [\App\Http\Controllers\Api\V1\OrderController::class, 'show']);
 
         // =========================================================================
         // [17] نظام المحادثات (Unified Chat System)
         // ─────────────────────────────────────────────────────────────────────────
         // تشمل: قائمة المحادثات، عرض الرسائل، وإرسال الرسائل.
+        // يجب أن تسبق /{id} حتى لا يُفسَّر "chat" كمعرّف طلب.
         // =========================================================================
         Route::prefix('chat')->group(function () {
-            // GET /api/v1/orders/chat
+            // GET /api/orders/chat
             Route::get('/', [\App\Http\Controllers\Api\V1\ChatController::class, 'index']);
 
-            // GET /api/v1/orders/chat/{id}/messages
+            // POST /api/orders/chat/store — بدء محادثة زبون ↔ متجر
+            Route::post('/store', [\App\Http\Controllers\Api\V1\ChatController::class, 'startStoreChat']);
+
+            // POST /api/orders/chat/support
+            Route::post('/support', [\App\Http\Controllers\Api\V1\ChatController::class, 'startSupportChat']);
+
+            // GET /api/orders/chat/{id}/messages
             Route::get('/{id}/messages', [\App\Http\Controllers\Api\V1\ChatController::class, 'showMessages']);
 
-            // POST /api/v1/orders/chat/{id}/messages
+            // POST /api/orders/chat/{id}/messages
             Route::post('/{id}/messages', [\App\Http\Controllers\Api\V1\ChatController::class, 'storeMessage']);
         });
+
+        // 2. عرض تفاصيل الطلب
+        // GET /api/orders/{id}
+        Route::get('/{id}', [\App\Http\Controllers\Api\V1\OrderController::class, 'show'])
+            ->whereNumber('id');
 
         // 3. تحديث حالة الطلب
         // PATCH /api/v1/orders/{id}/status
@@ -874,18 +915,6 @@ Route::prefix('v1/auth')->group(function () {
             Route::get('/', [\App\Http\Controllers\Api\V1\DriverController::class, 'index']);
 
             // [18.1] إضافة سائق جديد
-            // POST /api/drivers
-            // ─────────────────────────────────────────────────────────────────
-            // Body (JSON):
-            //   name              string  مطلوب — اسم السائق
-            //   phone             string  مطلوب — رقم الهاتف
-            //   password          string  مطلوب — كلمة مرور الحساب (8+ أحرف)
-            //   license_number    string  مطلوب — رقم رخصة القيادة
-            //   vehicle_type      string  مطلوب — نوع المركبة: motorcycle | car | van
-            //   plate_number      string  مطلوب — رقم لوحة المركبة
-            //   current_zone_id   integer مطلوب — معرّف المنطقة (من GET /api/zones)
-            //   email             string  اختياري — البريد الإلكتروني
-            // ─────────────────────────────────────────────────────────────────
             Route::post('/', [\App\Http\Controllers\Api\V1\DriverController::class, 'store']);
 
             // [18.4] تعطيل حساب سائق
@@ -932,21 +961,9 @@ Route::prefix('v1/auth')->group(function () {
     // تشمل: عرض القائمة، التفاصيل، تحديد كمقروء، وتحديد الكل كمقروء.
     // =========================================================================
     Route::middleware('auth:sanctum')->prefix('notifications')->group(function () {
-
-        // 1. عرض قائمة الإشعارات
-        // GET /api/notifications
         Route::get('/', [\App\Http\Controllers\Api\V1\NotificationController::class, 'index']);
-
-        // 2. تحديد الكل كمقروء
-        // POST /api/notifications/read-all
         Route::post('/read-all', [\App\Http\Controllers\Api\V1\NotificationController::class, 'markAllAsRead']);
-
-        // 3. عرض تفاصيل إشعار
-        // GET /api/notifications/{id}
         Route::get('/{id}', [\App\Http\Controllers\Api\V1\NotificationController::class, 'show']);
-
-        // 4. تحديد إشعار كمقروء
-        // PATCH /api/notifications/{id}/read
         Route::patch('/{id}/read', [\App\Http\Controllers\Api\V1\NotificationController::class, 'markAsRead']);
     });
 

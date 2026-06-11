@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import '../../config/api_config.dart';
+import '../../config/api_env.dart';
 import '../../models/auth_session.dart';
 import 'api_exception.dart';
 
@@ -77,6 +78,31 @@ class ApiClient {
     );
   }
 
+  /// POST multipart/form-data على مسارات `/api/...` (مثل رفع صور التقييم).
+  Future<Map<String, dynamic>> postMultipartFromRoot(
+    String path, {
+    required Map<String, String> fields,
+    List<http.MultipartFile> files = const [],
+    bool withAuth = true,
+  }) async {
+    final uri = _uri(ApiConfig.apiRoot, path, null);
+    final request = http.MultipartRequest('POST', uri);
+    request.headers['Accept'] = 'application/json';
+    if (withAuth) {
+      final token = AuthSession.instance.token;
+      if (token != null && token.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+    }
+    request.fields.addAll(fields);
+    request.files.addAll(files);
+
+    return _send(() async {
+      final streamed = await _client.send(request);
+      return http.Response.fromStream(streamed);
+    }, uri);
+  }
+
   Future<Map<String, dynamic>> deleteFromRoot(
     String path, {
     bool withAuth = true,
@@ -119,6 +145,33 @@ class ApiClient {
     );
   }
 
+  Future<Map<String, dynamic>> patch(
+    String path, {
+    Map<String, dynamic>? body,
+    bool withAuth = true,
+  }) async {
+    final uri = Uri.parse('${ApiConfig.baseUrl}$path');
+    return _send(
+      () => _client.patch(
+        uri,
+        headers: _headers(withAuth: withAuth),
+        body: body == null ? null : jsonEncode(body),
+      ),
+      uri,
+    );
+  }
+
+  Future<Map<String, dynamic>> delete(
+    String path, {
+    bool withAuth = true,
+  }) async {
+    final uri = Uri.parse('${ApiConfig.baseUrl}$path');
+    return _send(
+      () => _client.delete(uri, headers: _headers(withAuth: withAuth)),
+      uri,
+    );
+  }
+
   Future<Map<String, dynamic>> _send(
     Future<http.Response> Function() request,
     Uri uri,
@@ -140,9 +193,11 @@ class ApiClient {
   }
 
   String _connectionMessage(Uri uri, String detail) {
+    final origin = ApiConfig.serverOrigin;
     return 'تعذر الاتصال بـ $uri\n'
-        'تأكد أن Laravel يعمل: php artisan serve --host=0.0.0.0 --port=8000\n'
-        'وعدّل العنوان في lib/config/api_env.dart';
+        'تأكد أن Laravel يعمل:\n'
+        '  php artisan serve --host=0.0.0.0 --port=$kApiServerPort\n'
+        'وعدّل العنوان في lib/config/api_env.dart (الحالي: $origin)';
   }
 
   Map<String, dynamic> _decodeResponse(http.Response response) {

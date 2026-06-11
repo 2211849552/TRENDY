@@ -5,6 +5,7 @@ import 'l10n/app_strings.dart';
 import 'services/api/api_exception.dart';
 import 'services/api/auth_api.dart';
 import 'theme/app_colors.dart';
+import 'verify_email_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -78,7 +79,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
           backgroundColor: Colors.green.shade700,
         ),
       );
-      Navigator.pop(context);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => VerifyEmailScreen(
+            email: result.email.isNotEmpty
+                ? result.email
+                : _emailController.text.trim(),
+          ),
+        ),
+      );
     } on ApiException catch (e) {
       if (!mounted) return;
       _showError(e.message.isNotEmpty ? e.message : context.tr('auth_register_failed'));

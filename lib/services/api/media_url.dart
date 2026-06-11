@@ -1,0 +1,67 @@
+import '../../config/api_config.dart';
+
+/// بناء روابط صور المتاجر والحملات من حقول API:
+/// - المتجر: `logo` من GET /api/stores
+/// - الحملة: `banner_image` من GET /api/campaigns
+/// - المنتج: `thumbnail` / `images[]` — يُصحَّح مسار `storage/products/{id}/`
+class MediaUrl {
+  MediaUrl._();
+
+  static String storeLogo(dynamic raw) => ApiConfig.resolveMediaUrl(_asString(raw));
+
+  static String productThumbnail(dynamic raw, {int? productId}) =>
+      productImage(raw, productId: productId);
+
+  /// رابط صورة منتج واحدة مع تصحيح مسار التخزين.
+  static String productImage(dynamic raw, {int? productId}) {
+    final resolved = ApiConfig.resolveMediaUrl(_asString(raw));
+    if (resolved.isEmpty) return '';
+    return _fixProductStoragePath(resolved, productId);
+  }
+
+  /// استخراج كل روابط `images[]` من تفاصيل المنتج.
+  static List<String> productImagesFromJson(dynamic raw, {int? productId}) {
+    if (raw is! List) return const [];
+    final urls = <String>[];
+    for (final item in raw) {
+      if (item is Map) {
+        final url = productImage(item['url'] ?? item['file_name'], productId: productId);
+        if (url.isNotEmpty) urls.add(url);
+      }
+    }
+    return urls;
+  }
+
+  /// Laravel يُخزّن الصور في `products/{id}/` لكن API يُرجع `storage/{file}` فقط.
+  static String _fixProductStoragePath(String url, int? productId) {
+    if (productId == null || productId <= 0) return url;
+    if (url.contains('/storage/products/')) return url;
+
+    final fileName = _extractStorageFileName(url);
+    if (fileName == null || fileName.isEmpty) return url;
+    return '${ApiConfig.serverOrigin}/storage/products/$productId/$fileName';
+  }
+
+  static String? _extractStorageFileName(String url) {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return null;
+
+    final storageIdx = trimmed.indexOf('/storage/');
+    if (storageIdx == -1) {
+      if (trimmed.contains('/') || !trimmed.contains('.')) return null;
+      return trimmed;
+    }
+
+    final afterStorage = trimmed.substring(storageIdx + '/storage/'.length);
+    if (afterStorage.startsWith('products/')) return null;
+    if (afterStorage.contains('/')) return afterStorage.split('/').last;
+    return afterStorage;
+  }
+
+  static String? campaignBanner(dynamic raw) {
+    final url = ApiConfig.resolveMediaUrl(_asString(raw));
+    return url.isEmpty ? null : url;
+  }
+
+  static String _asString(dynamic value) => '${value ?? ''}'.trim();
+}

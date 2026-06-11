@@ -1,4 +1,4 @@
-import '../config/api_config.dart';
+import '../services/api/media_url.dart';
 import '../services/store_location.dart';
 
 class StoreListItem {
@@ -34,6 +34,24 @@ class StoreListItem {
 
   String get navigationKey => slug.isNotEmpty ? slug : 'store_$id';
 
+  StoreListItem copyWith({String? imageUrl}) {
+    return StoreListItem(
+      id: id,
+      displayName: displayName,
+      slug: slug,
+      imageUrl: imageUrl ?? this.imageUrl,
+      isElectronic: isElectronic,
+      rating: rating,
+      categoryLabel: categoryLabel,
+      deliveryFee: deliveryFee,
+      discount: discount,
+      location: location,
+      displayDistanceKm: displayDistanceKm,
+      description: description,
+      googleMapUrl: googleMapUrl,
+    );
+  }
+
   factory StoreListItem.fromJson(Map<String, dynamic> json) {
     final type = '${json['type'] ?? 'local'}'.toLowerCase();
     final deliveryFee = _readDeliveryFee(json['delivery_prices']);
@@ -42,7 +60,7 @@ class StoreListItem {
       id: _asInt(json['id']) ?? 0,
       displayName: '${json['name'] ?? ''}'.trim(),
       slug: '${json['slug'] ?? ''}'.trim(),
-      imageUrl: ApiConfig.resolveMediaUrl('${json['logo'] ?? ''}'),
+      imageUrl: MediaUrl.storeLogo(json['logo']),
       isElectronic: type == 'electronic',
       rating: _asDouble(json['average_rating']) ?? 4.5,
       categoryLabel: _firstNonEmpty([
@@ -102,4 +120,5 @@ class StoreListItem {
     }
     return null;
   }
+
 }

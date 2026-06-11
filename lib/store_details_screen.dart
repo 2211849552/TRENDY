@@ -13,6 +13,9 @@ import 'theme/trendy_theme_extension.dart';
 import 'widgets/store_cover_image.dart';
 import 'widgets/store_delivery_meta.dart';
 import 'data/store_products_data.dart';
+import 'services/api/products_api.dart';
+import 'services/api/stores_api.dart';
+import 'services/api/api_exception.dart';
 
 class StoreDetailsScreen extends StatefulWidget {
   final String storeName;
@@ -57,9 +60,25 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
   RangeValues _priceRange = const RangeValues(0, 1500);
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
-  late final List<Product> _allProducts;
-  late final double _maxProductPrice;
+  late List<Product> _allProducts;
+  late double _maxProductPrice;
   bool _openingMap = false;
+  bool _loadingProducts = false;
+  String? _productsError;
+  String _storeImageUrl = '';
+  final ProductsApi _productsApi = ProductsApi();
+
+  Future<void> _refreshStoreLogoFromApi() async {
+    final id = widget.storeId;
+    if (id == null || id <= 0) return;
+    try {
+      final store = await StoresApi().fetchStore(id);
+      if (!mounted || store.imageUrl.isEmpty) return;
+      setState(() => _storeImageUrl = store.imageUrl);
+    } catch (_) {
+      // نُبقي الصورة المُمرَّرة من قائمة المتاجر.
+    }
+  }
 
   @override
   void dispose() {
@@ -100,12 +119,62 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    _allProducts = _getMockProducts(widget.storeCategory, widget.storeName, widget.storeDiscount != null);
+    _storeImageUrl = widget.storeImageUrl;
+    _allProducts = _getMockProducts(
+      widget.storeCategory,
+      widget.storeName,
+      widget.storeDiscount != null,
+    );
+    _recalculatePriceRange();
+    _refreshStoreLogoFromApi();
+    _loadProductsFromApi();
+  }
+
+  void _recalculatePriceRange() {
     _maxProductPrice = _allProducts.fold<double>(
       1500,
       (max, p) => p.price > max ? p.price : max,
     );
     _priceRange = RangeValues(0, _maxProductPrice.ceilToDouble());
+  }
+
+  Future<void> _loadProductsFromApi() async {
+    final storeId = widget.storeId;
+    if (storeId == null || storeId <= 0) return;
+
+    setState(() {
+      _loadingProducts = true;
+      _productsError = null;
+    });
+
+    try {
+      final storeLabel = widget.storeDisplayName ?? widget.storeName;
+      final products = await _productsApi.fetchStoreProducts(
+        storeId: storeId,
+        storeName: storeLabel,
+        minPrice: _priceRange.start > 0 ? _priceRange.start : null,
+        maxPrice: _priceRange.end < _maxProductPrice ? _priceRange.end : null,
+        name: _searchQuery.trim().isEmpty ? null : _searchQuery.trim(),
+      );
+      if (!mounted) return;
+      setState(() {
+        _allProducts = products;
+        _recalculatePriceRange();
+        _loadingProducts = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _productsError = e.message;
+        _loadingProducts = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _productsError = e.toString();
+        _loadingProducts = false;
+      });
+    }
   }
 
   List<Product> _getMockProducts(String storeCat, String storeNameKey, bool hasStoreDiscount) {
@@ -213,66 +282,80 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        _filteredProducts.isEmpty
-                                  ? Center(
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 32),
-                                        child: Column(
-                                          children: [
-                                            const Icon(Icons.price_change_outlined, color: Colors.white30, size: 40),
-                                            const SizedBox(height: 12),
-                                            Text(
-                                              context.tr('no_orders_filter'),
-                                              style: GoogleFonts.cairo(
-                                                fontSize: 16,
-                                                color: Colors.white70,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 12),
-                                            TextButton.icon(
-                                              onPressed: () => setState(
-                                                () => _priceRange = RangeValues(0, _maxProductPrice.ceilToDouble()),
-                                              ),
-                                              icon: const Icon(Icons.refresh_rounded, color: const Color(0xFF3B82F6), size: 16),
-                                              label: Text(
-                                                context.tr('view_all_orders'),
-                                                style: GoogleFonts.cairo(color: const Color(0xFF3B82F6), fontSize: 13),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    )
-                                  : LayoutBuilder(
-                                      builder: (context, constraints) {
-                                        const gap = 12.0;
-                                        final crossAxisCount =
-                                            constraints.maxWidth >= 520 ? 3 : 2;
-                                        final cellWidth = (constraints.maxWidth -
-                                                gap * (crossAxisCount - 1)) /
-                                            crossAxisCount;
-                                        final cardHeight =
-                                            (cellWidth * 1.45).clamp(200.0, 280.0);
-                                        return GridView.builder(
-                                          shrinkWrap: true,
-                                          physics: const NeverScrollableScrollPhysics(),
-                                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                            crossAxisCount: crossAxisCount,
-                                            mainAxisSpacing: gap,
-                                            crossAxisSpacing: gap,
-                                            mainAxisExtent: cardHeight,
-                                          ),
-                                          itemCount: _filteredProducts.length,
-                                          itemBuilder: (context, index) {
-                                            return _buildProductCard(
-                                              _filteredProducts[index],
-                                              cardHeight: cardHeight,
-                                            );
-                                          },
-                                        );
-                                      },
+                        if (_loadingProducts)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 32),
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        else if (_productsError != null)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            child: Text(
+                              _productsError!,
+                              style: GoogleFonts.cairo(color: Colors.redAccent, fontSize: 13),
+                            ),
+                          )
+                        else if (_filteredProducts.isEmpty)
+                          Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 32),
+                              child: Column(
+                                children: [
+                                  const Icon(Icons.price_change_outlined, color: Colors.white30, size: 40),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    context.tr('no_orders_filter'),
+                                    style: GoogleFonts.cairo(
+                                      fontSize: 16,
+                                      color: Colors.white70,
+                                      fontWeight: FontWeight.bold,
                                     ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  TextButton.icon(
+                                    onPressed: () => setState(
+                                      () => _priceRange = RangeValues(0, _maxProductPrice.ceilToDouble()),
+                                    ),
+                                    icon: const Icon(Icons.refresh_rounded, color: Color(0xFF3B82F6), size: 16),
+                                    label: Text(
+                                      context.tr('view_all_orders'),
+                                      style: GoogleFonts.cairo(color: const Color(0xFF3B82F6), fontSize: 13),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              const gap = 12.0;
+                              final crossAxisCount =
+                                  constraints.maxWidth >= 520 ? 3 : 2;
+                              final cellWidth = (constraints.maxWidth -
+                                      gap * (crossAxisCount - 1)) /
+                                  crossAxisCount;
+                              final cardHeight =
+                                  (cellWidth * 1.45).clamp(200.0, 280.0);
+                              return GridView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: crossAxisCount,
+                                  mainAxisSpacing: gap,
+                                  crossAxisSpacing: gap,
+                                  mainAxisExtent: cardHeight,
+                                ),
+                                itemCount: _filteredProducts.length,
+                                itemBuilder: (context, index) {
+                                  return _buildProductCard(
+                                    _filteredProducts[index],
+                                    cardHeight: cardHeight,
+                                  );
+                                },
+                              );
+                            },
+                          ),
                       ],
                     ),
                   ),
@@ -287,9 +370,9 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
   }
 
   Widget _buildStoreHeader() {
-    final isApiLogo = StoreCoverImage.isRemoteUrl(widget.storeImageUrl);
+    final isApiLogo = StoreCoverImage.isRemoteUrl(_storeImageUrl);
     final coverProvider = StoreCoverImage.imageProvider(
-      isApiLogo ? '' : widget.storeImageUrl,
+      isApiLogo ? '' : _storeImageUrl,
     );
 
     return Column(
@@ -319,7 +402,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
               child: isApiLogo
                   ? Center(
                       child: StoreCoverImage(
-                        imageUrl: widget.storeImageUrl,
+                        imageUrl: _storeImageUrl,
                         asLogo: true,
                         width: 120,
                         height: 120,

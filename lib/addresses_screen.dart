@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'address_map_screen.dart';
 import 'locale/app_locale.dart';
 import 'l10n/app_strings.dart';
 import 'models/addresses_manager.dart';
+import 'models/delivery_zone.dart';
 import 'theme/app_colors.dart';
 import 'theme/trendy_theme_extension.dart';
 import 'widgets/address_edit_sheet.dart';
 import 'widgets/app_back_button.dart';
+import 'widgets/zone_picker_screen.dart';
 
 class AddressesScreen extends StatefulWidget {
   const AddressesScreen({super.key});
@@ -28,45 +29,39 @@ class _AddressesScreenState extends State<AddressesScreen> {
 
   void _showError(String? message) {
     if (message == null || message.isEmpty || !mounted) return;
+    final text = message.startsWith('addr_') ? context.tr(message) : message;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message, style: GoogleFonts.cairo())),
+      SnackBar(content: Text(text, style: GoogleFonts.cairo())),
     );
   }
 
-  Future<void> _openEdit(SavedAddress address) async {
-    final ok = await AddressEditSheet.show(context, address: address, isNew: false);
-    if (!mounted) return;
-    if (ok == false) _showError(_manager.error);
-    setState(() {});
-  }
-
   Future<void> _openNewAddress() async {
+    final zone = await Navigator.push<DeliveryZone>(
+      context,
+      MaterialPageRoute(builder: (_) => const ZonePickerScreen()),
+    );
+    if (zone == null || !mounted) return;
+
+    final zoneLabel = _formatZoneName(zone.name);
     final draft = SavedAddress(
       id: _manager.nextId(),
       label: '',
-      streetLine: context.tr('addr_default_street'),
-      city: context.tr('addr_default_city'),
+      streetLine: zoneLabel,
+      city: zoneLabel,
+      zoneId: zone.id,
       lat: AddressesManager.defaultLat,
       lng: AddressesManager.defaultLng,
     );
 
-    final fromMap = await Navigator.push<SavedAddress>(
-      context,
-      MaterialPageRoute(builder: (_) => AddressMapScreen(initial: draft)),
-    );
-    if (fromMap == null || !mounted) return;
-
-    final withLocation = draft.copyWith(
-      streetLine: fromMap.streetLine,
-      city: fromMap.city,
-      lat: fromMap.lat,
-      lng: fromMap.lng,
-    );
-
-    final ok = await AddressEditSheet.show(context, address: withLocation, isNew: true);
+    final ok = await AddressEditSheet.show(context, address: draft, isNew: true);
     if (!mounted) return;
     if (ok == false) _showError(_manager.error);
     setState(() {});
+  }
+
+  String _formatZoneName(String raw) {
+    if (raw.isEmpty) return raw;
+    return raw[0].toUpperCase() + raw.substring(1);
   }
 
   Future<void> _confirmDelete(SavedAddress address) async {
@@ -182,7 +177,6 @@ class _AddressesScreenState extends State<AddressesScreen> {
                             address: address,
                             selected: selected,
                             onSelect: () => _manager.select(address.id),
-                            onEdit: () => _openEdit(address),
                             onDelete: () => _confirmDelete(address),
                           );
                         },
@@ -240,14 +234,12 @@ class _AddressCard extends StatelessWidget {
     required this.address,
     required this.selected,
     required this.onSelect,
-    required this.onEdit,
     required this.onDelete,
   });
 
   final SavedAddress address;
   final bool selected;
   final VoidCallback onSelect;
-  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
@@ -282,11 +274,6 @@ class _AddressCard extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-              ),
-              IconButton(
-                onPressed: onEdit,
-                icon: Icon(Icons.edit_outlined, color: t.titleColor, size: 22),
-                tooltip: context.tr('edit'),
               ),
               IconButton(
                 onPressed: onDelete,

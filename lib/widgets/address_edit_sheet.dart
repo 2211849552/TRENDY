@@ -4,8 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../address_map_screen.dart';
 import '../l10n/app_strings.dart';
 import '../models/addresses_manager.dart';
+import '../models/delivery_zone.dart';
 import '../theme/app_colors.dart';
 import '../theme/trendy_theme_extension.dart';
+import 'zone_picker_screen.dart';
 
 class AddressEditSheet extends StatefulWidget {
   const AddressEditSheet({
@@ -57,6 +59,24 @@ class _AddressEditSheetState extends State<AddressEditSheet> {
     super.dispose();
   }
 
+  Future<void> _changeZone() async {
+    final zone = await Navigator.push<DeliveryZone>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ZonePickerScreen(selectedZoneId: _draft.zoneId),
+      ),
+    );
+    if (zone == null || !mounted) return;
+    final zoneLabel = _formatZoneName(zone.name);
+    setState(() {
+      _draft = _draft.copyWith(
+        zoneId: zone.id,
+        city: zoneLabel,
+        streetLine: zoneLabel,
+      );
+    });
+  }
+
   Future<void> _changeLocation() async {
     final result = await Navigator.push<SavedAddress>(
       context,
@@ -97,7 +117,9 @@ class _AddressEditSheetState extends State<AddressEditSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            _manager.error ?? context.tr('error_generic'),
+            _manager.error!.startsWith('addr_')
+                ? context.tr(_manager.error!)
+                : (_manager.error ?? context.tr('error_generic')),
             style: GoogleFonts.cairo(),
           ),
         ),
@@ -155,7 +177,51 @@ class _AddressEditSheetState extends State<AddressEditSheet> {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    context.tr('your_location'),
+                    context.tr('delivery_zone'),
+                    style: GoogleFonts.cairo(
+                      color: t.subtitleColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: t.inputFill,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.location_city_outlined, color: AppColors.primary, size: 22),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _draft.city,
+                            style: GoogleFonts.cairo(
+                              color: t.titleColor,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: _saving ? null : _changeZone,
+                          child: Text(
+                            context.tr('change_zone'),
+                            style: GoogleFonts.cairo(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    context.tr('addr_map_pin_optional'),
                     style: GoogleFonts.cairo(
                       color: t.subtitleColor,
                       fontSize: 13,
@@ -174,13 +240,13 @@ class _AddressEditSheetState extends State<AddressEditSheet> {
                       children: [
                         Expanded(
                           child: Text(
-                            _draft.streetLine,
-                            style: GoogleFonts.cairo(color: t.titleColor, fontSize: 15),
+                            '${_draft.lat.toStringAsFixed(4)}, ${_draft.lng.toStringAsFixed(4)}',
+                            style: GoogleFonts.cairo(color: t.subtitleColor, fontSize: 13),
                           ),
                         ),
                         TextButton.icon(
                           onPressed: _saving ? null : _changeLocation,
-                          icon: Icon(Icons.edit_outlined, size: 18, color: AppColors.primary),
+                          icon: Icon(Icons.map_outlined, size: 18, color: AppColors.primary),
                           label: Text(
                             context.tr('change_location'),
                             style: GoogleFonts.cairo(
@@ -251,6 +317,11 @@ class _AddressEditSheetState extends State<AddressEditSheet> {
     );
   }
 
+
+  String _formatZoneName(String raw) {
+    if (raw.isEmpty) return raw;
+    return raw[0].toUpperCase() + raw.substring(1);
+  }
 
   Widget _field({
     required String label,

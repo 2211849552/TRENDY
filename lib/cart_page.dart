@@ -12,7 +12,6 @@ import 'data/store_catalog.dart';
 import 'data/store_delivery.dart';
 import 'checkout/order_details_screen.dart';
 import 'widgets/app_back_button.dart';
-import 'data/product_color_variants.dart';
 import 'widgets/store_cover_image.dart';
 import 'widgets/gradient_button.dart';
 import 'widgets/trendy_brand.dart';
@@ -38,7 +37,13 @@ class _CartPageState extends State<CartPage> {
   final CartManager _cartManager = CartManager();
   String _search = '';
 
-  static const _availableSizes = ['S', 'M', 'L', 'XL', 'XXL'];
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.isGuest) {
+      _cartManager.syncFromApi();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -176,45 +181,51 @@ class _CartPageState extends State<CartPage> {
             fontSize: 16,
           ),
           const SizedBox(height: 24),
-          GradientButton(
-            onPressed: () {
-              if (widget.isGuest) {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const LoginScreen()),
-                  (route) => false,
-                );
-              } else {
-                _goToCheckout(storeName, storeItems, productsTotal, deliveryFee);
-              }
-            },
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Row(
+          Center(
+            child: Column(
               children: [
-                Flexible(
-                  child: Text(
-                    '${grandTotal.toStringAsFixed(0)}$suffix',
-                    style: GoogleFonts.cairo(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                Text(
+                  '${grandTotal.toStringAsFixed(0)}$suffix',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.cairo(
+                    color: const Color(0xFF3B82F6),
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    widget.isGuest
-                        ? context.tr('cart_login_prompt')
-                        : context.tr('continue_btn'),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.cairo(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (widget.isGuest) {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(builder: (context) => const LoginScreen()),
+                          (route) => false,
+                        );
+                      } else {
+                        _goToCheckout(storeName, storeItems, productsTotal, deliveryFee);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFA855F7),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.shopping_basket_outlined, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          widget.isGuest
+                              ? context.tr('cart_login_prompt')
+                              : context.tr('continue_btn'),
+                          style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 15),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -281,7 +292,27 @@ class _CartPageState extends State<CartPage> {
     );
   }
 
+  String _localizedOrRaw(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return trimmed;
+    final translated = context.tr(trimmed);
+    return translated == trimmed ? trimmed : translated;
+  }
+
+  String _variantLine(CartItem item) {
+    final parts = <String>[];
+    if (item.selectedColor.trim().isNotEmpty) {
+      parts.add(_localizedOrRaw(item.selectedColor));
+    }
+    if (item.selectedSize.trim().isNotEmpty) {
+      parts.add(item.selectedSize);
+    }
+    return parts.join(' • ');
+  }
+
   Widget _buildCartItemCard(CartItem item) {
+    final variantLine = _variantLine(item);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(14),
@@ -311,7 +342,7 @@ class _CartPageState extends State<CartPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      context.tr(item.product.name),
+                      _localizedOrRaw(item.product.name),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.cairo(
@@ -321,18 +352,16 @@ class _CartPageState extends State<CartPage> {
                         height: 1.3,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    _buildEditableAttributeRow(
-                      label: context.tr('color'),
-                      value: context.tr(item.selectedColor),
-                      onTap: () => _showColorPicker(item),
-                    ),
-                    const SizedBox(height: 4),
-                    _buildEditableAttributeRow(
-                      label: context.tr('size'),
-                      value: item.selectedSize,
-                      onTap: () => _showSizePicker(item),
-                    ),
+                    if (variantLine.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        variantLine,
+                        style: GoogleFonts.cairo(
+                          fontSize: 13,
+                          color: Colors.white54,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     Text(
                       '${item.product.price}${context.tr('currency_suffix')}',
@@ -364,6 +393,9 @@ class _CartPageState extends State<CartPage> {
   }
 
   Widget _buildQuantityCounter(CartItem item) {
+    final maxStock = item.availableStock;
+    final canIncrease = maxStock == null || maxStock <= 0 || item.quantity < maxStock;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.05),
@@ -387,223 +419,30 @@ class _CartPageState extends State<CartPage> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.add, color: const Color(0xFF3B82F6), size: 16),
-            onPressed: () => _cartManager.updateQuantity(item, 1),
+            icon: Icon(
+              Icons.add,
+              color: canIncrease ? const Color(0xFF3B82F6) : Colors.white24,
+              size: 16,
+            ),
+            onPressed: canIncrease
+                ? () async {
+                    await _cartManager.updateQuantity(item, 1);
+                    if (!mounted) return;
+                    if (_cartManager.error == 'max_quantity_reached') {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(context.tr('max_quantity_reached'), style: GoogleFonts.cairo()),
+                        ),
+                      );
+                    }
+                  }
+                : null,
             padding: const EdgeInsets.all(4),
             constraints: const BoxConstraints(),
           ),
         ],
       ),
     );
-  }
-
-  Widget _buildEditableAttributeRow({
-    required String label,
-    required String value,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Text(
-              '$label: ',
-              style: const TextStyle(color: Colors.white38, fontSize: 13),
-            ),
-            Expanded(
-              child: Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.cairo(
-                  color: const Color(0xFF3B82F6),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            const Icon(Icons.edit_outlined, size: 14, color: Color(0xFF3B82F6)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showColorPicker(CartItem item) async {
-    final colors = ProductColorVariants.colorsFor(item.product.name);
-    var selected = colors.contains(item.selectedColor)
-        ? item.selectedColor
-        : ProductColorVariants.defaultColorFor(item.product.name);
-
-    final picked = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: const Color(0xFF1E1B4B),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                context.tr('edit_color_title'),
-                style: GoogleFonts.cairo(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: StoreCoverImage(
-                  imageUrl: item.product.imageUrl,
-                  height: 120,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: colors.map((color) {
-                  final isSelected = selected == color;
-                  return GestureDetector(
-                    onTap: () => setSheetState(() => selected = color),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? const Color(0xFFA855F7).withValues(alpha: 0.25)
-                            : Colors.white.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isSelected ? const Color(0xFF3B82F6) : Colors.white10,
-                          width: isSelected ? 2 : 1,
-                        ),
-                      ),
-                      child: Text(
-                        context.tr(color),
-                        style: GoogleFonts.cairo(
-                          color: isSelected ? Colors.white : Colors.white70,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(ctx, selected),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFA855F7),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: Text(
-                    context.tr('save_changes'),
-                    style: GoogleFonts.cairo(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    if (picked != null && picked != item.selectedColor && mounted) {
-      _cartManager.updateAttributes(item, color: picked);
-      setState(() {});
-    }
-  }
-
-  Future<void> _showSizePicker(CartItem item) async {
-    var selected = _availableSizes.contains(item.selectedSize) ? item.selectedSize : 'M';
-
-    final picked = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: const Color(0xFF1E1B4B),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                context.tr('edit_size_title'),
-                style: GoogleFonts.cairo(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: _availableSizes.map((size) {
-                  final isSelected = selected == size;
-                  return GestureDetector(
-                    onTap: () => setSheetState(() => selected = size),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFFA855F7) : Colors.white.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isSelected ? const Color(0xFF3B82F6) : Colors.white10,
-                        ),
-                      ),
-                      child: Text(
-                        size,
-                        style: GoogleFonts.cairo(
-                          color: Colors.white,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(ctx, selected),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFA855F7),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: Text(
-                    context.tr('save_changes'),
-                    style: GoogleFonts.cairo(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    if (picked != null && picked != item.selectedSize && mounted) {
-      _cartManager.updateAttributes(item, size: picked);
-      setState(() {});
-    }
   }
 
   Widget _buildEmptyState() {

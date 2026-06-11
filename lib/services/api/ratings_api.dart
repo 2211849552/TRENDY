@@ -1,0 +1,192 @@
+import 'package:http/http.dart' as http;
+
+import '../../config/api_config.dart';
+import '../../models/customer_review.dart';
+import 'api_client.dart';
+
+class ApiRating {
+  const ApiRating({
+    required this.id,
+    required this.stars,
+    required this.comment,
+    required this.authorName,
+    this.imageUrl,
+    this.imageUrls = const [],
+    this.createdAt,
+  });
+
+  final int id;
+  final int stars;
+  final String comment;
+  final String authorName;
+  final String? imageUrl;
+  final List<String> imageUrls;
+  final DateTime? createdAt;
+
+  CustomerReview toCustomerReview() {
+    final images = imageUrls.isNotEmpty
+        ? imageUrls
+        : (imageUrl != null && imageUrl!.isNotEmpty ? [imageUrl!] : const <String>[]);
+    return CustomerReview(
+      authorName: authorName,
+      rating: stars.toDouble(),
+      comment: comment,
+      imageAssetPath: images.isNotEmpty ? images.first : null,
+      imageUrls: images,
+      date: createdAt ?? DateTime.now(),
+    );
+  }
+
+  factory ApiRating.fromJson(Map<String, dynamic> json) {
+    final user = json['user'];
+    var author = '';
+    if (user is Map) author = '${user['name'] ?? ''}'.trim();
+
+    final rawImages = json['images'];
+    final urls = <String>[];
+    if (rawImages is List) {
+      for (final item in rawImages) {
+        final url = ApiConfig.resolveMediaUrl('$item');
+        if (url.isNotEmpty) urls.add(url);
+      }
+    }
+
+    var imageUrl = ApiConfig.resolveMediaUrl('${json['image'] ?? ''}');
+    if (imageUrl.isEmpty && urls.isNotEmpty) imageUrl = urls.first;
+
+    return ApiRating(
+      id: _asInt(json['id']) ?? 0,
+      stars: _asInt(json['stars']) ?? 0,
+      comment: '${json['comment'] ?? ''}'.trim(),
+      authorName: author.isNotEmpty ? author : '—',
+      imageUrl: imageUrl.isEmpty ? null : imageUrl,
+      imageUrls: urls,
+      createdAt: DateTime.tryParse('${json['created_at'] ?? ''}'),
+    );
+  }
+
+  static int? _asInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse('$value');
+  }
+}
+
+class RatingsPageResult {
+  const RatingsPageResult({
+    required this.ratings,
+    required this.averageRating,
+    required this.totalRatings,
+    required this.currentPage,
+    required this.lastPage,
+  });
+
+  final List<ApiRating> ratings;
+  final double averageRating;
+  final int totalRatings;
+  final int currentPage;
+  final int lastPage;
+
+  bool get hasMore => currentPage < lastPage;
+}
+
+/// GET /api/products/{id}/ratings
+class RatingsApi {
+  RatingsApi({ApiClient? client}) : _client = client ?? ApiClient();
+
+  final ApiClient _client;
+
+  Future<RatingsPageResult> fetchProductRatings(
+    int productId, {
+    int page = 1,
+    int perPage = 20,
+  }) {
+    return _fetch('/products/$productId/ratings', page: page, perPage: perPage);
+  }
+
+  /// POST /api/stores/{storeId}/ratings — نجوم فقط (بدون صور).
+  Future<void> submitStoreRating(
+    int storeId, {
+    required int stars,
+    String? comment,
+  }) async {
+    await _client.postFromRoot(
+      '/stores/$storeId/ratings',
+      body: {
+        'stars': stars,
+        if (comment != null && comment.trim().isNotEmpty) 'comment': comment.trim(),
+      },
+    );
+  }
+
+  /// POST /api/products/{productId}/ratings — نجوم + تعليق + صورة واحدة اختيارية.
+  Future<void> submitProductRating(
+    int productId, {
+    required int stars,
+    String? comment,
+    http.MultipartFile? imageFile,
+  }) async {
+    final trimmedComment = comment?.trim();
+    if (imageFile != null) {
+      await _client.postMultipartFromRoot(
+        '/products/$productId/ratings',
+        fields: {
+          'stars': '$stars',
+          if (trimmedComment != null && trimmedComment.isNotEmpty) 'comment': trimmedComment,
+        },
+        files: [imageFile],
+      );
+      return;
+    }
+
+    await _client.postFromRoot(
+      '/products/$productId/ratings',
+      body: {
+        'stars': stars,
+        if (trimmedComment != null && trimmedComment.isNotEmpty) 'comment': trimmedComment,
+      },
+    );
+  }
+
+  Future<RatingsPageResult> _fetch(
+    String path, {
+    required int page,
+    required int perPage,
+  }) async {
+    final json = await _client.getFromRoot(
+      path,
+      withAuth: false,
+      query: {'page': '$page', 'per_page': '$perPage'},
+    );
+
+    final ratingsBlock = json['ratings'];
+    final rows = ratingsBlock is Map ? ratingsBlock['data'] : null;
+    final meta = ratingsBlock is Map ? ratingsBlock['meta'] : null;
+
+    final list = <ApiRating>[];
+    if (rows is List) {
+      for (final row in rows) {
+        if (row is Map<String, dynamic>) list.add(ApiRating.fromJson(row));
+      }
+    }
+
+    return RatingsPageResult(
+      ratings: list,
+      averageRating: _asDouble(json['average_rating']) ?? 0,
+      totalRatings: _asInt(json['total_ratings']) ?? list.length,
+      currentPage: meta is Map ? (_asInt(meta['current_page']) ?? page) : page,
+      lastPage: meta is Map ? (_asInt(meta['last_page']) ?? 1) : 1,
+    );
+  }
+
+  static int? _asInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse('$value');
+  }
+
+  static double? _asDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse('$value');
+  }
+}

@@ -22,8 +22,7 @@ import 'data/store_delivery.dart';
 import 'data/campaign_visuals.dart';
 import 'models/auth_session.dart';
 import 'models/marketing_campaign.dart';
-import 'models/marketing_campaigns_manager.dart';
-import 'models/product_search_item.dart';
+import 'models/product.dart';
 import 'services/api/api_exception.dart';
 import 'services/api/campaigns_api.dart';
 import 'services/api/products_api.dart';
@@ -64,15 +63,14 @@ class _HomeScreenState extends State<HomeScreen> {
   double? _userLat;
   double? _userLng;
 
-  final MarketingCampaignsManager _campaignsManager = MarketingCampaignsManager();
   final NotificationManager _notificationManager = NotificationManager();
   final StoresApi _storesApi = StoresApi();
   final CampaignsApi _campaignsApi = CampaignsApi();
   final ProductsApi _productsApi = ProductsApi();
 
-  List<Map<String, dynamic>> _stores = StoreCatalog.stores;
+  List<Map<String, dynamic>> _stores = [];
   List<MarketingCampaign> _apiCampaigns = [];
-  List<ProductSearchItem> _productResults = [];
+  List<Product> _productResults = [];
   bool _isLoadingStores = true;
   bool _isLoadingCampaigns = true;
   bool _isSearchingProducts = false;
@@ -86,6 +84,9 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadHomeData();
     if (!widget.isGuest && AuthSession.instance.isAuthenticated) {
       NotificationManager().syncFromApi();
+      _cartManager.syncFromApi();
+      _favoritesManager.syncFromApi();
+      _ordersManager.syncFromApi();
     }
   }
 
@@ -127,21 +128,24 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       final maps = items.map((s) => s.toLegacyMap()).toList();
       if (!mounted) return;
-      setState(() {
-        _stores = maps.isNotEmpty ? maps : StoreCatalog.stores;
-      });
+      setState(() => _stores = maps);
       if (maps.isNotEmpty) StoreCatalog.setApiStores(maps);
+
+      // تحميل صور بديلة للمتاجر بدون logo (مثل Store manager Store)
+      final enriched = await _storesApi.enrichMissingLogos(items);
+      if (!mounted) return;
+      final enrichedMaps = enriched.map((s) => s.toLegacyMap()).toList();
+      setState(() => _stores = enrichedMaps);
+      if (enrichedMaps.isNotEmpty) StoreCatalog.setApiStores(enrichedMaps);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
         _loadError = e.message;
-        _stores = StoreCatalog.stores;
+        _stores = [];
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() {
-        _stores = StoreCatalog.stores;
-      });
+      setState(() => _stores = []);
     } finally {
       if (mounted) setState(() => _isLoadingStores = false);
     }
@@ -513,9 +517,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    final campaigns = _apiCampaigns.isNotEmpty
-        ? _apiCampaigns.take(3).toList()
-        : _campaignsManager.homeFeatured;
+    final campaigns = _apiCampaigns.take(3).toList();
     if (campaigns.isEmpty) return const SizedBox.shrink();
 
     return LayoutBuilder(
@@ -758,11 +760,11 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             child: Row(
               children: [
-                if (product.thumbnail.isNotEmpty)
+                if (product.imageUrl.isNotEmpty)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: Image.network(
-                      product.thumbnail,
+                      product.imageUrl,
                       width: 44,
                       height: 44,
                       fit: BoxFit.cover,
@@ -868,7 +870,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildStoreCardImage(String imageUrl, TrendyTheme trendy) {
+  Widget _buildStoreCardImage(String imageUrl, TrendyTheme trendy, {String? storeName}) {
     final isApiLogo = StoreCoverImage.isRemoteUrl(imageUrl);
     if (isApiLogo) {
       return Container(
@@ -885,11 +887,37 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
+    if (imageUrl.trim().isEmpty && storeName != null && storeName.trim().isNotEmpty) {
+      return _buildStoreInitialAvatar(storeName, trendy);
+    }
+
     return StoreCoverImage(
       imageUrl: imageUrl,
       width: double.infinity,
       height: double.infinity,
       fit: BoxFit.cover,
+    );
+  }
+
+  Widget _buildStoreInitialAvatar(String name, TrendyTheme trendy) {
+    final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?';
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: trendy.pageBackground,
+      alignment: Alignment.center,
+      child: CircleAvatar(
+        radius: 44,
+        backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
+        child: Text(
+          initial,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 32,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
     );
   }
 
@@ -919,7 +947,7 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                  child: _buildStoreCardImage(imageUrl, trendy),
+                  child: _buildStoreCardImage(imageUrl, trendy, storeName: name),
                 ),
                 // Discount Badge (matching current mockup)
                 if (discount != null)
@@ -1080,7 +1108,7 @@ class _HomeCampaignCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final badge = campaign.badgeKey != null ? context.tr(campaign.badgeKey!) : null;
-    final imageUrl = campaign.imageUrl ?? visual.imageUrl;
+    final imageUrl = campaign.imageUrl;
     final storeColor = Theme.of(context).colorScheme.primary;
     // المتاجر المشتركة من API (الاسم الفعلي) أو مفاتيح الترجمة للحملات المحلية
     final stores = campaign.stores.isNotEmpty

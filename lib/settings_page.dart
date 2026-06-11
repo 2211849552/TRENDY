@@ -11,6 +11,7 @@ import 'theme/app_theme_mode.dart';
 import 'theme/app_colors.dart';
 import 'theme/trendy_theme_extension.dart';
 import 'l10n/app_strings.dart';
+import 'forgot_password_screen.dart';
 import 'login_screen.dart';
 import 'widgets/app_back_button.dart';
 import 'widgets/gradient_button.dart';
@@ -19,6 +20,7 @@ import 'models/auth_session.dart';
 import 'models/customer_profile.dart';
 import 'services/api/api_exception.dart';
 import 'services/api/auth_api.dart';
+import 'services/api/profile_api.dart';
 
 class SettingsPage extends StatefulWidget {
   final VoidCallback onBrowseStores;
@@ -35,16 +37,15 @@ class _SettingsPageState extends State<SettingsPage> {
   final NotificationManager _notifManager = NotificationManager();
   final CustomerProfileStore _profileStore = CustomerProfileStore();
   final AuthApi _authApi = AuthApi();
+  final ProfileApi _profileApi = ProfileApi();
   bool _isLoggingOut = false;
-  bool _isChangingPassword = false;
+  bool _isSavingProfile = false;
+  bool _isLoadingProfile = false;
 
   late final TextEditingController _fullName;
   late final TextEditingController _email;
   late final TextEditingController _phoneField;
   late final TextEditingController _address;
-  late final TextEditingController _currentPassword;
-  late final TextEditingController _newPassword;
-  late final TextEditingController _confirmPassword;
 
   final WalletManager _wallet = WalletManager();
 
@@ -55,15 +56,32 @@ class _SettingsPageState extends State<SettingsPage> {
     _email = TextEditingController();
     _phoneField = TextEditingController();
     _address = TextEditingController();
-    _currentPassword = TextEditingController();
-    _newPassword = TextEditingController();
-    _confirmPassword = TextEditingController();
 
-    final p = _profileStore.current;
-    if (p != null) {
-      _fullName.text = p.name;
-      _email.text = p.email;
-      _phoneField.text = p.phone;
+    _applyProfileToFields(_profileStore.current);
+    _loadProfileFromApi();
+  }
+
+  void _applyProfileToFields(CustomerProfile? p) {
+    if (p == null) return;
+    _fullName.text = p.name;
+    _email.text = p.email;
+    _phoneField.text = p.phone;
+    _address.text = p.address ?? '';
+  }
+
+  Future<void> _loadProfileFromApi() async {
+    if (!AuthSession.instance.isAuthenticated) return;
+    setState(() => _isLoadingProfile = true);
+    try {
+      final profile = await _profileApi.fetchProfile();
+      if (!mounted) return;
+      final user = profile.toAuthUser(id: AuthSession.instance.user?.id);
+      await AuthSession.instance.updateUser(user);
+      _applyProfileToFields(_profileStore.current);
+    } catch (_) {
+      // نُبقي البيانات المحلية إن فشل التحميل.
+    } finally {
+      if (mounted) setState(() => _isLoadingProfile = false);
     }
   }
 
@@ -73,99 +91,71 @@ class _SettingsPageState extends State<SettingsPage> {
     _email.dispose();
     _phoneField.dispose();
     _address.dispose();
-    _currentPassword.dispose();
-    _newPassword.dispose();
-    _confirmPassword.dispose();
     super.dispose();
   }
 
-  void _saveProfile() {
-    _profileStore.setProfile(
-      name: _fullName.text,
-      email: _email.text,
-      phone: _phoneField.text,
-    );
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(context.tr('saved_ok'), style: GoogleFonts.cairo()),
-        backgroundColor: const Color(0xFFA855F7),
-      ),
-    );
-  }
-
-  Future<void> _changePassword() async {
-    if (_isChangingPassword) return;
-
-    final cur = _currentPassword.text;
-    final newP = _newPassword.text;
-    final conf = _confirmPassword.text;
-    if (cur.isEmpty || newP.isEmpty || conf.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.tr('pwd_fill_all'), style: GoogleFonts.cairo()),
-          backgroundColor: Colors.redAccent.shade700,
-        ),
-      );
-      return;
-    }
-    if (newP != conf) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.tr('pwd_mismatch'), style: GoogleFonts.cairo()),
-          backgroundColor: Colors.redAccent.shade700,
-        ),
-      );
-      return;
-    }
-    if (newP.length < 8) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.tr('pwd_short'), style: GoogleFonts.cairo()),
-          backgroundColor: Colors.redAccent.shade700,
-        ),
-      );
-      return;
-    }
+  Future<void> _saveProfile() async {
+    if (_isSavingProfile) return;
     if (!AuthSession.instance.isAuthenticated) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(context.tr('login_required_complaint'), style: GoogleFonts.cairo()),
-          backgroundColor: Colors.redAccent.shade700,
+          content: Text(context.tr('wallet_login_required'), style: GoogleFonts.cairo()),
         ),
       );
       return;
     }
 
-    setState(() => _isChangingPassword = true);
-    try {
-      final message = await _authApi.changePassword(
-        currentPassword: cur,
-        newPassword: newP,
-      );
-      if (!mounted) return;
-      _currentPassword.clear();
-      _newPassword.clear();
-      _confirmPassword.clear();
+    final name = _fullName.text.trim();
+    final email = _email.text.trim();
+    final phone = _phoneField.text.trim();
+    if (name.isEmpty || email.isEmpty || phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            message.isNotEmpty ? message : context.tr('pwd_changed_ok'),
-            style: GoogleFonts.cairo(),
-          ),
+          content: Text(context.tr('profile_fields_required'), style: GoogleFonts.cairo()),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSavingProfile = true);
+    try {
+      final updated = await _profileApi.updateProfile(
+        name: name,
+        email: email,
+        phone: phone,
+        defaultAddress: _address.text.trim(),
+      );
+      final user = updated.toAuthUser(id: AuthSession.instance.user?.id);
+      await AuthSession.instance.updateUser(user);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.tr('saved_ok'), style: GoogleFonts.cairo()),
           backgroundColor: const Color(0xFFA855F7),
         ),
       );
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message, style: GoogleFonts.cairo())),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.message, style: GoogleFonts.cairo()),
-          backgroundColor: Colors.redAccent.shade700,
+          content: Text(context.tr('profile_save_failed'), style: GoogleFonts.cairo()),
         ),
       );
     } finally {
-      if (mounted) setState(() => _isChangingPassword = false);
+      if (mounted) setState(() => _isSavingProfile = false);
     }
+  }
+
+  void _changePassword() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+    );
   }
 
   @override
@@ -335,56 +325,36 @@ class _SettingsPageState extends State<SettingsPage> {
                   Align(
                     alignment: AlignmentDirectional.centerStart,
                     child: GradientButton(
-                      onPressed: _saveProfile,
-                      label: context.tr('save_changes'),
+                      onPressed: (_isSavingProfile || _isLoadingProfile) ? null : _saveProfile,
+                      label: _isSavingProfile
+                          ? context.tr('auth_loading')
+                          : context.tr('save_changes'),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 24),
 
-              // Change Password Section
+              // Change Password Section — api.md: استعادة عبر forgot/verify/reset
               _buildSectionCard(
                 title: context.tr('change_password_title'),
-                subtitle: context.tr('change_password_sub'),
+                subtitle: context.tr('change_password_sub_api'),
                 icon: Icons.lock_outline,
                 children: [
-                  _buildInputField(
-                    context.tr('current_password'),
-                    hint: context.tr('hint_password'),
-                    controller: _currentPassword,
-                    obscureText: true,
+                  Text(
+                    context.tr('change_password_via_reset'),
+                    style: GoogleFonts.cairo(
+                      color: context.trendy.subtitleColor,
+                      fontSize: 14,
+                      height: 1.5,
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildInputField(
-                          context.tr('new_password'),
-                          hint: context.tr('hint_password'),
-                          controller: _newPassword,
-                          obscureText: true,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildInputField(
-                          context.tr('confirm_password'),
-                          hint: context.tr('hint_password'),
-                          controller: _confirmPassword,
-                          obscureText: true,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                   Align(
                     alignment: AlignmentDirectional.centerStart,
                     child: GradientButton(
-                      onPressed: _isChangingPassword ? null : _changePassword,
-                      label: _isChangingPassword
-                          ? context.tr('loading')
-                          : context.tr('change_password_btn'),
+                      onPressed: _changePassword,
+                      label: context.tr('forgot_pwd_title'),
                     ),
                   ),
                 ],

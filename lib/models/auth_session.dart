@@ -11,12 +11,14 @@ class AuthUser {
     required this.name,
     required this.email,
     required this.phone,
+    this.defaultAddress,
   });
 
   final int? id;
   final String name;
   final String email;
   final String phone;
+  final String? defaultAddress;
 
   factory AuthUser.fromJson(Map<String, dynamic> json) {
     final name = _firstNonEmpty([
@@ -31,11 +33,33 @@ class AuthUser {
       json['phone_number']?.toString(),
     ]);
 
+    final address = _firstNonEmpty([
+      json['default_address']?.toString(),
+      if (json['customer_profile'] is Map)
+        (json['customer_profile'] as Map)['default_address']?.toString(),
+    ]);
+
     return AuthUser(
-      id: _asInt(json['id']),
+      id: _asInt(json['id'] ?? json['user_id']),
       name: name ?? '',
       email: '${json['email'] ?? ''}'.trim(),
       phone: phone ?? '',
+      defaultAddress: address,
+    );
+  }
+
+  AuthUser copyWith({
+    String? name,
+    String? email,
+    String? phone,
+    String? defaultAddress,
+  }) {
+    return AuthUser(
+      id: id,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      defaultAddress: defaultAddress ?? this.defaultAddress,
     );
   }
 
@@ -51,6 +75,7 @@ class AuthUser {
         'name': name,
         'email': email,
         'phone': phone,
+        'default_address': defaultAddress,
       };
 
   static int? _asInt(Object? value) {
@@ -147,6 +172,7 @@ class AuthSession extends ChangeNotifier {
       name: current.name,
       email: current.email,
       phone: current.phone,
+      address: current.defaultAddress,
     );
   }
 

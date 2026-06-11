@@ -81,7 +81,7 @@ class CampaignPromoDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final visual = CampaignVisuals.forCampaign(campaign.id);
-    final imageUrl = campaign.imageUrl ?? visual.imageUrl;
+    final imageUrl = campaign.imageUrl;
     final screenW = MediaQuery.sizeOf(context).width;
 
     return Directionality(
@@ -129,41 +129,39 @@ class CampaignPromoDialog extends StatelessWidget {
                     style: GoogleFonts.cairo(color: Colors.white54, fontSize: 12),
                   ),
                   const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: campaign.stores.isNotEmpty
-                        ? campaign.stores.map((store) {
-                            return ActionChip(
-                              avatar: store.logoUrl.isEmpty
-                                  ? null
-                                  : StoreCoverImage(
-                                      imageUrl: store.logoUrl,
-                                      asLogo: true,
-                                      width: 22,
-                                      height: 22,
-                                    ),
-                              label: Text(store.name, style: GoogleFonts.cairo(fontSize: 12)),
-                              backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
-                              side: BorderSide(
-                                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
-                              ),
-                              labelStyle: const TextStyle(color: Colors.white),
-                              onPressed: () => _visitStore(context, store.navigationKey),
-                            );
-                          }).toList()
-                        : campaign.storeKeys.map((key) {
-                            return ActionChip(
-                              label: Text(context.tr(key), style: GoogleFonts.cairo(fontSize: 12)),
-                              backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
-                              side: BorderSide(
-                                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
-                              ),
-                              labelStyle: const TextStyle(color: Colors.white),
-                              onPressed: () => _visitStore(context, key),
-                            );
-                          }).toList(),
-                  ),
+                  if (campaign.stores.isEmpty)
+                    Text(
+                      context.tr('campaign_no_participating_stores'),
+                      style: GoogleFonts.cairo(color: Colors.white38, fontSize: 12),
+                    )
+                  else
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: campaign.stores.map((store) {
+                        final discount = store.discountPercentage?.trim();
+                        final label = discount != null && discount.isNotEmpty
+                            ? '${store.name} (-$discount%)'
+                            : store.name;
+                        return ActionChip(
+                          avatar: store.logoUrl.isEmpty
+                              ? null
+                              : StoreCoverImage(
+                                  imageUrl: store.logoUrl,
+                                  asLogo: true,
+                                  width: 22,
+                                  height: 22,
+                                ),
+                          label: Text(label, style: GoogleFonts.cairo(fontSize: 12)),
+                          backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
+                          side: BorderSide(
+                            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
+                          ),
+                          labelStyle: const TextStyle(color: Colors.white),
+                          onPressed: () => _visitStore(context, store.navigationKey),
+                        );
+                      }).toList(),
+                    ),
                   const SizedBox(height: 12),
                   Text(
                     campaign.description ?? context.tr('marketing_no_content'),

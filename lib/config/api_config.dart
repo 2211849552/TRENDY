@@ -46,26 +46,40 @@ class ApiConfig {
     return root;
   }
 
-  /// يبني رابط صورة عبر `GET /api/media/{path}` —
-  /// هذا المسار يمر عبر CORS middleware فتعمل الصور على الويب أيضاً،
-  /// بعكس `/storage/` المباشر الذي يحجبه المتصفح (بدون Access-Control-Allow-Origin).
+  /// يبني رابط صورة من حقول API (`logo`, `banner_image`) عبر `/storage/...`.
+  /// يُعيد بناء الرابط باستخدام [serverOrigin] حتى لو أعاد Laravel `localhost`.
   static String resolveMediaUrl(String? path) {
     if (path == null || path.isEmpty) return '';
-    if (path.startsWith('assets/')) return path;
+    final trimmed = path.trim();
+    if (trimmed.startsWith('assets/')) return trimmed;
 
-    var relative = path;
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      // الخادم قد يبني الرابط بـ APP_URL خاطئ (مثل localhost) —
-      // نستخرج المسار بعد /storage/ ونعيد بناءه.
-      final storageIndex = path.indexOf('/storage/');
-      if (storageIndex == -1) return path;
-      relative = path.substring(storageIndex + '/storage/'.length);
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return _rebuildStorageUrl(trimmed);
     }
 
-    relative = relative.startsWith('/') ? relative.substring(1) : relative;
+    var relative = trimmed.startsWith('/') ? trimmed.substring(1) : trimmed;
     if (relative.startsWith('storage/')) {
       relative = relative.substring('storage/'.length);
     }
-    return '$apiRoot/media/$relative';
+    if (relative.isEmpty) return '';
+    return '$serverOrigin/storage/$relative';
+  }
+
+  static String _rebuildStorageUrl(String url) {
+    final storageIndex = url.indexOf('/storage/');
+    if (storageIndex != -1) {
+      final relative = url.substring(storageIndex + '/storage/'.length);
+      return '$serverOrigin/storage/$relative';
+    }
+
+    final uri = Uri.tryParse(url);
+    if (uri != null) {
+      final path = uri.path;
+      final pathStorage = path.indexOf('/storage/');
+      if (pathStorage != -1) {
+        return '$serverOrigin${path.substring(pathStorage)}';
+      }
+    }
+    return url;
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/api/api_exception.dart';
 import '../services/api/complaints_api.dart';
@@ -10,6 +11,8 @@ class ComplaintsManager extends ChangeNotifier {
   factory ComplaintsManager() => _instance;
   ComplaintsManager._internal();
 
+  static const _idsKey = 'complaint_api_ids';
+
   final ComplaintsApi _api = ComplaintsApi();
   final List<Complaint> _complaints = [];
   bool _loading = false;
@@ -20,7 +23,7 @@ class ComplaintsManager extends ChangeNotifier {
   List<Complaint> get complaints => List.unmodifiable(_complaints);
   int get count => _complaints.length;
 
-  /// GET /api/complaints/mine
+  /// يجلب تفاصيل الشكاوى المحفوظة عبر GET /api/complaints/{id}
   Future<void> syncFromApi() async {
     if (!AuthSession.instance.isAuthenticated) {
       _complaints.clear();
@@ -34,10 +37,18 @@ class ComplaintsManager extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final list = await _api.fetchMyComplaints();
+      final ids = await _loadStoredIds();
+      final loaded = <Complaint>[];
+      for (final id in ids) {
+        try {
+          loaded.add(await _api.fetchComplaint(id));
+        } catch (_) {
+          // قد تكون الشكوى محذوفة — نتجاهلها.
+        }
+      }
       _complaints
         ..clear()
-        ..addAll(list);
+        ..addAll(loaded);
     } on ApiException catch (e) {
       _error = e.message;
     } catch (e) {
@@ -70,6 +81,9 @@ class ComplaintsManager extends ChangeNotifier {
         description: details,
       );
       _complaints.insert(0, created);
+      if (created.apiId != null) {
+        await _rememberId(created.apiId!);
+      }
       notifyListeners();
       return true;
     } on ApiException catch (e) {
@@ -116,6 +130,22 @@ class ComplaintsManager extends ChangeNotifier {
       _error = e.toString();
       notifyListeners();
       return false;
+    }
+  }
+
+  Future<List<int>> _loadStoredIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getStringList(_idsKey) ?? const [];
+    return raw.map(int.tryParse).whereType<int>().where((id) => id > 0).toList();
+  }
+
+  Future<void> _rememberId(int id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final current = prefs.getStringList(_idsKey) ?? <String>[];
+    final idStr = '$id';
+    if (!current.contains(idStr)) {
+      current.insert(0, idStr);
+      await prefs.setStringList(_idsKey, current);
     }
   }
 }

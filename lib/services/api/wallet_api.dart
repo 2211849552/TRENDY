@@ -77,7 +77,7 @@ class WalletApi {
         .toList();
   }
 
-  /// POST /api/wallet/payment-method — إنشاء payment_method_id من بيانات البطاقة
+  /// POST /api/wallet/payment-method — إنشاء `payment_method_id` من بيانات البطاقة (حسب api.md)
   Future<String> createPaymentMethod({
     required String cardNumber,
     required int expMonth,

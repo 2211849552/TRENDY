@@ -10,24 +10,6 @@ class CampaignVisuals {
 
 
 
-  static const _powderPink = CampaignVisual(
-
-    imageUrl: null,
-
-    accent: Color(0xFFC084FC),
-
-    accentSoft: Color(0x33A855F7),
-
-    gradientStart: Color(0xFF2D2A52),
-
-    gradientEnd: Color(0xFF121026),
-
-    badgeColor: Color(0xFFA855F7),
-
-  );
-
-
-
   static const _default = CampaignVisual(
 
     imageUrl: null,
@@ -46,55 +28,7 @@ class CampaignVisuals {
 
 
 
-  static String? _imageFor(String campaignId) {
-
-    switch (campaignId) {
-
-      case 'cmp_001':
-
-        return 'assets/images/campaigns/cmp_white_friday.png';
-
-      case 'cmp_002':
-
-        return 'assets/images/campaigns/cmp_first_order.png';
-
-      case 'cmp_003':
-
-        return 'assets/images/campaigns/cmp_end_season.png';
-
-      default:
-
-        return null;
-
-    }
-
-  }
-
-
-
-  static CampaignVisual forCampaign(String campaignId) {
-
-    final imageUrl = _imageFor(campaignId);
-
-    if (imageUrl == null) return _default;
-
-    return CampaignVisual(
-
-      imageUrl: imageUrl,
-
-      accent: _powderPink.accent,
-
-      accentSoft: _powderPink.accentSoft,
-
-      gradientStart: _powderPink.gradientStart,
-
-      gradientEnd: _powderPink.gradientEnd,
-
-      badgeColor: _powderPink.badgeColor,
-
-    );
-
-  }
+  static CampaignVisual forCampaign(String campaignId) => _default;
 
 
 

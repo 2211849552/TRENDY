@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'data/product_images.dart';
 import 'models/cart_item.dart';
 import 'models/cart_manager.dart';
 import 'models/order.dart';
 import 'models/orders_manager.dart';
 import 'models/ratings_manager.dart';
+import 'services/api/api_exception.dart';
 import 'l10n/app_strings.dart';
 import 'theme/app_theme_mode.dart';
 import 'theme/trendy_theme_extension.dart';
@@ -30,6 +32,13 @@ class _OrdersPageState extends State<OrdersPage> {
 
   String _statusFilter = 'status_all';
   String _orderSearch = '';
+  String? _actionOrderId;
+
+  @override
+  void initState() {
+    super.initState();
+    _ordersManager.syncFromApi();
+  }
 
   String _formatDate(BuildContext context, DateTime d) {
     if (context.isRtl) {
@@ -84,9 +93,28 @@ class _OrdersPageState extends State<OrdersPage> {
     }
   }
 
-  void _simulateReady(Order order) {
+  Future<void> _simulateReady(Order order) async {
     if (order.status != 'status_pending') return;
-    _ordersManager.updateOrderStatus(order.id, 'status_ready');
+    setState(() => _actionOrderId = order.id);
+    _ordersManager.simulateReadyForPickup(order.id);
+    if (mounted) setState(() => _actionOrderId = null);
+  }
+
+  Future<void> _confirmDelivery(Order order) async {
+    setState(() => _actionOrderId = order.id);
+    try {
+      await _ordersManager.confirmDelivery(order);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message, style: GoogleFonts.cairo()),
+          backgroundColor: Colors.redAccent.shade700,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _actionOrderId = null);
+    }
   }
 
   void _reorder(Order order) {
@@ -94,9 +122,10 @@ class _OrdersPageState extends State<OrdersPage> {
       for (final line in order.items) {
         _cartManager.addToCart(
           line.product,
-          color: line.selectedColor,
-          size: line.selectedSize,
+          color: line.selectedColor.isNotEmpty ? line.selectedColor : 'أسود',
+          size: line.selectedSize.isNotEmpty ? line.selectedSize : 'M',
           quantity: line.quantity,
+          variantId: line.variantId,
         );
       }
       if (!mounted) return;
@@ -281,7 +310,10 @@ class _OrdersPageState extends State<OrdersPage> {
   }
 
   Widget _buildScrollableOrders(List<Order> orders) {
-    return CustomScrollView(
+    return RefreshIndicator(
+      onRefresh: _ordersManager.syncFromApi,
+      color: const Color(0xFF3B82F6),
+      child: CustomScrollView(
       slivers: [
         SliverPersistentHeader(
           pinned: true,
@@ -301,11 +333,38 @@ class _OrdersPageState extends State<OrdersPage> {
         ),
         const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
       ],
+    ),
     );
   }
 
+  String _localizedOrRaw(BuildContext context, String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return trimmed;
+    final translated = context.tr(trimmed);
+    return translated == trimmed ? trimmed : translated;
+  }
+
+  String _lineDetailText(BuildContext context, CartItem line) {
+    final parts = <String>[];
+    if (line.selectedColor.trim().isNotEmpty) {
+      parts.add(_localizedOrRaw(context, line.selectedColor));
+    }
+    if (line.selectedSize.trim().isNotEmpty) {
+      parts.add(line.selectedSize);
+    }
+    parts.add('${context.tr('quantity')}: ${line.quantity}');
+    return parts.join(' • ');
+  }
+
+  String _lineImageUrl(CartItem line) {
+    final remote = line.product.imageUrl.trim();
+    if (remote.isNotEmpty) return remote;
+    return ProductImages.forProductKey(line.product.name);
+  }
+
   Widget _buildOrderLine(CartItem line) {
-    final detail = '${context.tr(line.selectedColor)} • ${line.selectedSize} • ${context.tr('quantity')}: ${line.quantity}';
+    final detail = _lineDetailText(context, line);
+    final imageUrl = _lineImageUrl(line);
     return Padding(
       padding: const EdgeInsets.only(top: 14),
       child: Row(
@@ -314,7 +373,7 @@ class _OrdersPageState extends State<OrdersPage> {
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: StoreCoverImage(
-              imageUrl: line.product.imageUrl,
+              imageUrl: imageUrl,
               width: 72,
               height: 72,
               fit: BoxFit.cover,
@@ -326,7 +385,7 @@ class _OrdersPageState extends State<OrdersPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  context.tr(line.product.name),
+                  _localizedOrRaw(context, line.product.name),
                   style: GoogleFonts.cairo(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -358,7 +417,6 @@ class _OrdersPageState extends State<OrdersPage> {
   Widget _buildOrderCard(Order order) {
     final productKeys = order.items.map((e) => e.product.name).toList();
     final fullyRated = _ratingsManager.isOrderFullyRated(order.id, productKeys);
-    final isDelivered = order.status == 'status_delivered';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -425,28 +483,7 @@ class _OrdersPageState extends State<OrdersPage> {
           for (final item in order.items) _buildOrderLine(item),
           const SizedBox(height: 14),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              if (isDelivered)
-                ElevatedButton.icon(
-                  onPressed: fullyRated ? null : () => _openRating(order),
-                  icon: Icon(
-                    fullyRated ? Icons.check_rounded : Icons.star_rounded,
-                    size: 18,
-                  ),
-                  label: Text(
-                    fullyRated ? context.tr('order_rated_done') : context.tr('rate_order'),
-                    style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: fullyRated ? Colors.white12 : const Color(0xFFE6B422),
-                    foregroundColor: fullyRated ? Colors.white54 : const Color(0xFF121026),
-                    disabledBackgroundColor: Colors.white12,
-                    disabledForegroundColor: Colors.white54,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
               const Spacer(),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -467,50 +504,104 @@ class _OrdersPageState extends State<OrdersPage> {
               ),
             ],
           ),
-          if (!isDelivered) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: order.status == 'status_pending'
-                        ? () => _simulateReady(order)
-                        : order.status == 'status_ready'
-                            ? () => _ordersManager.updateOrderStatus(order.id, 'status_delivered')
-                            : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: order.status == 'status_ready' ? Colors.green : const Color(0xFF3B82F6),
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.white10,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text(
-                      order.status == 'status_pending'
-                          ? context.tr('simulate_ready')
-                          : context.tr('confirm_delivery'),
-                      style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 12),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                IconButton(
-                  onPressed: () => _reorder(order),
-                  icon: const Icon(Icons.refresh_rounded, color: Colors.white54),
-                  tooltip: context.tr('reorder'),
-                ),
-              ],
-            ),
-          ],
+          const SizedBox(height: 12),
+          _buildOrderActionRow(order, fullyRated),
         ],
       ),
     );
   }
 
+  Widget _buildOrderActionRow(Order order, bool fullyRated) {
+    final loading = _actionOrderId == order.id;
+    final isDelivered = order.status == 'status_delivered';
+    final isReady = order.status == 'status_ready';
+    final isPending = order.status == 'status_pending';
+
+    if (isDelivered) {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: fullyRated ? null : () => _openRating(order),
+          icon: Icon(
+            fullyRated ? Icons.check_rounded : Icons.star_rounded,
+            size: 20,
+          ),
+          label: Text(
+            fullyRated ? context.tr('order_rated_done') : context.tr('rate_order'),
+            style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 14),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: fullyRated ? Colors.white12 : const Color(0xFFE6B422),
+            foregroundColor: fullyRated ? Colors.white54 : const Color(0xFF121026),
+            disabledBackgroundColor: Colors.white12,
+            disabledForegroundColor: Colors.white54,
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton(
+            onPressed: loading
+                ? null
+                : isPending
+                    ? () => _simulateReady(order)
+                    : isReady
+                        ? () => _confirmDelivery(order)
+                        : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isReady ? Colors.green : const Color(0xFF3B82F6),
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.white10,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: loading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : Text(
+                    isPending
+                        ? context.tr('ready_for_pickup_btn')
+                        : context.tr('order_delivered_label'),
+                    style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        IconButton(
+          onPressed: () => _reorder(order),
+          icon: const Icon(Icons.refresh_rounded, color: Colors.white54),
+          tooltip: context.tr('reorder'),
+        ),
+      ],
+    );
+  }
+
+  Order _latestOrder(Order order) {
+    for (final candidate in _ordersManager.orders) {
+      if (candidate.id == order.id) return candidate;
+      if (order.apiId != null && candidate.apiId == order.apiId) return candidate;
+    }
+    return order;
+  }
+
   Future<void> _openRating(Order order) async {
-    final done = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (_) => OrderRatingScreen(order: order)),
+    final latest = _latestOrder(order);
+    final done = await Navigator.of(context, rootNavigator: true).push<bool>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => Directionality(
+          textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
+          child: OrderRatingScreen(order: latest),
+        ),
+      ),
     );
     if (done == true && mounted) setState(() {});
   }

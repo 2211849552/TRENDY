@@ -22,6 +22,12 @@ class _MarketingCampaignsScreenState extends State<MarketingCampaignsScreen> {
   String _statusFilter = 'campaign_status_all';
 
   @override
+  void initState() {
+    super.initState();
+    _manager.loadFromApi(limit: 50);
+  }
+
+  @override
   void dispose() {
     _search.dispose();
     super.dispose();
@@ -44,46 +50,69 @@ class _MarketingCampaignsScreenState extends State<MarketingCampaignsScreen> {
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(
-            context.tr('marketing_title'),
-            style: GoogleFonts.cairo(fontWeight: FontWeight.bold),
-          ),
-        ),
-        body: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSearchAndFilters(context),
-              const SizedBox(height: 16),
-              Expanded(
-                child: _filtered.isEmpty
-                    ? Center(
-                        child: Text(
-                          context.tr('marketing_empty'),
-                          style: GoogleFonts.cairo(color: Colors.white54),
-                        ),
-                      )
-                    : ListView.separated(
-                        itemCount: _filtered.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, i) => _CampaignCard(
-                          campaign: _filtered[i],
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => MarketingCampaignDetailsScreen(campaign: _filtered[i]),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
+      child: ListenableBuilder(
+        listenable: _manager,
+        builder: (context, _) {
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(
+                context.tr('marketing_title'),
+                style: GoogleFonts.cairo(fontWeight: FontWeight.bold),
               ),
-            ],
-          ),
+            ),
+            body: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSearchAndFilters(context),
+                  const SizedBox(height: 16),
+                  Expanded(child: _buildBody(context)),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
+    if (_manager.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_manager.loadError != null && _manager.campaigns.isEmpty) {
+      return Center(
+        child: Text(
+          _manager.loadError!,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.cairo(color: Colors.white54),
+        ),
+      );
+    }
+    if (_filtered.isEmpty) {
+      return Center(
+        child: Text(
+          context.tr('marketing_empty'),
+          style: GoogleFonts.cairo(color: Colors.white54),
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: () => _manager.loadFromApi(limit: 50),
+      child: ListView.separated(
+        itemCount: _filtered.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (context, i) => _CampaignCard(
+          campaign: _filtered[i],
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => MarketingCampaignDetailsScreen(campaign: _filtered[i]),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -193,7 +222,7 @@ class _CampaignCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final visual = CampaignVisuals.forCampaign(campaign.id);
-    final imageUrl = campaign.imageUrl ?? visual.imageUrl;
+    final imageUrl = campaign.imageUrl;
 
     return InkWell(
       onTap: onTap,
@@ -242,8 +271,8 @@ class _CampaignCard extends StatelessWidget {
                   Text(
                     campaign.stores.isNotEmpty
                         ? campaign.stores.map((s) => s.name).join(' • ')
-                        : campaign.storeKeys.map((k) => context.tr(k)).join(' • '),
-                    maxLines: 1,
+                        : context.tr('campaign_no_participating_stores'),
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.cairo(color: Colors.white54, fontSize: 12),
                   ),

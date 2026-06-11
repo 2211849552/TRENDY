@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../l10n/app_strings.dart';
+import '../customer_reviews_screen.dart';
 import '../models/product.dart';
-import '../product_reviews_screen.dart';
 
 /// زر التعليقات تحت وصف المنتج — يفتح تقييمات وصور الزبائن.
 class ProductCommentsButton extends StatelessWidget {
@@ -19,9 +19,8 @@ class ProductCommentsButton extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ProductReviewsScreen(
-          productKey: product.name,
-          productImageUrl: product.imageUrl,
+        builder: (_) => CustomerReviewsScreen.product(
+          product: product,
           variantLabel: variantLabel,
         ),
       ),

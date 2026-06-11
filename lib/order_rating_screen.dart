@@ -1,13 +1,16 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'l10n/app_strings.dart';
 import 'models/cart_item.dart';
 import 'models/order.dart';
 import 'models/ratings_manager.dart';
+import 'services/api/api_exception.dart';
+import 'services/api/ratings_api.dart';
+import 'data/product_images.dart';
+import 'services/product_line_enricher.dart';
 import 'widgets/app_back_button.dart';
 import 'widgets/store_cover_image.dart';
 
@@ -23,31 +26,47 @@ class OrderRatingScreen extends StatefulWidget {
 
 class _OrderRatingScreenState extends State<OrderRatingScreen> {
   final RatingsManager _ratings = RatingsManager();
+  final RatingsApi _ratingsApi = RatingsApi();
+  final ProductLineEnricher _enricher = ProductLineEnricher();
   final ImagePicker _picker = ImagePicker();
 
   double _storeStars = 0;
   final Map<String, double> _productStars = {};
   final Map<String, TextEditingController> _commentControllers = {};
-  final Map<String, List<String>> _imagePaths = {};
+  final Map<String, List<XFile>> _imageFiles = {};
+  bool _submitting = false;
+  bool _loading = true;
 
   bool get _storeAlreadyRated => _ratings.hasRatedStoreForOrder(widget.order.id);
+
+  late Order _order;
 
   @override
   void initState() {
     super.initState();
+    _order = widget.order;
+    _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    await _enrichOrderItems();
     if (_storeAlreadyRated) {
       _storeStars = _ratings.storeRatingForOrder(widget.order.id) ?? 0;
     }
-    for (final item in widget.order.items) {
-      final key = item.product.name;
-      if (_ratings.hasRatedProductForOrder(widget.order.id, key)) {
-        final d = _ratings.productRatingDetail(widget.order.id, key);
-        if (d != null) _productStars[key] = d.rating;
-      } else {
-        _commentControllers[key] = TextEditingController();
-        _imagePaths[key] = [];
-      }
+    for (final item in _order.items) {
+      _initProductRatingState(item.product.name);
     }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  void _initProductRatingState(String key) {
+    if (_ratings.hasRatedProductForOrder(widget.order.id, key)) {
+      final d = _ratings.productRatingDetail(widget.order.id, key);
+      if (d != null) _productStars[key] = d.rating;
+      return;
+    }
+    _commentControllers.putIfAbsent(key, TextEditingController.new);
+    _imageFiles.putIfAbsent(key, () => <XFile>[]);
   }
 
   @override
@@ -58,23 +77,40 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
     super.dispose();
   }
 
-  List<CartItem> get _pendingProducts => widget.order.items
+  List<CartItem> get _pendingProducts => _order.items
       .where((e) => !_ratings.hasRatedProductForOrder(widget.order.id, e.product.name))
       .toList();
 
+  Future<void> _enrichOrderItems() async {
+    var storeId = widget.order.storeId;
+    if (storeId == null && widget.order.storeName.trim().isNotEmpty) {
+      storeId = await _enricher.resolveStoreId(widget.order.storeName);
+    }
+    final enriched = <CartItem>[];
+    for (final line in widget.order.items) {
+      enriched.add(
+        await _enricher.enrichLine(
+          line,
+          storeId: storeId,
+          storeName: widget.order.storeName,
+        ),
+      );
+    }
+    if (!mounted) return;
+    setState(() => _order = widget.order.copyWith(items: enriched, storeId: storeId));
+  }
+
   Future<void> _pickImages(String productKey) async {
-    final files = await _picker.pickMultiImage(imageQuality: 85);
-    if (files.isEmpty) return;
-    setState(() {
-      _imagePaths.putIfAbsent(productKey, () => []);
-      _imagePaths[productKey]!.addAll(files.map((f) => f.path));
-    });
+    final file = await _picker.pickImage(imageQuality: 85, source: ImageSource.gallery);
+    if (file == null) return;
+    setState(() => _imageFiles[productKey] = [file]);
   }
 
   bool get _canSubmit {
-    if (_pendingProducts.isEmpty) {
-      return !_storeAlreadyRated && _storeStars >= 1;
-    }
+    if (_submitting) return false;
+    final storeOk = _storeAlreadyRated || _storeStars >= 1;
+    if (!storeOk) return false;
+    if (_pendingProducts.isEmpty) return !_storeAlreadyRated;
     return _pendingProducts.every(
       (item) => (_productStars[item.product.name] ?? 0) >= 1,
     );
@@ -93,39 +129,114 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
     return productRatings.reduce((a, b) => a + b) / productRatings.length;
   }
 
-  void _submit() {
-    if (!_storeAlreadyRated) {
-      final storeRating = _effectiveStoreRating();
-      if (storeRating >= 1) {
-        _ratings.submitStoreRating(
+  String _localizedOrRaw(BuildContext context, String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return trimmed;
+    final translated = context.tr(trimmed);
+    return translated == trimmed ? trimmed : translated;
+  }
+
+  Future<http.MultipartFile?> _multipartImage(String productKey) async {
+    final xfiles = _imageFiles[productKey] ?? const [];
+    if (xfiles.isEmpty) return null;
+    final xfile = xfiles.first;
+    final bytes = await xfile.readAsBytes();
+    final name = xfile.name.isNotEmpty ? xfile.name : 'rating.jpg';
+    return http.MultipartFile.fromBytes('image', bytes, filename: name);
+  }
+
+  Future<void> _submit() async {
+    if (!_canSubmit) return;
+    setState(() => _submitting = true);
+
+    try {
+      if (!_storeAlreadyRated) {
+        final storeRating = _storeStars >= 1 ? _storeStars : _effectiveStoreRating();
+        if (storeRating >= 1) {
+          var storeId = _order.storeId;
+          storeId ??= await _enricher.resolveStoreId(_order.storeName);
+          if (storeId == null) {
+            throw ApiException('تعذر تحديد المتجر للتقييم');
+          }
+          await _ratingsApi.submitStoreRating(storeId, stars: storeRating.round());
+          _ratings.submitStoreRating(
+            orderId: widget.order.id,
+            storeKey: _order.storeName,
+            rating: storeRating,
+          );
+        }
+      }
+
+      for (final item in _pendingProducts) {
+        final key = item.product.name;
+        final stars = _productStars[key] ?? 0;
+        if (stars < 1) continue;
+
+        var productId = item.product.id ??
+            await _enricher.resolveProductId(
+              key,
+              storeId: _order.storeId,
+              storeName: _order.storeName,
+            );
+        if (productId == null) {
+          throw ApiException('تعذر تحديد المنتج: $key');
+        }
+
+        final imageFile = await _multipartImage(key);
+        await _ratingsApi.submitProductRating(
+          productId,
+          stars: stars.round(),
+          comment: _commentControllers[key]?.text,
+          imageFile: imageFile,
+        );
+        _ratings.submitProductRating(
           orderId: widget.order.id,
-          storeKey: widget.order.storeName,
-          rating: storeRating,
+          productKey: key,
+          rating: stars,
+          comment: _commentControllers[key]?.text,
+          imagePaths: const [],
         );
       }
-    }
-    for (final item in _pendingProducts) {
-      final key = item.product.name;
-      final stars = _productStars[key] ?? 0;
-      if (stars < 1) continue;
-      _ratings.submitProductRating(
-        orderId: widget.order.id,
-        productKey: key,
-        rating: stars,
-        comment: _commentControllers[key]?.text,
-        imagePaths: _imagePaths[key] ?? const [],
+
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message, style: GoogleFonts.cairo()),
+          backgroundColor: Colors.redAccent.shade700,
+        ),
       );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString(), style: GoogleFonts.cairo()),
+          backgroundColor: Colors.redAccent.shade700,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
-    Navigator.pop(context, true);
   }
 
   @override
   Widget build(BuildContext context) {
-    final storeLabel = context.tr(widget.order.storeName);
+    final storeLabel = _localizedOrRaw(context, _order.storeName);
     final allDone = _ratings.isOrderFullyRated(
       widget.order.id,
-      widget.order.items.map((e) => e.product.name).toList(),
+      _order.items.map((e) => e.product.name).toList(),
     );
+
+    if (_loading) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF121026),
+        body: const Center(
+          child: CircularProgressIndicator(color: Color(0xFF3B82F6)),
+        ),
+      );
+    }
 
     if (allDone) {
       return Scaffold(
@@ -157,11 +268,10 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
-              child: Row(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+              child: Stack(
+                alignment: Alignment.center,
                 children: [
-                  const AppBackIconButton(),
-                  const SizedBox(width: 8),
                   Text(
                     context.tr('order_rating_title'),
                     style: GoogleFonts.cairo(
@@ -169,6 +279,10 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
+                  ),
+                  const Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: AppBackIconButton(),
                   ),
                 ],
               ),
@@ -182,7 +296,7 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
                     _card(
                       child: Text(
                         AppStrings.format(context, 'order_rating_order_line', params: {
-                          'id': widget.order.id,
+                          'id': _order.id,
                           'store': storeLabel,
                         }),
                         style: GoogleFonts.cairo(
@@ -222,7 +336,7 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
                     const SizedBox(height: 16),
                     _sectionTitle(Icons.inventory_2_outlined, context.tr('product_rating_section')),
                     const SizedBox(height: 12),
-                    for (final item in widget.order.items) ...[
+                    for (final item in _order.items) ...[
                       _productRatingBlock(item),
                       const SizedBox(height: 12),
                     ],
@@ -238,20 +352,26 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
                 child: ElevatedButton(
                   onPressed: _canSubmit ? _submit : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFA855F7),
+                    backgroundColor: const Color(0xFF2A2845),
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.white12,
+                    disabledBackgroundColor: const Color(0xFF2A2845),
                     disabledForegroundColor: Colors.white38,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
-                  child: Text(
-                    context.tr('submit_rating'),
-                    style: GoogleFonts.cairo(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Colors.white,
-                    ),
-                  ),
+                  child: _submitting
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(
+                          context.tr('submit_rating'),
+                          style: GoogleFonts.cairo(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
               ),
             ),
@@ -261,21 +381,32 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
     );
   }
 
+  String _productImageUrl(CartItem item) {
+    final remote = item.product.imageUrl.trim();
+    if (remote.isNotEmpty) return remote;
+    return ProductImages.forProductKey(item.product.name);
+  }
+
   Widget _productRatingBlock(CartItem item) {
     final key = item.product.name;
     final already = _ratings.hasRatedProductForOrder(widget.order.id, key);
     final stars = _productStars[key] ?? 0;
+    final colorSize = [
+      if (item.selectedColor.trim().isNotEmpty) _localizedOrRaw(context, item.selectedColor),
+      if (item.selectedSize.trim().isNotEmpty) item.selectedSize,
+    ].join(' • ');
 
     return _card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: StoreCoverImage(
-                  imageUrl: item.product.imageUrl,
+                  imageUrl: _productImageUrl(item),
                   width: 64,
                   height: 64,
                   fit: BoxFit.cover,
@@ -287,18 +418,20 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      context.tr(key),
+                      _localizedOrRaw(context, key),
                       style: GoogleFonts.cairo(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${context.tr(item.selectedColor)} · ${item.selectedSize}',
-                      style: GoogleFonts.cairo(color: Colors.white54, fontSize: 13),
-                    ),
+                    if (colorSize.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        colorSize,
+                        style: GoogleFonts.cairo(color: Colors.white54, fontSize: 13),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -333,33 +466,31 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
             const SizedBox(height: 6),
             Text(
               AppStrings.format(context, 'rating_photos_count', params: {
-                'count': (_imagePaths[key]?.length ?? 0).toString(),
+                'count': (_imageFiles[key]?.length ?? 0).toString(),
               }),
               style: GoogleFonts.cairo(color: Colors.white54, fontSize: 13),
             ),
-            if (_imagePaths[key]?.isNotEmpty == true) ...[
+            if (_imageFiles[key]?.isNotEmpty == true) ...[
               const SizedBox(height: 10),
               SizedBox(
                 height: 72,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  itemCount: _imagePaths[key]!.length,
+                  itemCount: _imageFiles[key]!.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 8),
                   itemBuilder: (_, i) {
-                    final path = _imagePaths[key]![i];
+                    final xfile = _imageFiles[key]![i];
                     return Stack(
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: kIsWeb
-                              ? const SizedBox(width: 72, height: 72)
-                              : Image.file(File(path), width: 72, height: 72, fit: BoxFit.cover),
+                          child: _RatingPhotoThumb(xfile: xfile),
                         ),
                         Positioned(
                           top: 2,
                           left: 2,
                           child: GestureDetector(
-                            onTap: () => setState(() => _imagePaths[key]!.removeAt(i)),
+                            onTap: () => setState(() => _imageFiles[key]!.removeAt(i)),
                             child: Container(
                               padding: const EdgeInsets.all(2),
                               decoration: const BoxDecoration(
@@ -451,6 +582,25 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
           ),
         );
       }),
+    );
+  }
+}
+
+class _RatingPhotoThumb extends StatelessWidget {
+  const _RatingPhotoThumb({required this.xfile});
+
+  final XFile xfile;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Uint8List>(
+      future: xfile.readAsBytes(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox(width: 72, height: 72, child: ColoredBox(color: Colors.white12));
+        }
+        return Image.memory(snapshot.data!, width: 72, height: 72, fit: BoxFit.cover);
+      },
     );
   }
 }

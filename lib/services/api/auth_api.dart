@@ -144,22 +144,6 @@ class AuthApi {
     return fallback;
   }
 
-  /// POST /api/v1/auth/password/change — تغيير كلمة المرور للمستخدم المسجّل.
-  Future<String> changePassword({
-    required String currentPassword,
-    required String newPassword,
-  }) async {
-    final json = await _client.post(
-      '${ApiConfig.authPrefix}/password/change',
-      body: {
-        'current_password': currentPassword,
-        'password': newPassword,
-        'password_confirmation': newPassword,
-      },
-    );
-    return '${json['message'] ?? ''}'.trim();
-  }
-
   /// POST /api/v1/auth/logout
   Future<void> logout() async {
     if (AuthSession.instance.isAuthenticated) {

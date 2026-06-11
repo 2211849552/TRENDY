@@ -1,19 +1,14 @@
 import '../../models/complaint.dart';
 import 'api_client.dart';
 
-/// واجهة API الشكاوى للزبون.
+/// واجهة API الشكاوى — حسب api.md:
 /// POST /api/complaints — إضافة شكوى
-/// GET /api/complaints/mine — قائمة شكاوى الزبون
+/// GET /api/complaints/{id} — تفاصيل شكوى
+/// POST /api/complaints/{id}/replies — إضافة رد
 class ComplaintsApi {
   ComplaintsApi({ApiClient? client}) : _client = client ?? ApiClient();
 
   final ApiClient _client;
-
-  /// GET /api/complaints/mine
-  Future<List<Complaint>> fetchMyComplaints() async {
-    final json = await _client.getFromRoot('/complaints/mine');
-    return _parseList(json);
-  }
 
   /// GET /api/complaints/{id}
   Future<Complaint> fetchComplaint(int id) async {
@@ -57,16 +52,6 @@ class ComplaintsApi {
       body: {'message': message},
     );
   }
-
-  List<Complaint> _parseList(Map<String, dynamic> json) {
-    final rows = json['data'];
-    if (rows is! List) return const [];
-    return rows
-        .whereType<Map<String, dynamic>>()
-        .map(Complaint.fromApiJson)
-        .where((c) => c.apiId != null)
-        .toList();
-  }
 }
 
 /// طلب مختصر لقائمة اختيار الطلب في نموذج الشكوى.
@@ -88,13 +73,12 @@ class ComplaintOrderOption {
   }
 }
 
-/// جلب طلبات الزبون لربطها بالشكوى.
+/// جلب طلبات الزبون لربطها بالشكوى — GET /api/orders
 class OrdersApi {
   OrdersApi({ApiClient? client}) : _client = client ?? ApiClient();
 
   final ApiClient _client;
 
-  /// GET /api/orders
   Future<List<ComplaintOrderOption>> fetchOrdersForComplaints() async {
     final json = await _client.getFromRoot('/orders', query: {'per_page': '50'});
     final rows = json['data'];

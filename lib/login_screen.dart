@@ -6,6 +6,7 @@ import 'l10n/app_strings.dart';
 import 'services/api/api_exception.dart';
 import 'services/api/auth_api.dart';
 import 'theme/app_colors.dart';
+import 'verify_email_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -80,6 +81,18 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } on ApiException catch (e) {
       if (!mounted) return;
+      if (_needsEmailVerification(e)) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VerifyEmailScreen(
+              email: _email.text.trim(),
+              resendOnOpen: true,
+            ),
+          ),
+        );
+        return;
+      }
       _showError(e.message.isNotEmpty ? e.message : context.tr('auth_login_failed'));
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -108,6 +121,14 @@ class _LoginScreenState extends State<LoginScreen> {
         backgroundColor: Colors.redAccent.shade700,
       ),
     );
+  }
+
+  bool _needsEmailVerification(ApiException e) {
+    final parts = [
+      e.message,
+      ...?e.errors?.values.expand((messages) => messages),
+    ];
+    return parts.any((text) => text.contains('تفعيل البريد'));
   }
 
   @override

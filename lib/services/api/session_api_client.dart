@@ -24,6 +24,7 @@ class SessionApiClient {
 
   final SessionHttpBundle _bundle;
   final http.Client _client;
+  final Map<String, String> _cookies = {};
 
   Future<Map<String, dynamic>> post(
     String path, {
@@ -34,10 +35,11 @@ class SessionApiClient {
       final response = await _client
           .post(
             uri,
-            headers: _headers(),
+            headers: {..._headers(), ..._cookieHeaders()},
             body: body == null ? null : jsonEncode(body),
           )
           .timeout(ApiConfig.timeout);
+      _storeCookies(response);
       return _decodeResponse(response, uri);
     } on ApiException {
       rethrow;
@@ -55,6 +57,27 @@ class SessionApiClient {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
       };
+
+  Map<String, String> _cookieHeaders() {
+    if (_cookies.isEmpty) return const {};
+    final value = _cookies.entries.map((e) => '${e.key}=${e.value}').join('; ');
+    return {'Cookie': value};
+  }
+
+  void _storeCookies(http.Response response) {
+    final raw = response.headers['set-cookie'];
+    if (raw == null || raw.isEmpty) return;
+    for (final part in raw.split(RegExp(r',(?=[^;]+?=)'))) {
+      final first = part.split(';').first.trim();
+      final eq = first.indexOf('=');
+      if (eq <= 0) continue;
+      final name = first.substring(0, eq).trim();
+      final value = first.substring(eq + 1).trim();
+      if (name.isNotEmpty && value.isNotEmpty) {
+        _cookies[name] = value;
+      }
+    }
+  }
 
   Map<String, dynamic> _decodeResponse(http.Response response, Uri uri) {
     Map<String, dynamic>? json;

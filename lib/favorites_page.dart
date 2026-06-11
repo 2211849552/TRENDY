@@ -3,13 +3,17 @@ import 'package:google_fonts/google_fonts.dart';
 import 'models/favorites_manager.dart';
 import 'models/cart_manager.dart';
 import 'models/product.dart';
+import 'models/auth_session.dart';
 import 'l10n/app_strings.dart';
+import 'services/api/api_exception.dart';
+import 'services/api/products_api.dart';
 import 'theme/app_theme_mode.dart';
 import 'theme/trendy_theme_extension.dart';
 import 'widgets/app_back_button.dart';
 import 'widgets/store_cover_image.dart';
 import 'widgets/gradient_button.dart';
 import 'widgets/trendy_brand.dart';
+import 'widgets/variant_picker_sheet.dart';
 
 class FavoritesPage extends StatefulWidget {
   final VoidCallback onBrowseStores;
@@ -23,7 +27,15 @@ class FavoritesPage extends StatefulWidget {
 class _FavoritesPageState extends State<FavoritesPage> {
   final FavoritesManager _favoritesManager = FavoritesManager();
   final CartManager _cartManager = CartManager();
+  final ProductsApi _productsApi = ProductsApi();
   String _search = '';
+  bool _moving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _favoritesManager.syncFromApi();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -178,35 +190,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: () {
-                      try {
-                        _cartManager.addToCart(p);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            behavior: SnackBarBehavior.floating,
-                            backgroundColor: const Color(0xFFA855F7),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            content: Text(
-                              context.tr('added_to_cart'),
-                              style: GoogleFonts.cairo(color: Colors.white),
-                              textAlign: context.isRtl ? TextAlign.right : TextAlign.left,
-                            ),
-                          ),
-                        );
-                      } on CartSingleStoreException {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            behavior: SnackBarBehavior.floating,
-                            backgroundColor: Colors.redAccent,
-                            content: Text(
-                              context.tr('cart_single_store_error'),
-                              style: GoogleFonts.cairo(color: Colors.white),
-                              textAlign: TextAlign.right,
-                            ),
-                          ),
-                        );
-                      }
-                    },
+                    onPressed: _moving ? null : () => _moveFavoriteToCart(context, p),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFA855F7),
                       foregroundColor: Colors.white,
@@ -240,6 +224,66 @@ class _FavoritesPageState extends State<FavoritesPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _moveFavoriteToCart(BuildContext context, Product product) async {
+    if (!AuthSession.instance.isAuthenticated) {
+      _showSnack(context, context.tr('cart_login_prompt'), isError: true);
+      return;
+    }
+    if (product.id == null || product.id! <= 0) {
+      try {
+        await _cartManager.addToCart(product);
+        _showSnack(context, context.tr('added_to_cart'));
+      } on CartSingleStoreException {
+        _showSnack(context, context.tr('cart_single_store_error'), isError: true);
+      }
+      return;
+    }
+
+    setState(() => _moving = true);
+    try {
+      final variants = await _productsApi.fetchProductVariants(product.id!);
+      if (!mounted) return;
+      if (variants.isEmpty) {
+        _showSnack(context, context.tr('out_of_stock'), isError: true);
+        return;
+      }
+
+      final picked = await VariantPickerSheet.show(
+        context,
+        productName: product.name,
+        variants: variants,
+      );
+      if (picked == null || !mounted) return;
+
+      await _favoritesManager.moveToCart(product: product, variantId: picked.id);
+      if (!mounted) return;
+      _showSnack(context, context.tr('added_to_cart'));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      _showSnack(context, e.message, isError: true);
+    } on CartSingleStoreException {
+      if (!mounted) return;
+      _showSnack(context, context.tr('cart_single_store_error'), isError: true);
+    } finally {
+      if (mounted) setState(() => _moving = false);
+    }
+  }
+
+  void _showSnack(BuildContext context, String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: isError ? Colors.redAccent : const Color(0xFFA855F7),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        content: Text(
+          message,
+          style: GoogleFonts.cairo(color: Colors.white),
+          textAlign: context.isRtl ? TextAlign.right : TextAlign.left,
+        ),
       ),
     );
   }

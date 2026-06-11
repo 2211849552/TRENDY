@@ -1,22 +1,33 @@
 import '../../config/api_config.dart';
 import 'session_api_client.dart';
 
+/// نتيجة التحقق من OTP — يتضمن التوكن المؤقت المُعاد من الخادم.
+class PasswordResetVerifyResult {
+  const PasswordResetVerifyResult({
+    required this.message,
+    required this.token,
+    required this.email,
+  });
+
+  final String message;
+  final String token;
+  final String email;
+}
+
+/// إعادة تعيين كلمة المرور — حسب api.md:
+/// POST /api/v1/auth/password/forgot
+/// POST /api/v1/auth/password/verify-otp  → يُعيد token + email
+/// POST /api/v1/auth/password/reset       → password + token + email (للموبايل)
 class PasswordResetApi {
   PasswordResetApi({SessionApiClient? client}) : _client = client ?? SessionApiClient();
 
   final SessionApiClient _client;
-  String? _resetToken;
-  String? _resetEmail;
 
   void dispose() => _client.close();
 
   static String _normalizeEmail(String email) => email.trim().toLowerCase();
 
-  /// POST /api/v1/auth/password/forgot
   Future<String> sendOtp({required String email}) async {
-    _resetToken = null;
-    _resetEmail = null;
-
     final json = await _client.post(
       '${ApiConfig.authPrefix}/password/forgot',
       body: {'email': _normalizeEmail(email)},
@@ -24,54 +35,44 @@ class PasswordResetApi {
     return '${json['message'] ?? ''}'.trim();
   }
 
-  /// POST /api/v1/auth/password/verify-otp
-  Future<String> verifyOtp({
+  Future<PasswordResetVerifyResult> verifyOtp({
     required String email,
     required String otp,
   }) async {
+    final normalizedEmail = _normalizeEmail(email);
     final json = await _client.post(
       '${ApiConfig.authPrefix}/password/verify-otp',
       body: {
-        'email': _normalizeEmail(email),
+        'email': normalizedEmail,
         'otp': otp.trim(),
       },
     );
-
     final token = '${json['token'] ?? ''}'.trim();
-    if (token.isNotEmpty) {
-      _resetToken = token;
-      _resetEmail = '${json['email'] ?? email}'.trim();
+    if (token.isEmpty) {
+      throw FormatException('${json['message'] ?? 'لم يُرجع الخادم توكن إعادة التعيين'}');
     }
-
-    return '${json['message'] ?? ''}'.trim();
+    return PasswordResetVerifyResult(
+      message: '${json['message'] ?? ''}'.trim(),
+      token: token,
+      email: '${json['email'] ?? normalizedEmail}'.trim(),
+    );
   }
 
-  /// POST /api/v1/auth/password/reset
   Future<String> resetPassword({
     required String password,
     required String passwordConfirmation,
+    required String resetToken,
+    required String email,
   }) async {
-    final body = <String, dynamic>{
-      'password': password,
-      'password_confirmation': passwordConfirmation,
-    };
-
-    if (_resetToken != null &&
-        _resetToken!.isNotEmpty &&
-        _resetEmail != null &&
-        _resetEmail!.isNotEmpty) {
-      body['token'] = _resetToken;
-      body['email'] = _resetEmail;
-    }
-
     final json = await _client.post(
       '${ApiConfig.authPrefix}/password/reset',
-      body: body,
+      body: {
+        'password': password,
+        'password_confirmation': passwordConfirmation,
+        'token': resetToken,
+        'email': _normalizeEmail(email),
+      },
     );
-
-    _resetToken = null;
-    _resetEmail = null;
-
     return '${json['message'] ?? ''}'.trim();
   }
 }

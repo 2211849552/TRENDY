@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 
-import 'auth_session.dart';
 import '../services/api/addresses_api.dart';
 import '../services/api/api_exception.dart';
+import 'auth_session.dart';
 import 'saved_address.dart';
 
 export 'saved_address.dart';
@@ -33,7 +33,7 @@ class AddressesManager extends ChangeNotifier {
     return _addresses.isEmpty ? null : _addresses.first;
   }
 
-  /// جلب العناوين من GET /api/addresses للزبون المسجّل.
+  /// GET /api/addresses
   Future<void> syncFromApi() async {
     if (!AuthSession.instance.isAuthenticated) {
       _addresses.clear();
@@ -72,25 +72,23 @@ class AddressesManager extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// POST /api/addresses للعناوين الجديدة فقط (api.md لا يوفّر تعديل/حذف).
   Future<bool> upsert(SavedAddress address, {bool selectAfter = false}) async {
     _error = null;
 
     if (AuthSession.instance.isAuthenticated) {
+      if (address.apiId != null) {
+        _error = 'addr_edit_not_supported';
+        notifyListeners();
+        return false;
+      }
+
       try {
         final fallbackPhone = AuthSession.instance.user?.phone;
-        final payload = address.apiId == null
-            ? await _api.createAddress(
-                _withFallbackPhone(address, fallbackPhone),
-              )
-            : await _api.updateAddress(
-                _withFallbackPhone(address, fallbackPhone),
-              );
-        final index = _addresses.indexWhere((a) => a.id == address.id);
-        if (index >= 0) {
-          _addresses[index] = payload;
-        } else {
-          _addresses.add(payload);
-        }
+        final payload = await _api.createAddress(
+          _withFallbackPhone(address, fallbackPhone),
+        );
+        _addresses.add(payload);
         if (selectAfter) _selectedId = payload.id;
         notifyListeners();
         return true;
@@ -123,17 +121,9 @@ class AddressesManager extends ChangeNotifier {
 
     final address = _addresses[index];
     if (AuthSession.instance.isAuthenticated && address.apiId != null) {
-      try {
-        await _api.deleteAddress(address.apiId!);
-      } on ApiException catch (e) {
-        _error = e.message;
-        notifyListeners();
-        return false;
-      } catch (e) {
-        _error = e.toString();
-        notifyListeners();
-        return false;
-      }
+      _error = 'addr_delete_not_supported';
+      notifyListeners();
+      return false;
     }
 
     _addresses.removeAt(index);

@@ -26,6 +26,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   _ResetStep _step = _ResetStep.email;
   bool _isLoading = false;
+  String _resetToken = '';
 
   @override
   void dispose() {
@@ -110,13 +111,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final message = await _passwordResetApi.verifyOtp(
+      final result = await _passwordResetApi.verifyOtp(
         email: _emailController.text.trim().toLowerCase(),
         otp: otp,
       );
       if (!mounted) return;
+      _resetToken = result.token;
       _showMessage(
-        message.isNotEmpty ? message : context.tr('reset_otp_verified'),
+        result.message.isNotEmpty ? result.message : context.tr('reset_otp_verified'),
         isError: false,
       );
       setState(() => _step = _ResetStep.newPassword);
@@ -148,11 +150,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       return;
     }
 
+    if (_resetToken.isEmpty) {
+      _showMessage(context.tr('reset_session_expired'), isError: true);
+      setState(() => _step = _ResetStep.otp);
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       final message = await _passwordResetApi.resetPassword(
         password: password,
         passwordConfirmation: confirm,
+        resetToken: _resetToken,
+        email: _emailController.text.trim().toLowerCase(),
       );
       if (!mounted) return;
       _showMessage(
@@ -168,6 +178,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       if (sessionExpired) {
         setState(() {
           _step = _ResetStep.email;
+          _resetToken = '';
           _otpController.clear();
           _passwordController.clear();
           _confirmPasswordController.clear();

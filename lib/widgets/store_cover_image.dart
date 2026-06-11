@@ -1,13 +1,15 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
-/// يعرض صورة المتجر من ملف محلي ([assets/...]) أو من رابط شبكة (شعار من API).
-class StoreCoverImage extends StatelessWidget {
+/// يعرض صورة من API (`logo` / `banner_image`) أو من assets محلية.
+class StoreCoverImage extends StatefulWidget {
   final String imageUrl;
   final BoxFit fit;
   final double? width;
   final double? height;
 
-  /// عرض الشعار دائرياً (من حقل `logo` في API) بدل صورة الغلاف.
+  /// عرض الشعار دائرياً (حقل `logo` من GET /api/stores).
   final bool asLogo;
 
   const StoreCoverImage({
@@ -35,49 +37,135 @@ class StoreCoverImage extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    if (!hasDisplayableUrl(imageUrl)) {
-      return _placeholder();
+  State<StoreCoverImage> createState() => _StoreCoverImageState();
+}
+
+class _StoreCoverImageState extends State<StoreCoverImage> {
+  Uint8List? _bytes;
+  bool _loadingRemote = false;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRemote();
+  }
+
+  @override
+  void didUpdateWidget(covariant StoreCoverImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.imageUrl != widget.imageUrl) {
+      _bytes = null;
+      _failed = false;
+      _loadingRemote = false;
+      _loadRemote();
+    }
+  }
+
+  Future<void> _loadRemote() async {
+    final url = widget.imageUrl.trim();
+    if (!StoreCoverImage.isRemoteUrl(url)) return;
+
+    // على الويب: img HTML يتجاوز قيود CORS لمسار /storage/
+    if (kIsWeb) {
+      if (mounted) setState(() => _loadingRemote = true);
+      return;
     }
 
-    final effectiveFit = asLogo ? BoxFit.contain : fit;
-    final Widget image;
-    if (isAssetPath(imageUrl)) {
+    if (mounted) setState(() => _loadingRemote = true);
+    try {
+      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 20));
+      if (!mounted) return;
+      if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+        setState(() {
+          _bytes = response.bodyBytes;
+          _loadingRemote = false;
+          _failed = false;
+        });
+      } else {
+        setState(() {
+          _loadingRemote = false;
+          _failed = true;
+        });
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loadingRemote = false;
+        _failed = true;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!StoreCoverImage.hasDisplayableUrl(widget.imageUrl)) {
+      return _wrap(_placeholder());
+    }
+
+    final effectiveFit = widget.asLogo ? BoxFit.contain : widget.fit;
+    Widget image;
+
+    if (StoreCoverImage.isAssetPath(widget.imageUrl)) {
       image = Image.asset(
-        imageUrl,
+        widget.imageUrl,
         fit: effectiveFit,
-        width: width,
-        height: height,
+        width: widget.width,
+        height: widget.height,
         gaplessPlayback: true,
         filterQuality: FilterQuality.medium,
-        errorBuilder: _errorBuilder,
+        errorBuilder: (_, __, ___) => _placeholder(),
+      );
+    } else if (_bytes != null) {
+      image = Image.memory(
+        _bytes!,
+        fit: effectiveFit,
+        width: widget.width,
+        height: widget.height,
+        gaplessPlayback: true,
+        filterQuality: FilterQuality.medium,
+        errorBuilder: (_, __, ___) => _placeholder(),
+      );
+    } else if (!kIsWeb && _loadingRemote) {
+      image = _loadingIndicator(null);
+    } else if (kIsWeb) {
+      image = Image.network(
+        widget.imageUrl,
+        fit: effectiveFit,
+        width: widget.width,
+        height: widget.height,
+        gaplessPlayback: true,
+        webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return _loadingIndicator(progress);
+        },
+        errorBuilder: (_, __, ___) => _placeholder(),
+      );
+    } else if (!_failed) {
+      image = Image.network(
+        widget.imageUrl,
+        fit: effectiveFit,
+        width: widget.width,
+        height: widget.height,
+        gaplessPlayback: true,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return _loadingIndicator(progress);
+        },
+        errorBuilder: (_, __, ___) => _placeholder(),
       );
     } else {
-      image = Image.network(
-        imageUrl,
-        fit: effectiveFit,
-        width: width,
-        height: height,
-        gaplessPlayback: true,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Center(
-            child: CircularProgressIndicator(
-              value: loadingProgress.expectedTotalBytes != null
-                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                  : null,
-              color: const Color(0xFF3B82F6),
-            ),
-          );
-        },
-        errorBuilder: _errorBuilder,
-      );
+      image = _placeholder();
     }
 
-    Widget result = image;
-    if (asLogo) {
-      final logoSize = width ?? height ?? 88.0;
-      result = ClipOval(
+    return _wrap(image);
+  }
+
+  Widget _wrap(Widget image) {
+    if (widget.asLogo) {
+      final logoSize = widget.width ?? widget.height ?? 88.0;
+      return ClipOval(
         child: Container(
           width: logoSize,
           height: logoSize,
@@ -86,20 +174,30 @@ class StoreCoverImage extends StatelessWidget {
           child: image,
         ),
       );
-    } else if (width != null || height != null) {
-      return image;
-    } else {
-      return SizedBox.expand(child: image);
     }
+    if (widget.width != null || widget.height != null) {
+      return image;
+    }
+    return SizedBox.expand(child: image);
+  }
 
-    return result;
+  Widget _loadingIndicator(ImageChunkEvent? progress) {
+    return Center(
+      child: CircularProgressIndicator(
+        value: progress?.expectedTotalBytes != null
+            ? progress!.cumulativeBytesLoaded / progress.expectedTotalBytes!
+            : null,
+        color: const Color(0xFF3B82F6),
+        strokeWidth: 2,
+      ),
+    );
   }
 
   Widget _placeholder() {
-    final iconSize = asLogo ? 36.0 : 40.0;
+    final iconSize = widget.asLogo ? 36.0 : 40.0;
     final child = Icon(Icons.storefront_outlined, color: const Color(0xFF94A3B8), size: iconSize);
-    if (asLogo) {
-      final logoSize = width ?? height ?? 88.0;
+    if (widget.asLogo) {
+      final logoSize = widget.width ?? widget.height ?? 88.0;
       return ClipOval(
         child: Container(
           width: logoSize,
@@ -110,14 +208,10 @@ class StoreCoverImage extends StatelessWidget {
       );
     }
     return Container(
-      color: const Color(0xFFF3F4F6),
-      width: width,
-      height: height,
+      color: const Color(0xFF1E1B2E),
+      width: widget.width,
+      height: widget.height,
       child: Center(child: child),
     );
-  }
-
-  Widget _errorBuilder(BuildContext context, Object error, StackTrace? stackTrace) {
-    return _placeholder();
   }
 }
