@@ -977,3 +977,49 @@ Route::prefix('v1/auth')->group(function () {
         Route::post('/token', [\App\Http\Controllers\Api\V1\FcmTokenController::class, 'register']);
         Route::post('/token/unregister', [\App\Http\Controllers\Api\V1\FcmTokenController::class, 'unregister']);
     });
+
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ربط تطبيق الزبون (Flutter) — الطلبات [16] والتقييمات [5.8]
+// ─────────────────────────────────────────────────────────────────────────────
+// نقطة الدخول: lib/services/api/customer_api.dart
+// المسارات:     lib/services/api/customer_api_paths.dart
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─── API الطلبات [16] ─────────────────────────────────────────────────────
+
+// GET /api/orders
+//   Headers: Authorization: Bearer {token}
+//   Query (اختياري): ?search=&status=&page=1&per_page=50
+//   Flutter: CustomerApi().orders.fetchOrders()
+//           OrdersManager.syncFromApi()
+
+// GET /api/orders/{id}
+//   Flutter: CustomerApi().orders.fetchOrderDetails(id)
+
+// POST /api/orders/{id}/confirm-delivery
+//   [16.7] تأكيد استلام الطلبية
+//   Body (اختياري): { "otp": "123456" }
+//   Flutter: CustomerApi().orders.confirmDelivery(id)
+//           OrdersManager.confirmDelivery() — عند 403 يُحدَّث محلياً للزبون
+
+// ─── API التقييمات [5.8] ───────────────────────────────────────────────────
+
+// POST /api/stores/{storeId}/ratings
+//   تقييم المتجر — نجوم فقط في الواجهة
+//   Body: { "stars": 1..5 }
+//   Flutter: CustomerApi().ratings.submitStoreRating()
+//           CustomerApi().orderRatings.rateStore() ← OrderRatingScreen
+
+// POST /api/products/{productId}/ratings
+//   تقييم المنتج — نجوم + تعليق + صورة (اختياري)
+//   JSON:  { "stars": 5, "comment": "..." }
+//   multipart: stars + comment + image (صورة واحدة، حد 5MB)
+//   Flutter: CustomerApi().ratings.submitProductRating()
+//           CustomerApi().orderRatings.rateProduct() ← OrderRatingScreen
+
+// GET /api/products/{productId}/ratings
+//   Flutter: CustomerApi().ratings.fetchProductRatings()
+
+// GET /api/stores/{storeId}/ratings
+//   Flutter: CustomerApi().ratings.fetchStoreRatings()

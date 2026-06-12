@@ -5,6 +5,7 @@ import 'models/cart_item.dart';
 import 'models/cart_manager.dart';
 import 'models/order.dart';
 import 'models/orders_manager.dart';
+import 'models/auth_session.dart';
 import 'models/ratings_manager.dart';
 import 'services/api/api_exception.dart';
 import 'l10n/app_strings.dart';
@@ -593,6 +594,15 @@ class _OrdersPageState extends State<OrdersPage> {
   }
 
   Future<void> _openRating(Order order) async {
+    if (!AuthSession.instance.isAuthenticated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.tr('login_required_for_rating'), style: GoogleFonts.cairo()),
+          backgroundColor: Colors.redAccent.shade700,
+        ),
+      );
+      return;
+    }
     final latest = _latestOrder(order);
     final done = await Navigator.of(context, rootNavigator: true).push<bool>(
       MaterialPageRoute(

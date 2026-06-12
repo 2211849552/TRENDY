@@ -1,5 +1,6 @@
 import '../../models/complaint.dart';
 import 'api_client.dart';
+import 'orders_api.dart';
 
 /// واجهة API الشكاوى — حسب api.md:
 /// POST /api/complaints — إضافة شكوى
@@ -74,17 +75,14 @@ class ComplaintOrderOption {
 }
 
 /// جلب طلبات الزبون لربطها بالشكوى — GET /api/orders
-class OrdersApi {
-  OrdersApi({ApiClient? client}) : _client = client ?? ApiClient();
+class ComplaintOrdersApi {
+  ComplaintOrdersApi({OrdersApi? orders}) : _orders = orders ?? OrdersApi();
 
-  final ApiClient _client;
+  final OrdersApi _orders;
 
   Future<List<ComplaintOrderOption>> fetchOrdersForComplaints() async {
-    final json = await _client.getFromRoot('/orders', query: {'per_page': '50'});
-    final rows = json['data'];
-    if (rows is! List) return const [];
+    final rows = await _orders.fetchOrdersRaw(perPage: 50);
     return rows
-        .whereType<Map<String, dynamic>>()
         .map(ComplaintOrderOption.fromApiJson)
         .where((o) => o.id > 0)
         .toList();

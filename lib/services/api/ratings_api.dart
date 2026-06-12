@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import '../../config/api_config.dart';
 import '../../models/customer_review.dart';
 import 'api_client.dart';
+import 'customer_api_paths.dart';
 
 class ApiRating {
   const ApiRating({
@@ -90,7 +91,7 @@ class RatingsPageResult {
   bool get hasMore => currentPage < lastPage;
 }
 
-/// GET /api/products/{id}/ratings
+/// تقييمات المتجر والمنتج — انظر `lib/api.md` قسم [5.8] و [CustomerApiPaths].
 class RatingsApi {
   RatingsApi({ApiClient? client}) : _client = client ?? ApiClient();
 
@@ -101,17 +102,25 @@ class RatingsApi {
     int page = 1,
     int perPage = 20,
   }) {
-    return _fetch('/products/$productId/ratings', page: page, perPage: perPage);
+    return _fetch(CustomerApiPaths.productRatings(productId), page: page, perPage: perPage);
   }
 
-  /// POST /api/stores/{storeId}/ratings — نجوم فقط (بدون صور).
+  Future<RatingsPageResult> fetchStoreRatings(
+    int storeId, {
+    int page = 1,
+    int perPage = 20,
+  }) {
+    return _fetch(CustomerApiPaths.storeRatings(storeId), page: page, perPage: perPage);
+  }
+
+  /// POST /api/stores/{storeId}/ratings — نجوم (± تعليق اختياري، بدون صور).
   Future<void> submitStoreRating(
     int storeId, {
     required int stars,
     String? comment,
   }) async {
     await _client.postFromRoot(
-      '/stores/$storeId/ratings',
+      CustomerApiPaths.storeRatings(storeId),
       body: {
         'stars': stars,
         if (comment != null && comment.trim().isNotEmpty) 'comment': comment.trim(),
@@ -129,7 +138,7 @@ class RatingsApi {
     final trimmedComment = comment?.trim();
     if (imageFile != null) {
       await _client.postMultipartFromRoot(
-        '/products/$productId/ratings',
+        CustomerApiPaths.productRatings(productId),
         fields: {
           'stars': '$stars',
           if (trimmedComment != null && trimmedComment.isNotEmpty) 'comment': trimmedComment,
@@ -140,7 +149,7 @@ class RatingsApi {
     }
 
     await _client.postFromRoot(
-      '/products/$productId/ratings',
+      CustomerApiPaths.productRatings(productId),
       body: {
         'stars': stars,
         if (trimmedComment != null && trimmedComment.isNotEmpty) 'comment': trimmedComment,

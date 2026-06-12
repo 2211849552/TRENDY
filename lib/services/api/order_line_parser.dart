@@ -2,7 +2,8 @@ import '../../models/cart_item.dart';
 import '../../models/product.dart';
 import 'media_url.dart';
 
-/// تحويل عنصر سلة/طلب من JSON API إلى [CartItem] مع صور عبر [MediaUrl].
+/// تحويل عنصر سلة/طلب من JSON إلى [CartItem] مع صور عبر [MediaUrl].
+/// حقول الصورة المدعومة (api.md): `product_id`, `thumbnail`, `images[]`, `product.thumbnail`.
 class OrderLineParser {
   OrderLineParser._();
 

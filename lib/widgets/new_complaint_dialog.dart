@@ -40,7 +40,7 @@ class NewComplaintDialog extends StatefulWidget {
 
 class _NewComplaintDialogState extends State<NewComplaintDialog> {
   final ComplaintsManager _complaintsManager = ComplaintsManager();
-  final OrdersApi _ordersApi = OrdersApi();
+  final ComplaintOrdersApi _ordersApi = ComplaintOrdersApi();
 
   String _selectedTypeKey = 'complaint_type_general';
   String _selectedOrderKey = NewComplaintDialog._noneOrder;

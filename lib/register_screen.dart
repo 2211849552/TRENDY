@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'home_screen.dart';
 import 'l10n/app_strings.dart';
+import 'models/saved_emails_store.dart';
 import 'services/api/api_exception.dart';
 import 'services/api/auth_api.dart';
 import 'theme/app_colors.dart';
 import 'verify_email_screen.dart';
+import 'widgets/saved_email_field.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -49,11 +51,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
+    final email = _emailController.text.trim().toLowerCase();
     setState(() => _isLoading = true);
     try {
+      await SavedEmailsStore.instance.remember(email);
       final result = await _authApi.register(
         name: _nameController.text.trim(),
-        email: _emailController.text.trim(),
+        email: email,
         phone: _phoneController.text.trim(),
         password: _passwordController.text,
       );
@@ -171,11 +175,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       
                       _buildTextFieldTitle(context.tr('email')),
                       const SizedBox(height: 8),
-                      _buildTextField(
-                        hint: context.tr('hint_email'), 
-                        icon: Icons.email_outlined,
-                        keyboardType: TextInputType.emailAddress,
+                      SavedEmailField(
                         controller: _emailController,
+                        autofillLast: false,
+                        decoration: _emailDecoration(context.tr('hint_email')),
                       ),
                       const SizedBox(height: 20),
                       
@@ -277,6 +280,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
             );
           },
         ),
+      ),
+    );
+  }
+
+  InputDecoration _emailDecoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+      prefixIcon: const Icon(Icons.email_outlined, color: Colors.white54),
+      filled: true,
+      fillColor: Colors.black.withValues(alpha: 0.05),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.white30),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.white30),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.white),
       ),
     );
   }

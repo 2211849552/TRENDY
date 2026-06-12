@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'l10n/app_strings.dart';
+import 'models/saved_emails_store.dart';
 import 'services/api/api_exception.dart';
 import 'services/api/password_reset_api.dart';
 import 'theme/app_colors.dart';
+import 'widgets/saved_email_field.dart';
 
 enum _ResetStep { email, otp, newPassword }
 
@@ -55,6 +57,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     setState(() => _isLoading = true);
     try {
+      await SavedEmailsStore.instance.remember(email);
       final message = await _passwordResetApi.sendOtp(email: email);
       if (!mounted) return;
       _otpController.clear();
@@ -237,10 +240,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
             ),
             const SizedBox(height: 8),
-            TextField(
+            SavedEmailField(
               controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              style: const TextStyle(color: Colors.white),
               decoration: _fieldDecoration(context.tr('hint_email')),
             ),
             const SizedBox(height: 32),

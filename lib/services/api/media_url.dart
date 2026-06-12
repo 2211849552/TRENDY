@@ -1,9 +1,11 @@
 import '../../config/api_config.dart';
 
-/// بناء روابط صور المتاجر والحملات من حقول API:
+/// بناء روابط صور API — انظر `lib/api.md` قسم «صور عناصر الطلب».
+///
 /// - المتجر: `logo` من GET /api/stores
 /// - الحملة: `banner_image` من GET /api/campaigns
-/// - المنتج: `thumbnail` / `images[]` — يُصحَّح مسار `storage/products/{id}/`
+/// - المنتج (طلب/سلة/تقييم): `thumbnail`, `images[]`, `image`
+///   مع تصحيح مسار `storage/products/{productId}/` عبر GET /api/products/{id}
 class MediaUrl {
   MediaUrl._();
 

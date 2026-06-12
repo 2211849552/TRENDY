@@ -7,8 +7,9 @@ import 'l10n/app_strings.dart';
 import 'models/cart_item.dart';
 import 'models/order.dart';
 import 'models/ratings_manager.dart';
+import 'models/auth_session.dart';
 import 'services/api/api_exception.dart';
-import 'services/api/ratings_api.dart';
+import 'services/api/order_ratings_service.dart';
 import 'data/product_images.dart';
 import 'services/product_line_enricher.dart';
 import 'widgets/app_back_button.dart';
@@ -26,7 +27,7 @@ class OrderRatingScreen extends StatefulWidget {
 
 class _OrderRatingScreenState extends State<OrderRatingScreen> {
   final RatingsManager _ratings = RatingsManager();
-  final RatingsApi _ratingsApi = RatingsApi();
+  final OrderRatingsService _ratingsApi = OrderRatingsService();
   final ProductLineEnricher _enricher = ProductLineEnricher();
   final ImagePicker _picker = ImagePicker();
 
@@ -116,19 +117,6 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
     );
   }
 
-  double _effectiveStoreRating() {
-    if (_storeAlreadyRated) {
-      return _ratings.storeRatingForOrder(widget.order.id) ?? _storeStars;
-    }
-    if (_storeStars >= 1) return _storeStars;
-    final productRatings = _pendingProducts
-        .map((e) => _productStars[e.product.name] ?? 0)
-        .where((s) => s >= 1)
-        .toList();
-    if (productRatings.isEmpty) return 0;
-    return productRatings.reduce((a, b) => a + b) / productRatings.length;
-  }
-
   String _localizedOrRaw(BuildContext context, String value) {
     final trimmed = value.trim();
     if (trimmed.isEmpty) return trimmed;
@@ -147,26 +135,33 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
 
   Future<void> _submit() async {
     if (!_canSubmit) return;
+    if (!AuthSession.instance.isAuthenticated) {
+      _showError(context.tr('login_required_for_rating'));
+      return;
+    }
+
     setState(() => _submitting = true);
 
+    final storeNotFoundMsg = context.tr('rating_store_not_found');
+    final productNotFoundMsg = context.tr('rating_product_not_found');
+
     try {
-      if (!_storeAlreadyRated) {
-        final storeRating = _storeStars >= 1 ? _storeStars : _effectiveStoreRating();
-        if (storeRating >= 1) {
-          var storeId = _order.storeId;
-          storeId ??= await _enricher.resolveStoreId(_order.storeName);
-          if (storeId == null) {
-            throw ApiException('تعذر تحديد المتجر للتقييم');
-          }
-          await _ratingsApi.submitStoreRating(storeId, stars: storeRating.round());
-          _ratings.submitStoreRating(
-            orderId: widget.order.id,
-            storeKey: _order.storeName,
-            rating: storeRating,
-          );
+      // POST /api/stores/{storeId}/ratings — نجوم فقط
+      if (!_storeAlreadyRated && _storeStars >= 1) {
+        var storeId = _order.storeId;
+        storeId ??= await _enricher.resolveStoreId(_order.storeName);
+        if (storeId == null) {
+          throw ApiException(storeNotFoundMsg);
         }
+        await _ratingsApi.rateStore(storeId: storeId, stars: _storeStars.round());
+        _ratings.submitStoreRating(
+          orderId: widget.order.id,
+          storeKey: _order.storeName,
+          rating: _storeStars,
+        );
       }
 
+      // POST /api/products/{productId}/ratings — نجوم + رسالة + صورة
       for (final item in _pendingProducts) {
         final key = item.product.name;
         final stars = _productStars[key] ?? 0;
@@ -179,26 +174,33 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
               storeName: _order.storeName,
             );
         if (productId == null) {
-          throw ApiException('تعذر تحديد المنتج: $key');
+          throw ApiException('$productNotFoundMsg: $key');
         }
 
         final imageFile = await _multipartImage(key);
-        await _ratingsApi.submitProductRating(
-          productId,
+        final comment = _commentControllers[key]?.text;
+        await _ratingsApi.rateProduct(
+          productId: productId,
           stars: stars.round(),
-          comment: _commentControllers[key]?.text,
+          comment: comment,
           imageFile: imageFile,
         );
         _ratings.submitProductRating(
           orderId: widget.order.id,
           productKey: key,
           rating: stars,
-          comment: _commentControllers[key]?.text,
+          comment: comment,
           imagePaths: const [],
         );
       }
 
       if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.tr('order_rated_done'), style: GoogleFonts.cairo()),
+          backgroundColor: const Color(0xFF22C55E),
+        ),
+      );
       Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -219,6 +221,15 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: GoogleFonts.cairo()),
+        backgroundColor: Colors.redAccent.shade700,
+      ),
+    );
   }
 
   @override
@@ -437,15 +448,22 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          _starRow(stars, already ? null : (v) => setState(() => _productStars[key] = v)),
           if (already) ...[
+            const SizedBox(height: 16),
+            _starRow(stars, null),
             const SizedBox(height: 8),
             Text(
               context.tr('products_rated_done'),
               style: GoogleFonts.cairo(color: Colors.greenAccent, fontSize: 13),
             ),
           ] else ...[
+            const SizedBox(height: 16),
+            Text(
+              context.tr('product_stars_label'),
+              style: GoogleFonts.cairo(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            _starRow(stars, (v) => setState(() => _productStars[key] = v)),
             const SizedBox(height: 20),
             Text(
               context.tr('rating_attach_photos'),
@@ -463,51 +481,33 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              AppStrings.format(context, 'rating_photos_count', params: {
-                'count': (_imageFiles[key]?.length ?? 0).toString(),
-              }),
-              style: GoogleFonts.cairo(color: Colors.white54, fontSize: 13),
-            ),
             if (_imageFiles[key]?.isNotEmpty == true) ...[
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 72,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _imageFiles[key]!.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
-                  itemBuilder: (_, i) {
-                    final xfile = _imageFiles[key]![i];
-                    return Stack(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: _RatingPhotoThumb(xfile: xfile),
-                        ),
-                        Positioned(
-                          top: 2,
-                          left: 2,
-                          child: GestureDetector(
-                            onTap: () => setState(() => _imageFiles[key]!.removeAt(i)),
-                            child: Container(
-                              padding: const EdgeInsets.all(2),
-                              decoration: const BoxDecoration(
-                                color: Colors.black54,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.close, size: 16, color: Colors.white),
-                            ),
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Stack(
+                  children: [
+                    _RatingPhotoThumb(xfile: _imageFiles[key]!.first, size: 120),
+                    Positioned(
+                      top: 6,
+                      left: 6,
+                      child: GestureDetector(
+                        onTap: () => setState(() => _imageFiles[key] = []),
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.black54,
+                            shape: BoxShape.circle,
                           ),
+                          child: const Icon(Icons.close, size: 18, color: Colors.white),
                         ),
-                      ],
-                    );
-                  },
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Text(
               context.tr('rating_extra_notes'),
               style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.w600),
@@ -587,9 +587,10 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
 }
 
 class _RatingPhotoThumb extends StatelessWidget {
-  const _RatingPhotoThumb({required this.xfile});
+  const _RatingPhotoThumb({required this.xfile, this.size = 72});
 
   final XFile xfile;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
@@ -597,9 +598,9 @@ class _RatingPhotoThumb extends StatelessWidget {
       future: xfile.readAsBytes(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const SizedBox(width: 72, height: 72, child: ColoredBox(color: Colors.white12));
+          return SizedBox(width: size, height: size, child: const ColoredBox(color: Colors.white12));
         }
-        return Image.memory(snapshot.data!, width: 72, height: 72, fit: BoxFit.cover);
+        return Image.memory(snapshot.data!, width: size, height: size, fit: BoxFit.cover);
       },
     );
   }

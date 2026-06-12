@@ -9,7 +9,7 @@ import 'models/customer_review.dart';
 import 'models/product.dart';
 import 'models/ratings_manager.dart';
 import 'services/api/api_exception.dart';
-import 'services/api/ratings_api.dart';
+import 'services/api/customer_api.dart';
 import 'widgets/app_back_button.dart';
 import 'widgets/store_cover_image.dart';
 

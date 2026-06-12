@@ -3,10 +3,12 @@ import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 import 'home_screen.dart';
 import 'l10n/app_strings.dart';
+import 'models/saved_emails_store.dart';
 import 'services/api/api_exception.dart';
 import 'services/api/auth_api.dart';
 import 'theme/app_colors.dart';
 import 'verify_email_screen.dart';
+import 'widgets/saved_email_field.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -65,10 +67,12 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _submitLogin() async {
     if (_isLoading || !(_formKey.currentState?.validate() ?? false)) return;
 
+    final email = _email.text.trim().toLowerCase();
     setState(() => _isLoading = true);
     try {
+      await SavedEmailsStore.instance.remember(email);
       final user = await _authApi.login(
-        email: _email.text.trim(),
+        email: email,
         password: _password.text,
       );
       if (!mounted) return;
@@ -187,12 +191,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      TextFormField(
+                      SavedEmailField(
                         controller: _email,
-                        keyboardType: TextInputType.emailAddress,
-                        autocorrect: false,
                         textInputAction: TextInputAction.next,
-                        style: const TextStyle(color: Colors.white),
                         decoration: _fieldDecoration(context, context.tr('hint_email')),
                         validator: (value) {
                           final v = value?.trim() ?? '';

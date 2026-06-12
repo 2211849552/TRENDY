@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/api/api_exception.dart';
-import '../services/api/orders_api.dart';
+import '../services/api/customer_api.dart';
 import '../services/product_line_enricher.dart';
 import 'cart_item.dart';
 import 'cart_manager.dart';

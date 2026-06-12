@@ -1,6 +1,7 @@
 import '../../models/product.dart';
 import '../../models/product_variant.dart';
 import 'api_client.dart';
+import 'customer_api_paths.dart';
 import 'media_url.dart';
 
 class ProductsApi {
@@ -25,7 +26,7 @@ class ProductsApi {
     if (maxPrice != null) query['max_price'] = '${maxPrice.toInt()}';
 
     final json = await _client.getFromRoot(
-      '/stores/$storeId/products',
+      CustomerApiPaths.storeProducts(storeId),
       query: query,
       withAuth: false,
     );
@@ -39,7 +40,7 @@ class ProductsApi {
 
   /// GET /api/products/{id}
   Future<Product> fetchProductDetails(int productId) async {
-    final json = await _client.getFromRoot('/products/$productId', withAuth: false);
+    final json = await _client.getFromRoot(CustomerApiPaths.product(productId), withAuth: false);
     final data = json['data'] is Map<String, dynamic> ? json['data'] as Map<String, dynamic> : json;
     return _productFromDetails(data);
   }
@@ -65,7 +66,7 @@ class ProductsApi {
     if (q.isEmpty) return const [];
 
     final json = await _client.getFromRoot(
-      '/products/search',
+      CustomerApiPaths.productSearch,
       query: {'q': q, 'per_page': '$perPage'},
       withAuth: false,
     );
