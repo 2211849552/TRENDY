@@ -36,12 +36,12 @@ class RatingsManager extends ChangeNotifier {
     return 'api:$apiId';
   }
 
-  /// هل تم تقييم هذا الطلب (مرة واحدة فقط بعد الاستلام).
+  /// هل تم إرسال تقييم لهذا الطلب (مرة واحدة فقط بعد الاستلام).
   bool hasRatedOrder(String orderId, List<String> productKeys, {int? apiId}) {
     if (_ratedOrderIds.contains(orderId)) return true;
     final apiKey = _apiKey(apiId);
     if (apiKey != null && _ratedOrderIds.contains(apiKey)) return true;
-    return hasAnyRatingForOrder(orderId, productKeys);
+    return false;
   }
 
   /// هل يمكن للزبون فتح شاشة التقييم لهذا الطلب.

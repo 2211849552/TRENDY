@@ -4,10 +4,14 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'data/product_images.dart';
 import 'l10n/app_strings.dart';
+import 'models/auth_session.dart';
 import 'models/cart_item.dart';
 import 'models/order.dart';
 import 'models/orders_manager.dart';
+import 'models/ratings_manager.dart';
+import 'order_rating_screen.dart';
 import 'services/api/api_exception.dart';
+import 'services/order_rating_status_sync.dart';
 import 'widgets/app_back_button.dart';
 import 'widgets/store_cover_image.dart';
 
@@ -23,9 +27,12 @@ class PlacedOrderDetailsScreen extends StatefulWidget {
 
 class _PlacedOrderDetailsScreenState extends State<PlacedOrderDetailsScreen> {
   final OrdersManager _ordersManager = OrdersManager();
+  final RatingsManager _ratingsManager = RatingsManager();
+  final OrderRatingStatusSync _ratingStatusSync = OrderRatingStatusSync();
 
   late Order _order;
   bool _loading = true;
+  bool _ratingStatusReady = false;
   String? _error;
 
   @override
@@ -33,6 +40,13 @@ class _PlacedOrderDetailsScreenState extends State<PlacedOrderDetailsScreen> {
     super.initState();
     _order = widget.order;
     _refreshDetails();
+  }
+
+  Future<void> _syncRatingStatus() async {
+    setState(() => _ratingStatusReady = false);
+    await _ratingsManager.ensureLoaded();
+    await _ratingStatusSync.syncOrders([_order], _ratingsManager);
+    if (mounted) setState(() => _ratingStatusReady = true);
   }
 
   Future<void> _refreshDetails() async {
@@ -44,6 +58,7 @@ class _PlacedOrderDetailsScreenState extends State<PlacedOrderDetailsScreen> {
       final fresh = await _ordersManager.loadOrderDetails(_order);
       if (!mounted) return;
       setState(() => _order = fresh);
+      await _syncRatingStatus();
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _error = e.message);
@@ -83,6 +98,92 @@ class _PlacedOrderDetailsScreenState extends State<PlacedOrderDetailsScreen> {
       SnackBar(
         content: Text(context.tr('order_otp_copied'), style: GoogleFonts.cairo()),
         backgroundColor: const Color(0xFF22C55E),
+      ),
+    );
+  }
+
+  Future<void> _openRating() async {
+    if (!AuthSession.instance.isAuthenticated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.tr('login_required_for_rating'), style: GoogleFonts.cairo()),
+          backgroundColor: Colors.redAccent.shade700,
+        ),
+      );
+      return;
+    }
+    final productKeys = _order.items.map((e) => e.product.name).toList();
+    if (_ratingsManager.hasRatedOrder(_order.id, productKeys, apiId: _order.apiId)) return;
+
+    Order orderForRating = _order;
+    if (_order.apiId != null) {
+      try {
+        orderForRating = await _ordersManager.loadOrderDetails(_order);
+      } catch (_) {
+        orderForRating = _order;
+      }
+    }
+
+    final done = await Navigator.of(context, rootNavigator: true).push<bool>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => Directionality(
+          textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
+          child: OrderRatingScreen(order: orderForRating),
+        ),
+      ),
+    );
+    if (done == true && mounted) {
+      await _ratingsManager.markOrderRated(orderForRating.id, apiId: orderForRating.apiId);
+      await _syncRatingStatus();
+      setState(() {});
+    }
+  }
+
+  Widget _buildRatingButton(bool isDelivered) {
+    if (!isDelivered || !_ratingStatusReady) return const SizedBox.shrink();
+
+    final productKeys = _order.items.map((e) => e.product.name).toList();
+    final hasRated = _ratingsManager.hasRatedOrder(
+      _order.id,
+      productKeys,
+      apiId: _order.apiId,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: hasRated
+            ? ElevatedButton.icon(
+                onPressed: null,
+                icon: const Icon(Icons.check_rounded, size: 20),
+                label: Text(
+                  context.tr('rating_done'),
+                  style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white12,
+                  foregroundColor: Colors.white54,
+                  disabledBackgroundColor: Colors.white12,
+                  disabledForegroundColor: Colors.white54,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              )
+            : ElevatedButton.icon(
+                onPressed: _openRating,
+                icon: const Icon(Icons.star_rounded, size: 20),
+                label: Text(
+                  context.tr('rate_order'),
+                  style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFE6B422),
+                  foregroundColor: const Color(0xFF121026),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
       ),
     );
   }
@@ -256,6 +357,10 @@ class _PlacedOrderDetailsScreenState extends State<PlacedOrderDetailsScreen> {
                               style: GoogleFonts.cairo(color: Colors.white54, fontSize: 13),
                             ),
                           ],
+                          ListenableBuilder(
+                            listenable: _ratingsManager,
+                            builder: (_, __) => _buildRatingButton(isDelivered),
+                          ),
                         ],
                       ),
                     ),

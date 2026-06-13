@@ -174,10 +174,9 @@ class _CustomerReviewsScreenState extends State<CustomerReviewsScreen> {
 
   List<String> _collectPhotoPaths(List<CustomerReview> reviews) {
     final paths = <String>[];
-    if (widget.imageUrl.trim().isNotEmpty) paths.add(widget.imageUrl);
     for (final review in reviews) {
       for (final url in review.imageUrls) {
-        if (!paths.contains(url)) paths.add(url);
+        if (url.trim().isNotEmpty && !paths.contains(url)) paths.add(url);
       }
       final legacy = review.imageAssetPath;
       if (legacy != null && legacy.isNotEmpty && !paths.contains(legacy)) {
@@ -415,23 +414,44 @@ class _PhotoGallery extends StatelessWidget {
 
 class _GalleryImage extends StatelessWidget {
   final String path;
+  final double size;
 
-  const _GalleryImage({required this.path});
+  const _GalleryImage({required this.path, this.size = 100});
 
   @override
   Widget build(BuildContext context) {
     if (path.startsWith('assets/') || path.startsWith('http')) {
-      return StoreCoverImage(imageUrl: path, width: 100, height: 100, fit: BoxFit.cover);
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: StoreCoverImage(imageUrl: path, width: size, height: size, fit: BoxFit.cover),
+      );
     }
     if (kIsWeb) {
       return Container(
-        width: 100,
-        height: 100,
-        color: const Color(0xFF1E1B4B),
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1B4B),
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: const Icon(Icons.image_outlined, color: Colors.white38),
       );
     }
-    return Image.file(File(path), width: 100, height: 100, fit: BoxFit.cover);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Image.file(
+        File(path),
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(
+          width: size,
+          height: size,
+          color: const Color(0xFF1E1B4B),
+          child: const Icon(Icons.broken_image_outlined, color: Colors.white38),
+        ),
+      ),
+    );
   }
 }
 
@@ -483,7 +503,7 @@ class _ReviewCard extends StatelessWidget {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: images.map((path) => _GalleryImage(path: path)).toList(),
+              children: images.map((path) => _GalleryImage(path: path, size: 100)).toList(),
             ),
           ],
         ],

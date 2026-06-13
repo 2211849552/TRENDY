@@ -57,8 +57,6 @@ class OrderRatingStatusSync {
   }
 
   Future<bool> _syncOrderRatingsFromServer(Order order, RatingsManager ratings) async {
-    var foundAny = false;
-
     var storeId = order.storeId;
     storeId ??= await _enricher.resolveStoreId(order.storeName);
 
@@ -77,22 +75,18 @@ class OrderRatingStatusSync {
             storeKey: order.storeName,
             rating: rating.stars.toDouble(),
           );
-          foundAny = true;
           break;
         }
       } on ApiException {
         // تجاهل — نعتمد على التخزين المحلي
       }
-    } else if (ratings.hasRatedStoreForOrder(order.id)) {
-      foundAny = true;
     }
+
+    if (order.items.isEmpty) return false;
 
     for (final line in order.items) {
       final key = line.product.name;
-      if (ratings.hasRatedProductForOrder(order.id, key)) {
-        foundAny = true;
-        continue;
-      }
+      if (ratings.hasRatedProductForOrder(order.id, key)) continue;
 
       var productId = line.product.id;
       productId ??= await _enricher.resolveProductId(
@@ -117,7 +111,6 @@ class OrderRatingStatusSync {
             rating: rating.stars.toDouble(),
             comment: rating.comment.isNotEmpty ? rating.comment : null,
           );
-          foundAny = true;
           break;
         }
       } on ApiException {
@@ -125,6 +118,11 @@ class OrderRatingStatusSync {
       }
     }
 
-    return foundAny;
+    for (final line in order.items) {
+      if (!ratings.hasRatedProductForOrder(order.id, line.product.name)) {
+        return false;
+      }
+    }
+    return true;
   }
 }

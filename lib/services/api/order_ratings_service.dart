@@ -21,22 +21,24 @@ class OrderRatingsService {
     await _api.submitStoreRating(storeId, stars: safe);
   }
 
-  /// تقييم منتج — نجوم + رسالة اختيارية + صورة واحدة اختيارية.
+  /// تقييم منتج — نجوم + رسالة اختيارية + صورة/صور اختيارية.
   Future<void> rateProduct({
     required int productId,
     required int stars,
     String? comment,
-    http.MultipartFile? imageFile,
+    List<http.MultipartFile> imageFiles = const [],
   }) async {
     final safe = stars.clamp(1, 5);
-    if (imageFile != null && imageFile.length > 5 * 1024 * 1024) {
-      throw ApiException('حجم الصورة يتجاوز 5 ميجابايت');
+    for (final file in imageFiles) {
+      if (file.length > 5 * 1024 * 1024) {
+        throw ApiException('حجم الصورة يتجاوز 5 ميجابايت');
+      }
     }
     await _api.submitProductRating(
       productId,
       stars: safe,
       comment: comment,
-      imageFile: imageFile,
+      imageFiles: imageFiles,
     );
   }
 }

@@ -557,17 +557,26 @@ class _OrdersPageState extends State<OrdersPage> {
     final productKeys = latest.items.map((e) => e.product.name).toList();
     if (_ratingsManager.hasRatedOrder(latest.id, productKeys, apiId: latest.apiId)) return;
 
+    Order orderForRating = latest;
+    if (latest.apiId != null) {
+      try {
+        orderForRating = await _ordersManager.loadOrderDetails(latest);
+      } catch (_) {
+        orderForRating = latest;
+      }
+    }
+
     final done = await Navigator.of(context, rootNavigator: true).push<bool>(
       MaterialPageRoute(
         fullscreenDialog: true,
         builder: (_) => Directionality(
           textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
-          child: OrderRatingScreen(order: latest),
+          child: OrderRatingScreen(order: orderForRating),
         ),
       ),
     );
     if (done == true && mounted) {
-      await _ratingsManager.markOrderRated(latest.id, apiId: latest.apiId);
+      await _ratingsManager.markOrderRated(orderForRating.id, apiId: orderForRating.apiId);
       await _ratingStatusSync.syncOrders(_ordersManager.orders, _ratingsManager);
       setState(() {});
     }

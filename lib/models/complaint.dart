@@ -93,6 +93,7 @@ class Complaint {
   /// نسخة محلية للاحتفاظ بالشكوى حتى لو فشل جلبها لاحقاً من API.
   Map<String, dynamic> toCacheJson() => {
         'id': apiId,
+        'local_id': id,
         if (ticketNumber != null) 'ticket_number': ticketNumber,
         'subject': subject,
         'description': details,
@@ -118,7 +119,11 @@ class Complaint {
     }
 
     return Complaint(
-      id: apiId != null ? 'complaint_$apiId' : '',
+      id: apiId != null
+          ? 'complaint_$apiId'
+          : ('${map['local_id'] ?? ''}'.trim().isNotEmpty
+              ? '${map['local_id']}'
+              : ''),
       apiId: apiId,
       ticketNumber: map['ticket_number']?.toString(),
       typeKey: _categoryToTypeKey[category] ?? 'complaint_type_general',

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'l10n/app_strings.dart';import 'models/auth_session.dart';
+import 'l10n/app_strings.dart';
+import 'models/auth_session.dart';
 import 'models/complaint.dart';
 import 'models/complaints_manager.dart';
 import 'widgets/app_back_button.dart';

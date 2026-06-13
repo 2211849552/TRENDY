@@ -49,10 +49,11 @@ class ComplaintsManager extends ChangeNotifier {
     }
 
     final cached = await _loadCache();
-    if (cached.isNotEmpty) {
+    final baseline = _mergeComplaints([...cached, ..._complaints]);
+    if (baseline.isNotEmpty) {
       _complaints
         ..clear()
-        ..addAll(cached);
+        ..addAll(baseline);
       notifyListeners();
     }
 
@@ -63,11 +64,12 @@ class ComplaintsManager extends ChangeNotifier {
     try {
       final ids = <int>{
         ...await _loadStoredIds(),
-        for (final c in cached)
+        for (final c in _mergeComplaints([...baseline, ..._complaints]))
           if (c.apiId != null) c.apiId!,
       };
+
       final fallback = {
-        for (final c in [...cached, ..._complaints])
+        for (final c in _mergeComplaints([...baseline, ..._complaints]))
           if (c.apiId != null) c.apiId!: c,
       };
 
@@ -75,11 +77,7 @@ class ComplaintsManager extends ChangeNotifier {
       for (final id in ids) {
         try {
           loaded.add(await _api.fetchComplaint(id));
-        } on ApiException catch (e) {
-          if (e.statusCode == 404) {
-            await _forgetId(id);
-            continue;
-          }
+        } on ApiException catch (_) {
           final cachedOne = fallback[id];
           if (cachedOne != null) loaded.add(cachedOne);
         } catch (_) {
@@ -88,23 +86,24 @@ class ComplaintsManager extends ChangeNotifier {
         }
       }
 
-      loaded.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      final merged = _mergeComplaints([...baseline, ..._complaints, ...loaded]);
+      merged.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       _complaints
         ..clear()
-        ..addAll(loaded);
-      for (final c in loaded) {
+        ..addAll(merged);
+      for (final c in merged) {
         if (c.apiId != null) await _rememberId(c.apiId!);
       }
       await _saveCache(_complaints);
     } on ApiException catch (e) {
       _error = e.message;
-      if (_complaints.isEmpty && cached.isNotEmpty) {
-        _complaints.addAll(cached);
+      if (_complaints.isEmpty && baseline.isNotEmpty) {
+        _complaints.addAll(baseline);
       }
     } catch (e) {
       _error = e.toString();
-      if (_complaints.isEmpty && cached.isNotEmpty) {
-        _complaints.addAll(cached);
+      if (_complaints.isEmpty && baseline.isNotEmpty) {
+        _complaints.addAll(baseline);
       }
     } finally {
       _loading = false;
@@ -274,11 +273,15 @@ class ComplaintsManager extends ChangeNotifier {
     }
   }
 
-  Future<void> _forgetId(int id) async {
-    final prefs = await SharedPreferences.getInstance();
-    final current = prefs.getStringList(_idsKey()) ?? <String>[];
-    current.remove('$id');
-    await prefs.setStringList(_idsKey(), current);
+  List<Complaint> _mergeComplaints(List<Complaint> items) {
+    final byKey = <String, Complaint>{};
+    for (final c in items) {
+      final key = c.apiId != null
+          ? 'api_${c.apiId}'
+          : (c.id.isNotEmpty ? c.id : '${c.subject}_${c.createdAt.millisecondsSinceEpoch}');
+      byKey[key] = c;
+    }
+    return byKey.values.toList();
   }
 
   Future<List<Complaint>> _loadCache() async {
@@ -292,7 +295,7 @@ class ComplaintsManager extends ChangeNotifier {
       return decoded
           .whereType<Map>()
           .map((e) => Complaint.fromApiJson(Map<String, dynamic>.from(e)))
-          .where((c) => c.apiId != null)
+          .where((c) => c.id.isNotEmpty || c.apiId != null)
           .toList();
     } catch (_) {
       return const [];

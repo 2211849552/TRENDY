@@ -1,9 +1,9 @@
 import 'package:http/http.dart' as http;
 
-import '../../config/api_config.dart';
 import '../../models/customer_review.dart';
 import 'api_client.dart';
 import 'customer_api_paths.dart';
+import 'media_url.dart';
 
 class ApiRating {
   const ApiRating({
@@ -41,6 +41,8 @@ class ApiRating {
   }
 
   factory ApiRating.fromJson(Map<String, dynamic> json) {
+    final ratingId = _asInt(json['id']) ?? 0;
+
     final user = json['user'];
     var author = '';
     int? authorId;
@@ -49,20 +51,16 @@ class ApiRating {
       authorId = _asInt(user['id']);
     }
 
-    final rawImages = json['images'];
-    final urls = <String>[];
-    if (rawImages is List) {
-      for (final item in rawImages) {
-        final url = ApiConfig.resolveMediaUrl('$item');
-        if (url.isNotEmpty) urls.add(url);
-      }
+    final urls = MediaUrl.ratingImagesFromJson(json['images'], ratingId: ratingId);
+
+    var imageUrl = MediaUrl.ratingImage(json['image'], ratingId: ratingId);
+    if (imageUrl.isEmpty && urls.isNotEmpty) imageUrl = urls.first;
+    if (imageUrl.isNotEmpty && !urls.contains(imageUrl)) {
+      urls.insert(0, imageUrl);
     }
 
-    var imageUrl = ApiConfig.resolveMediaUrl('${json['image'] ?? ''}');
-    if (imageUrl.isEmpty && urls.isNotEmpty) imageUrl = urls.first;
-
     return ApiRating(
-      id: _asInt(json['id']) ?? 0,
+      id: ratingId,
       stars: _asInt(json['stars']) ?? 0,
       comment: '${json['comment'] ?? ''}'.trim(),
       authorName: author.isNotEmpty ? author : '—',
@@ -135,22 +133,22 @@ class RatingsApi {
     );
   }
 
-  /// POST /api/products/{productId}/ratings — نجوم + تعليق + صورة واحدة اختيارية.
+  /// POST /api/products/{productId}/ratings — نجوم + تعليق + صورة/صور اختيارية.
   Future<void> submitProductRating(
     int productId, {
     required int stars,
     String? comment,
-    http.MultipartFile? imageFile,
+    List<http.MultipartFile> imageFiles = const [],
   }) async {
     final trimmedComment = comment?.trim();
-    if (imageFile != null) {
+    if (imageFiles.isNotEmpty) {
       await _client.postMultipartFromRoot(
         CustomerApiPaths.productRatings(productId),
         fields: {
           'stars': '$stars',
           if (trimmedComment != null && trimmedComment.isNotEmpty) 'comment': trimmedComment,
         },
-        files: [imageFile],
+        files: imageFiles,
       );
       return;
     }
