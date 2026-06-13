@@ -12,8 +12,10 @@ import 'theme/app_colors.dart';
 import 'theme/trendy_theme_extension.dart';
 import 'widgets/store_cover_image.dart';
 import 'widgets/store_delivery_meta.dart';
+import 'widgets/store_comments_button.dart';
 import 'data/store_products_data.dart';
 import 'services/api/products_api.dart';
+import 'services/api/ratings_api.dart';
 import 'services/api/stores_api.dart';
 import 'services/api/api_exception.dart';
 
@@ -66,7 +68,26 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
   bool _loadingProducts = false;
   String? _productsError;
   String _storeImageUrl = '';
+  double? _apiStoreRating;
   final ProductsApi _productsApi = ProductsApi();
+  final RatingsApi _ratingsApi = RatingsApi();
+
+  double get _displayStoreRating {
+    if (_apiStoreRating != null && _apiStoreRating! > 0) return _apiStoreRating!;
+    return _ratingsManager.storeRatingOrBase(widget.storeName, widget.storeRating);
+  }
+
+  Future<void> _loadStoreRatingFromApi() async {
+    final id = widget.storeId;
+    if (id == null || id <= 0) return;
+    try {
+      final result = await _ratingsApi.fetchStoreRatings(id, perPage: 1);
+      if (!mounted || result.averageRating <= 0) return;
+      setState(() => _apiStoreRating = result.averageRating);
+    } catch (_) {
+      // نُبقي التقييم الافتراضي من قائمة المتاجر.
+    }
+  }
 
   Future<void> _refreshStoreLogoFromApi() async {
     final id = widget.storeId;
@@ -126,6 +147,7 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
       widget.storeDiscount != null,
     );
     _recalculatePriceRange();
+    _loadStoreRatingFromApi();
     _refreshStoreLogoFromApi();
     _loadProductsFromApi();
   }
@@ -512,12 +534,21 @@ class _StoreDetailsScreenState extends State<StoreDetailsScreen> {
                 ),
                 const SizedBox(height: 8),
                 StoreDeliveryMeta(
-                  rating: widget.storeRating,
+                  rating: _displayStoreRating,
                   deliveryFee: widget.deliveryFee,
                   distanceText: widget.storeDistance,
                   isElectronic: widget.isElectronic,
                   compact: false,
                 ),
+                if (widget.storeId != null && widget.storeId! > 0) ...[
+                  const SizedBox(height: 8),
+                  StoreCommentsButton(
+                    storeId: widget.storeId!,
+                    storeTitle: widget.storeDisplayName ?? widget.storeName,
+                    imageUrl: _storeImageUrl.isNotEmpty ? _storeImageUrl : widget.storeImageUrl,
+                    subtitle: widget.storeCategory,
+                  ),
+                ],
                 const SizedBox(height: 12),
                 Row(
                   children: [

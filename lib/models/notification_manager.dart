@@ -81,6 +81,10 @@ class NotificationManager extends ChangeNotifier {
 
   List<NotificationItem> get notifications => List.unmodifiable(_notifications);
 
+  /// إشعارات مرتبطة بطلبات الزبون.
+  List<NotificationItem> get orderNotifications =>
+      _notifications.where((n) => n.isOrderRelated).toList(growable: false);
+
   int get unreadCount {
     if (_notifications.isNotEmpty) {
       return _notifications.where((n) => !n.isRead).length;
@@ -89,15 +93,18 @@ class NotificationManager extends ChangeNotifier {
   }
 
   Future<void> syncFromApi() async {
-    if (!AuthSession.instance.isAuthenticated || _isSyncing) return;
+    if (!AuthSession.instance.isAuthenticated) return;
+    if (_isSyncing) return;
 
     _isSyncing = true;
     notifyListeners();
     try {
       final result = await _api.fetchNotifications();
+      final sorted = List<NotificationItem>.from(result.items)
+        ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
       _notifications
         ..clear()
-        ..addAll(result.items);
+        ..addAll(sorted);
       _serverUnreadCount = result.unreadCount;
     } catch (_) {
       // نُبقي القائمة الحالية عند فشل المزامنة.

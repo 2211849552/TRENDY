@@ -10,8 +10,11 @@ import 'models/ratings_manager.dart';
 import 'models/auth_session.dart';
 import 'services/api/api_exception.dart';
 import 'services/api/order_ratings_service.dart';
+import 'services/api/orders_api.dart';
+import 'services/api/ratings_api.dart';
 import 'data/product_images.dart';
 import 'services/product_line_enricher.dart';
+import 'utils/rating_ownership.dart';
 import 'widgets/app_back_button.dart';
 import 'widgets/store_cover_image.dart';
 
@@ -28,6 +31,7 @@ class OrderRatingScreen extends StatefulWidget {
 class _OrderRatingScreenState extends State<OrderRatingScreen> {
   final RatingsManager _ratings = RatingsManager();
   final OrderRatingsService _ratingsApi = OrderRatingsService();
+  final RatingsApi _listRatingsApi = RatingsApi();
   final ProductLineEnricher _enricher = ProductLineEnricher();
   final ImagePicker _picker = ImagePicker();
 
@@ -50,7 +54,13 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
   }
 
   Future<void> _bootstrap() async {
+    await _ratings.ensureLoaded();
     await _enrichOrderItems();
+    await _syncExistingRatingsFromApi();
+    final productKeys = _order.items.map((e) => e.product.name).toList();
+    if (_ratings.hasAnyRatingForOrder(widget.order.id, productKeys)) {
+      await _ratings.markOrderRated(widget.order.id, apiId: _order.apiId);
+    }
     if (_storeAlreadyRated) {
       _storeStars = _ratings.storeRatingForOrder(widget.order.id) ?? 0;
     }
@@ -59,6 +69,65 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
     }
     if (mounted) setState(() => _loading = false);
   }
+
+  /// يطابق تقييمات السيرver — التطبيق يحفظها محلياً في الذاكرة فقط.
+  Future<void> _syncExistingRatingsFromApi() async {
+    if (!AuthSession.instance.isAuthenticated) return;
+
+    var storeId = _order.storeId;
+    storeId ??= await _enricher.resolveStoreId(_order.storeName);
+
+    if (storeId != null && !_storeAlreadyRated) {
+      try {
+        final page = await _listRatingsApi.fetchStoreRatings(storeId, perPage: 50);
+        for (final rating in page.ratings) {
+          if (!ratingBelongsToCurrentUser(
+            authorName: rating.authorName,
+            authorId: rating.authorId,
+          )) continue;
+          _ratings.submitStoreRating(
+            orderId: widget.order.id,
+            storeKey: _order.storeName,
+            rating: rating.stars.toDouble(),
+          );
+          break;
+        }
+      } on ApiException {
+        // تجاهل — الإرسال سيُعالج التكرار لاحقاً
+      }
+    }
+
+    for (final item in _order.items) {
+      final key = item.product.name;
+      if (_ratings.hasRatedProductForOrder(widget.order.id, key)) continue;
+      final productId = item.product.id;
+      if (productId == null) continue;
+      try {
+        final page = await _listRatingsApi.fetchProductRatings(productId, perPage: 50);
+        for (final rating in page.ratings) {
+          if (!ratingBelongsToCurrentUser(
+            authorName: rating.authorName,
+            authorId: rating.authorId,
+          )) continue;
+          _ratings.submitProductRating(
+            orderId: widget.order.id,
+            productKey: key,
+            rating: rating.stars.toDouble(),
+            comment: rating.comment.isNotEmpty ? rating.comment : null,
+          );
+          break;
+        }
+      } on ApiException {
+        // تجاهل
+      }
+    }
+  }
+
+  bool _isStoreDuplicateError(ApiException e) =>
+      e.statusCode == 403 && e.message.contains('مرة');
+
+  bool _isProductDuplicateError(ApiException e) =>
+      e.statusCode == 403 && e.message.contains('مسبق');
 
   void _initProductRatingState(String key) {
     if (_ratings.hasRatedProductForOrder(widget.order.id, key)) {
@@ -83,22 +152,22 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
       .toList();
 
   Future<void> _enrichOrderItems() async {
-    var storeId = widget.order.storeId;
-    if (storeId == null && widget.order.storeName.trim().isNotEmpty) {
-      storeId = await _enricher.resolveStoreId(widget.order.storeName);
+    var storeId = _order.storeId;
+    if (storeId == null && _order.storeName.trim().isNotEmpty) {
+      storeId = await _enricher.resolveStoreId(_order.storeName);
     }
     final enriched = <CartItem>[];
-    for (final line in widget.order.items) {
+    for (final line in _order.items) {
       enriched.add(
         await _enricher.enrichLine(
           line,
           storeId: storeId,
-          storeName: widget.order.storeName,
+          storeName: _order.storeName,
         ),
       );
     }
     if (!mounted) return;
-    setState(() => _order = widget.order.copyWith(items: enriched, storeId: storeId));
+    setState(() => _order = _order.copyWith(items: enriched, storeId: storeId));
   }
 
   Future<void> _pickImages(String productKey) async {
@@ -107,14 +176,29 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
     setState(() => _imageFiles[productKey] = [file]);
   }
 
+  bool get _hasStoreSelection => !_storeAlreadyRated && _storeStars >= 1;
+
+  bool _hasProductInput(String productKey) {
+    if ((_productStars[productKey] ?? 0) >= 1) return true;
+    final comment = _commentControllers[productKey]?.text.trim() ?? '';
+    if (comment.isNotEmpty) return true;
+    return (_imageFiles[productKey]?.isNotEmpty ?? false);
+  }
+
+  bool get _hasAnyProductSelection =>
+      _pendingProducts.any((item) => _hasProductInput(item.product.name));
+
+  /// يكفي حقل واحد: نجوم المتجر، أو نجوم/تعليق/صورة لأي منتج.
   bool get _canSubmit {
     if (_submitting) return false;
-    final storeOk = _storeAlreadyRated || _storeStars >= 1;
-    if (!storeOk) return false;
-    if (_pendingProducts.isEmpty) return !_storeAlreadyRated;
-    return _pendingProducts.every(
-      (item) => (_productStars[item.product.name] ?? 0) >= 1,
-    );
+    return _hasStoreSelection || _hasAnyProductSelection;
+  }
+
+  /// API يتطلب نجوماً 1–5؛ إذا أرسل الزبون تعليقاً أو صورة فقط نستخدم 5.
+  int _resolveProductStars(String productKey) {
+    final stars = _productStars[productKey] ?? 0;
+    if (stars >= 1) return stars.round().clamp(1, 5);
+    return 5;
   }
 
   String _localizedOrRaw(BuildContext context, String value) {
@@ -134,7 +218,10 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_canSubmit) return;
+    if (!_canSubmit) {
+      _showError(context.tr('rating_select_one'));
+      return;
+    }
     if (!AuthSession.instance.isAuthenticated) {
       _showError(context.tr('login_required_for_rating'));
       return;
@@ -144,28 +231,50 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
 
     final storeNotFoundMsg = context.tr('rating_store_not_found');
     final productNotFoundMsg = context.tr('rating_product_not_found');
+    var sentCount = 0;
 
     try {
-      // POST /api/stores/{storeId}/ratings — نجوم فقط
+      if (_order.apiId != null) {
+        final fresh = await OrdersApi().refreshOrderDetails(_order);
+        if (!mounted) return;
+        if (fresh.status != 'status_delivered') {
+          _showError(context.tr('rating_order_not_delivered'));
+          return;
+        }
+        setState(() => _order = fresh);
+        await _enrichOrderItems();
+        if (!mounted) return;
+      }
       if (!_storeAlreadyRated && _storeStars >= 1) {
         var storeId = _order.storeId;
         storeId ??= await _enricher.resolveStoreId(_order.storeName);
         if (storeId == null) {
           throw ApiException(storeNotFoundMsg);
         }
-        await _ratingsApi.rateStore(storeId: storeId, stars: _storeStars.round());
-        _ratings.submitStoreRating(
-          orderId: widget.order.id,
-          storeKey: _order.storeName,
-          rating: _storeStars,
-        );
+        try {
+          await _ratingsApi.rateStore(storeId: storeId, stars: _storeStars.round());
+          _ratings.submitStoreRating(
+            orderId: widget.order.id,
+            storeKey: _order.storeName,
+            rating: _storeStars,
+          );
+          sentCount++;
+        } on ApiException catch (e) {
+          if (_isStoreDuplicateError(e)) {
+            _ratings.submitStoreRating(
+              orderId: widget.order.id,
+              storeKey: _order.storeName,
+              rating: _storeStars,
+            );
+          } else {
+            rethrow;
+          }
+        }
       }
 
-      // POST /api/products/{productId}/ratings — نجوم + رسالة + صورة
       for (final item in _pendingProducts) {
         final key = item.product.name;
-        final stars = _productStars[key] ?? 0;
-        if (stars < 1) continue;
+        if (!_hasProductInput(key)) continue;
 
         var productId = item.product.id ??
             await _enricher.resolveProductId(
@@ -177,27 +286,60 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
           throw ApiException('$productNotFoundMsg: $key');
         }
 
+        final stars = _resolveProductStars(key);
         final imageFile = await _multipartImage(key);
         final comment = _commentControllers[key]?.text;
-        await _ratingsApi.rateProduct(
-          productId: productId,
-          stars: stars.round(),
-          comment: comment,
-          imageFile: imageFile,
-        );
-        _ratings.submitProductRating(
-          orderId: widget.order.id,
-          productKey: key,
-          rating: stars,
-          comment: comment,
-          imagePaths: const [],
-        );
+        try {
+          await _ratingsApi.rateProduct(
+            productId: productId,
+            stars: stars,
+            comment: comment,
+            imageFile: imageFile,
+          );
+          _ratings.submitProductRating(
+            orderId: widget.order.id,
+            productKey: key,
+            rating: stars.toDouble(),
+            comment: comment,
+            imagePaths: const [],
+          );
+          sentCount++;
+        } on ApiException catch (e) {
+          if (_isProductDuplicateError(e)) {
+            _ratings.submitProductRating(
+              orderId: widget.order.id,
+              productKey: key,
+              rating: stars.toDouble(),
+              comment: comment,
+              imagePaths: const [],
+            );
+          } else {
+            rethrow;
+          }
+        }
       }
+
+      if (sentCount == 0) {
+        final productKeys = _order.items.map((e) => e.product.name).toList();
+        if (_ratings.hasAnyRatingForOrder(widget.order.id, productKeys)) {
+          await _ratings.markOrderRated(widget.order.id, apiId: _order.apiId);
+          if (!mounted) return;
+          Navigator.pop(context, true);
+          return;
+        }
+        _showError(context.tr('rating_select_one'));
+        return;
+      }
+
+      await _ratings.markOrderRated(widget.order.id, apiId: _order.apiId);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(context.tr('order_rated_done'), style: GoogleFonts.cairo()),
+          content: Text(
+            context.tr('rating_done'),
+            style: GoogleFonts.cairo(),
+          ),
           backgroundColor: const Color(0xFF22C55E),
         ),
       );
@@ -235,9 +377,11 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
   @override
   Widget build(BuildContext context) {
     final storeLabel = _localizedOrRaw(context, _order.storeName);
-    final allDone = _ratings.isOrderFullyRated(
+    final productKeys = _order.items.map((e) => e.product.name).toList();
+    final alreadyRated = _ratings.hasRatedOrder(
       widget.order.id,
-      _order.items.map((e) => e.product.name).toList(),
+      productKeys,
+      apiId: _order.apiId,
     );
 
     if (_loading) {
@@ -249,7 +393,7 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
       );
     }
 
-    if (allDone) {
+    if (alreadyRated) {
       return Scaffold(
         backgroundColor: const Color(0xFF121026),
         body: SafeArea(
@@ -262,7 +406,7 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
               Expanded(
                 child: Center(
                   child: Text(
-                    context.tr('order_rated_done'),
+                    context.tr('rating_done'),
                     style: GoogleFonts.cairo(color: Colors.white70, fontSize: 18),
                   ),
                 ),
@@ -305,16 +449,26 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _card(
-                      child: Text(
-                        AppStrings.format(context, 'order_rating_order_line', params: {
-                          'id': _order.id,
-                          'store': storeLabel,
-                        }),
-                        style: GoogleFonts.cairo(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            AppStrings.format(context, 'order_rating_order_line', params: {
+                              'id': _order.id,
+                              'store': storeLabel,
+                            }),
+                            style: GoogleFonts.cairo(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            context.tr('rating_optional_hint'),
+                            style: GoogleFonts.cairo(color: Colors.white54, fontSize: 13, height: 1.4),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -462,7 +616,7 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
               context.tr('product_stars_label'),
               style: GoogleFonts.cairo(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             _starRow(stars, (v) => setState(() => _productStars[key] = v)),
             const SizedBox(height: 20),
             Text(
@@ -515,6 +669,7 @@ class _OrderRatingScreenState extends State<OrderRatingScreen> {
             const SizedBox(height: 8),
             TextField(
               controller: _commentControllers[key],
+              onChanged: (_) => setState(() {}),
               maxLines: 3,
               style: GoogleFonts.cairo(color: Colors.white),
               decoration: InputDecoration(

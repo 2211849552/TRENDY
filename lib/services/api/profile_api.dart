@@ -4,12 +4,14 @@ import 'api_client.dart';
 /// بيانات الملف الشخصي للزبون من API.
 class CustomerProfileData {
   const CustomerProfileData({
+    this.id,
     required this.name,
     required this.email,
     required this.phone,
     this.defaultAddress,
   });
 
+  final int? id;
   final String name;
   final String email;
   final String phone;
@@ -17,6 +19,7 @@ class CustomerProfileData {
 
   factory CustomerProfileData.fromJson(Map<String, dynamic> json) {
     return CustomerProfileData(
+      id: _asInt(json['id']),
       name: '${json['name'] ?? ''}'.trim(),
       email: '${json['email'] ?? ''}'.trim(),
       phone: '${json['phone'] ?? ''}'.trim(),
@@ -26,14 +29,21 @@ class CustomerProfileData {
     );
   }
 
-  AuthUser toAuthUser({int? id}) {
+  AuthUser toAuthUser({int? id, int? customerProfileId}) {
     return AuthUser(
       id: id,
       name: name,
       email: email,
       phone: phone,
       defaultAddress: defaultAddress,
+      customerProfileId: customerProfileId ?? this.id,
     );
+  }
+
+  static int? _asInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse('$value');
   }
 }
 

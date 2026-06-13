@@ -87,6 +87,7 @@ class OrdersManager extends ChangeNotifier {
       for (final order in list) {
         _orders.add(await _enrichOrder(order));
       }
+      await NotificationManager().syncFromApi();
     } on ApiException catch (e) {
       _error = e.message;
     } catch (e) {
@@ -126,29 +127,18 @@ class OrdersManager extends ChangeNotifier {
     updateOrderStatus(orderId, 'status_ready');
   }
 
-  /// POST /api/orders/{id}/confirm-delivery ثم إثراء الطلب؛ عند 403 (زبون) يُحدَّث محلياً للمحاكاة.
-  Future<void> confirmDelivery(Order order) async {
-    final apiId = order.apiId;
-    if (apiId != null && apiId > 0) {
-      try {
-        final updated = await _api.confirmDelivery(apiId);
-        await _replaceOrder(await _enrichOrder(updated));
-        return;
-      } on ApiException catch (e) {
-        if (e.statusCode != 403 && e.statusCode != 401) {
-          _error = e.message;
-          notifyListeners();
-          rethrow;
-        }
-      }
-    }
-    updateOrderStatus(order.id, 'status_delivered');
-  }
-
   Future<void> refreshOrder(int apiId) async {
     final details = await _api.fetchOrderDetails(apiId);
     if (details == null) return;
     await _replaceOrder(await _enrichOrder(details));
+  }
+
+  /// GET /api/orders/{id} — جلب أحدث تفاصيل الطلب (رمز OTP، الحالة، …).
+  Future<Order> loadOrderDetails(Order order) async {
+    final fresh = await _api.refreshOrderDetails(order);
+    final enriched = await _enrichOrder(fresh);
+    await _replaceOrder(enriched);
+    return enriched;
   }
 
   Future<void> _replaceOrder(Order order) async {

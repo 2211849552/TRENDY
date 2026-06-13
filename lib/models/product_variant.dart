@@ -47,13 +47,19 @@ class ProductVariantOption {
   }
 
   static bool _isColorKey(String name) =>
-      name.contains('لون') || name.contains('color') || name.contains('colour');
+      name.contains('اللون') ||
+      name.contains('لون') ||
+      name.contains('color') ||
+      name.contains('colour');
 
   static bool _isSizeKey(String name) =>
       name.contains('مقاس') ||
       name.contains('قاس') ||
       name.contains('size') ||
-      name.contains('taille');
+      name.contains('taille') ||
+      name.contains('المقاس') ||
+      name.contains('حجم') ||
+      name.contains('الحجم');
 
   static bool isColorAttributeName(String name) => _isColorKey(name.toLowerCase());
 

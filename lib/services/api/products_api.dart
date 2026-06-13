@@ -3,11 +3,15 @@ import '../../models/product_variant.dart';
 import 'api_client.dart';
 import 'customer_api_paths.dart';
 import 'media_url.dart';
+import 'product_variants_api.dart';
 
 class ProductsApi {
-  ProductsApi({ApiClient? client}) : _client = client ?? ApiClient();
+  ProductsApi({ApiClient? client})
+      : _client = client ?? ApiClient(),
+        _variantsApi = ProductVariantsApi(client: client);
 
   final ApiClient _client;
+  final ProductVariantsApi _variantsApi;
 
   /// GET /api/stores/{storeId}/products
   Future<List<Product>> fetchStoreProducts({
@@ -45,16 +49,9 @@ class ProductsApi {
     return _productFromDetails(data);
   }
 
-  /// GET /api/products/{id}/variants
-  Future<List<ProductVariantOption>> fetchProductVariants(int productId) async {
-    final json = await _client.getFromRoot('/products/$productId/variants', withAuth: false);
-    final rows = json['variants'] ?? json['data'];
-    if (rows is! List) return const [];
-    return rows
-        .whereType<Map<String, dynamic>>()
-        .map(ProductVariantOption.fromJson)
-        .where((v) => v.id > 0)
-        .toList();
+  /// GET /api/products/{id}/variants — ألوان ومقاسات متوفرة لكل منتج.
+  Future<List<ProductVariantOption>> fetchProductVariants(int productId) {
+    return _variantsApi.fetchVariants(productId);
   }
 
   /// GET /api/products/search?q=&per_page=

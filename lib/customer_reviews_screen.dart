@@ -13,7 +13,7 @@ import 'services/api/customer_api.dart';
 import 'widgets/app_back_button.dart';
 import 'widgets/store_cover_image.dart';
 
-enum ReviewScope { product }
+enum ReviewScope { product, store }
 
 /// عرض تعليقات وتقييمات الزبائن على المنتج من API.
 class CustomerReviewsScreen extends StatefulWidget {
@@ -42,6 +42,21 @@ class CustomerReviewsScreen extends StatefulWidget {
       title: product.name,
       imageUrl: product.imageUrl,
       subtitle: variantLabel,
+    );
+  }
+
+  factory CustomerReviewsScreen.store({
+    required int storeId,
+    required String title,
+    required String imageUrl,
+    String? subtitle,
+  }) {
+    return CustomerReviewsScreen(
+      scope: ReviewScope.store,
+      entityId: storeId,
+      title: title,
+      imageUrl: imageUrl,
+      subtitle: subtitle,
     );
   }
 
@@ -91,7 +106,9 @@ class _CustomerReviewsScreenState extends State<CustomerReviewsScreen> {
     }
 
     try {
-      final result = await _ratingsApi.fetchProductRatings(id, page: reset ? 1 : _page + 1);
+      final result = widget.scope == ReviewScope.store
+          ? await _ratingsApi.fetchStoreRatings(id, page: reset ? 1 : _page + 1)
+          : await _ratingsApi.fetchProductRatings(id, page: reset ? 1 : _page + 1);
 
       if (!mounted) return;
       setState(() {
@@ -127,6 +144,18 @@ class _CustomerReviewsScreenState extends State<CustomerReviewsScreen> {
   }
 
   void _loadLocalOnly({String? fallbackError}) {
+    if (widget.scope == ReviewScope.store) {
+      setState(() {
+        _reviews.clear();
+        _averageRating = 0;
+        _totalRatings = 0;
+        _error = fallbackError;
+        _loading = false;
+        _loadingMore = false;
+        _lastPage = 1;
+      });
+      return;
+    }
     final local = RatingsManager().reviewsForProduct(widget.title);
     setState(() {
       _reviews

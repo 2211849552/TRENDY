@@ -7,6 +7,7 @@ class NotificationItem {
   final NotificationType type;
   final String? targetTab;
   final String? targetOrderId;
+  final String? orderNumber;
 
   NotificationItem({
     required this.id,
@@ -17,7 +18,25 @@ class NotificationItem {
     required this.type,
     this.targetTab,
     this.targetOrderId,
+    this.orderNumber,
   });
+
+  bool get isOrderRelated =>
+      (targetOrderId != null && targetOrderId!.isNotEmpty) ||
+      (orderNumber != null && orderNumber!.isNotEmpty) ||
+      type == NotificationType.orderPending ||
+      type == NotificationType.orderReady ||
+      type == NotificationType.orderCompleted;
+
+  String? get orderLabel {
+    if (orderNumber != null && orderNumber!.trim().isNotEmpty) {
+      return orderNumber!.trim();
+    }
+    if (targetOrderId != null && targetOrderId!.trim().isNotEmpty) {
+      return '#${targetOrderId!.trim()}';
+    }
+    return null;
+  }
 
   String get formattedTime {
     final now = DateTime.now();

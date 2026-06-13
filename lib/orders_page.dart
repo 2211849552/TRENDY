@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'data/product_images.dart';
 import 'models/cart_item.dart';
-import 'models/cart_manager.dart';
 import 'models/order.dart';
 import 'models/orders_manager.dart';
 import 'models/auth_session.dart';
 import 'models/ratings_manager.dart';
-import 'services/api/api_exception.dart';
 import 'l10n/app_strings.dart';
 import 'theme/app_theme_mode.dart';
 import 'theme/trendy_theme_extension.dart';
 import 'order_rating_screen.dart';
+import 'placed_order_details_screen.dart';
+import 'services/order_rating_status_sync.dart';
 import 'widgets/app_back_button.dart';
 import 'widgets/store_cover_image.dart';
 import 'widgets/gradient_button.dart';
@@ -28,18 +28,30 @@ class OrdersPage extends StatefulWidget {
 
 class _OrdersPageState extends State<OrdersPage> {
   final OrdersManager _ordersManager = OrdersManager();
-  final CartManager _cartManager = CartManager();
   final RatingsManager _ratingsManager = RatingsManager();
+  final OrderRatingStatusSync _ratingStatusSync = OrderRatingStatusSync();
 
   String _statusFilter = 'status_all';
   String _orderSearch = '';
-  String? _actionOrderId;
+  bool _ratingStatusReady = false;
 
   @override
   void initState() {
     super.initState();
-    _ordersManager.syncFromApi();
+    _initOrders();
   }
+
+  Future<void> _initOrders() async {
+    setState(() => _ratingStatusReady = false);
+    await _ratingsManager.ensureLoaded();
+    await _ordersManager.syncFromApi();
+    if (!mounted) return;
+    await _ratingStatusSync.syncOrders(_ordersManager.orders, _ratingsManager);
+    if (!mounted) return;
+    setState(() => _ratingStatusReady = true);
+  }
+
+  Future<void> _syncOrders() => _initOrders();
 
   String _formatDate(BuildContext context, DateTime d) {
     if (context.isRtl) {
@@ -71,13 +83,13 @@ class _OrdersPageState extends State<OrdersPage> {
   Color _statusBackground(String status) {
     switch (status) {
       case 'status_pending':
-        return const Color(0xFFE6B422).withOpacity(0.25);
+        return const Color(0xFFE6B422).withValues(alpha: 0.25);
       case 'status_ready':
-        return Colors.green.withOpacity(0.25);
+        return Colors.green.withValues(alpha: 0.25);
       case 'status_delivered':
-        return const Color(0xFF7C4DFF).withOpacity(0.28);
+        return const Color(0xFF7C4DFF).withValues(alpha: 0.28);
       default:
-        return Colors.white.withOpacity(0.1);
+        return Colors.white.withValues(alpha: 0.1);
     }
   }
 
@@ -91,73 +103,6 @@ class _OrdersPageState extends State<OrdersPage> {
         return const Color(0xFFD1B3FF);
       default:
         return Colors.white70;
-    }
-  }
-
-  Future<void> _simulateReady(Order order) async {
-    if (order.status != 'status_pending') return;
-    setState(() => _actionOrderId = order.id);
-    _ordersManager.simulateReadyForPickup(order.id);
-    if (mounted) setState(() => _actionOrderId = null);
-  }
-
-  Future<void> _confirmDelivery(Order order) async {
-    setState(() => _actionOrderId = order.id);
-    try {
-      await _ordersManager.confirmDelivery(order);
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message, style: GoogleFonts.cairo()),
-          backgroundColor: Colors.redAccent.shade700,
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _actionOrderId = null);
-    }
-  }
-
-  void _reorder(Order order) {
-    try {
-      for (final line in order.items) {
-        _cartManager.addToCart(
-          line.product,
-          color: line.selectedColor.isNotEmpty ? line.selectedColor : 'أسود',
-          size: line.selectedSize.isNotEmpty ? line.selectedSize : 'M',
-          quantity: line.quantity,
-          variantId: line.variantId,
-        );
-      }
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(context.tr('added_to_cart'), style: GoogleFonts.cairo()),
-          backgroundColor: const Color(0xFFA855F7),
-        ),
-      );
-    } on CartSingleStoreException {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            context.tr('cart_single_store_error'),
-            style: GoogleFonts.cairo(),
-          ),
-          backgroundColor: Colors.redAccent.shade700,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString().replaceFirst('Exception: ', ''),
-            style: GoogleFonts.cairo(),
-          ),
-          backgroundColor: Colors.redAccent.shade700,
-        ),
-      );
     }
   }
 
@@ -192,12 +137,6 @@ class _OrdersPageState extends State<OrdersPage> {
             ),
           ),
         );
-
-
-
-
-
-
       },
     );
   }
@@ -312,29 +251,29 @@ class _OrdersPageState extends State<OrdersPage> {
 
   Widget _buildScrollableOrders(List<Order> orders) {
     return RefreshIndicator(
-      onRefresh: _ordersManager.syncFromApi,
+      onRefresh: _syncOrders,
       color: const Color(0xFF3B82F6),
       child: CustomScrollView(
-      slivers: [
-        SliverPersistentHeader(
-          pinned: true,
-          delegate: _PinnedSearchBarDelegate(
-            child: Container(
-              color: const Color(0xFF121026),
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _buildSearchAndFilterRow(),
+        slivers: [
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _PinnedSearchBarDelegate(
+              child: Container(
+                color: const Color(0xFF121026),
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildSearchAndFilterRow(),
+              ),
             ),
           ),
-        ),
-        SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) => _buildOrderCard(orders[index]),
-            childCount: orders.length,
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) => _buildOrderCard(orders[index]),
+              childCount: orders.length,
+            ),
           ),
-        ),
-        const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
-      ],
-    ),
+          const SliverPadding(padding: EdgeInsets.only(bottom: 24)),
+        ],
+      ),
     );
   }
 
@@ -417,7 +356,12 @@ class _OrdersPageState extends State<OrdersPage> {
 
   Widget _buildOrderCard(Order order) {
     final productKeys = order.items.map((e) => e.product.name).toList();
-    final fullyRated = _ratingsManager.isOrderFullyRated(order.id, productKeys);
+    final hasRated = _ratingsManager.hasRatedOrder(
+      order.id,
+      productKeys,
+      apiId: order.apiId,
+    );
+    final isDelivered = order.status == 'status_delivered';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -506,81 +450,74 @@ class _OrdersPageState extends State<OrdersPage> {
             ],
           ),
           const SizedBox(height: 12),
-          _buildOrderActionRow(order, fullyRated),
+          _buildOrderActionRow(order, hasRated, isDelivered),
         ],
       ),
     );
   }
 
-  Widget _buildOrderActionRow(Order order, bool fullyRated) {
-    final loading = _actionOrderId == order.id;
-    final isDelivered = order.status == 'status_delivered';
-    final isReady = order.status == 'status_ready';
-    final isPending = order.status == 'status_pending';
-
-    if (isDelivered) {
-      return SizedBox(
-        width: double.infinity,
-        child: ElevatedButton.icon(
-          onPressed: fullyRated ? null : () => _openRating(order),
-          icon: Icon(
-            fullyRated ? Icons.check_rounded : Icons.star_rounded,
-            size: 20,
-          ),
-          label: Text(
-            fullyRated ? context.tr('order_rated_done') : context.tr('rate_order'),
-            style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 14),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: fullyRated ? Colors.white12 : const Color(0xFFE6B422),
-            foregroundColor: fullyRated ? Colors.white54 : const Color(0xFF121026),
-            disabledBackgroundColor: Colors.white12,
-            disabledForegroundColor: Colors.white54,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-      );
-    }
+  Widget _buildOrderActionRow(Order order, bool hasRated, bool isDelivered) {
+    final showRated = isDelivered && hasRated;
+    final showRate = isDelivered && !hasRated && _ratingStatusReady;
 
     return Row(
       children: [
         Expanded(
-          child: ElevatedButton(
-            onPressed: loading
-                ? null
-                : isPending
-                    ? () => _simulateReady(order)
-                    : isReady
-                        ? () => _confirmDelivery(order)
-                        : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isReady ? Colors.green : const Color(0xFF3B82F6),
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: Colors.white10,
+          child: OutlinedButton.icon(
+            onPressed: () => _openDetails(order),
+            icon: const Icon(Icons.receipt_long_outlined, size: 18),
+            label: Text(
+              context.tr('order_details_btn'),
+              style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF3B82F6),
+              side: const BorderSide(color: Color(0xFF3B82F6)),
               padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: loading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  )
-                : Text(
-                    isPending
-                        ? context.tr('ready_for_pickup_btn')
-                        : context.tr('order_delivered_label'),
-                    style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
           ),
         ),
-        const SizedBox(width: 10),
-        IconButton(
-          onPressed: () => _reorder(order),
-          icon: const Icon(Icons.refresh_rounded, color: Colors.white54),
-          tooltip: context.tr('reorder'),
-        ),
+        if (showRate) ...[
+          const SizedBox(width: 10),
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () => _openRating(order),
+              icon: const Icon(Icons.star_rounded, size: 18),
+              label: Text(
+                context.tr('rate_order'),
+                style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE6B422),
+                foregroundColor: const Color(0xFF121026),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+        ],
+        if (showRated) ...[
+          const SizedBox(width: 10),
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: null,
+              icon: const Icon(Icons.check_rounded, size: 18),
+              label: Text(
+                context.tr('rating_done'),
+                style: GoogleFonts.cairo(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white12,
+                foregroundColor: Colors.white54,
+                disabledBackgroundColor: Colors.white12,
+                disabledForegroundColor: Colors.white54,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -591,6 +528,19 @@ class _OrdersPageState extends State<OrdersPage> {
       if (order.apiId != null && candidate.apiId == order.apiId) return candidate;
     }
     return order;
+  }
+
+  Future<void> _openDetails(Order order) async {
+    final latest = _latestOrder(order);
+    await Navigator.of(context, rootNavigator: true).push<void>(
+      MaterialPageRoute(
+        builder: (_) => Directionality(
+          textDirection: context.isRtl ? TextDirection.rtl : TextDirection.ltr,
+          child: PlacedOrderDetailsScreen(order: latest),
+        ),
+      ),
+    );
+    if (mounted) setState(() {});
   }
 
   Future<void> _openRating(Order order) async {
@@ -604,6 +554,9 @@ class _OrdersPageState extends State<OrdersPage> {
       return;
     }
     final latest = _latestOrder(order);
+    final productKeys = latest.items.map((e) => e.product.name).toList();
+    if (_ratingsManager.hasRatedOrder(latest.id, productKeys, apiId: latest.apiId)) return;
+
     final done = await Navigator.of(context, rootNavigator: true).push<bool>(
       MaterialPageRoute(
         fullscreenDialog: true,
@@ -613,7 +566,11 @@ class _OrdersPageState extends State<OrdersPage> {
         ),
       ),
     );
-    if (done == true && mounted) setState(() {});
+    if (done == true && mounted) {
+      await _ratingsManager.markOrderRated(latest.id, apiId: latest.apiId);
+      await _ratingStatusSync.syncOrders(_ordersManager.orders, _ratingsManager);
+      setState(() {});
+    }
   }
 
   Widget _buildNoMatchesState() {
@@ -621,7 +578,7 @@ class _OrdersPageState extends State<OrdersPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.filter_alt_off_outlined, size: 64, color: Colors.white.withOpacity(0.35)),
+          Icon(Icons.filter_alt_off_outlined, size: 64, color: Colors.white.withValues(alpha: 0.35)),
           const SizedBox(height: 16),
           Text(
             context.tr('no_orders_filter'),

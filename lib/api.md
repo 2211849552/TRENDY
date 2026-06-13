@@ -82,6 +82,17 @@ Route::prefix('v1/auth')->group(function () {
     Route::get('/stores/{store}', [\App\Http\Controllers\Api\V1\StoreController::class, 'show']);
 
     // عرض قائمة المناطق المدعومة
+    // GET /api/zones
+    // ─────────────────────────────────────────────────────────────────────────
+    // تُستخدم لاختيار منطقة المتجر المحلي، عنوان الشحن، ومنطقة عمل السائق.
+    // ربط المناطق مع السائقين والطلبات:
+    //   1. المتجر المحلي: zone_id عند الانضمام (POST /api/stores/join) أو التعديل
+    //   2. السائق عند الاتصال: POST /api/drivers/toggle-status { is_online, current_zone_id }
+    //   3. عند إرسال الطلب للتوصيل (POST /api/orders/{id}/prepare أو PATCH status → out_for_delivery):
+    //      - تُحدَّد منطقة الطلب من shipping_address.zone_id أو store.zone_id
+    //      - يُعيَّن سائق online في نفس المنطقة → out_for_delivery + Trip
+    //   4. السائق يرى طلباته المعيَّنة: GET /api/orders?order_type=current
+    //   5. عند اتصال سائق جديد بمنطقة: يُسند له أقدم طلب shipped غير معيَّن في المنطقة
     Route::get('/zones', [\App\Http\Controllers\Api\V1\ZoneController::class, 'index']);
 
     // -------------------------------------------------------------------------
@@ -145,14 +156,15 @@ Route::prefix('v1/auth')->group(function () {
             Route::apiResource('bank-cards', \App\Http\Controllers\Api\V1\Admin\ManagementCardController::class)
                 ->except(['show']);
             Route::post('bank-cards/{id}/activate', [\App\Http\Controllers\Api\V1\Admin\ManagementCardController::class, 'activate']);
-         //أرباح المنصة العليا
+        });
+
+        //أرباح المنصة العليا
         Route::prefix('finance')->group(function () {
             Route::get('/ad-profits', [\App\Http\Controllers\Api\V1\FinanceController::class, 'adProfits']);
             Route::get('/subscription-profits', [\App\Http\Controllers\Api\V1\FinanceController::class, 'subscriptionProfits']);
             Route::get('/delivery-profits', [\App\Http\Controllers\Api\V1\FinanceController::class, 'deliveryProfits']);
             Route::get('/platform-earnings', [\App\Http\Controllers\Api\V1\FinanceController::class, 'platformEarnings']);
         });
-});
 
 
         // [16.8] إعادة توجيه/تعيين طلبية لسائق آخر
@@ -379,7 +391,10 @@ Route::prefix('v1/auth')->group(function () {
     // GET /api/v1/products/{id}
     Route::get('/products/{id}', [\App\Http\Controllers\Api\V1\ProductController::class, 'show']);
 
-    // عرض التنوعات المرتبطة بكل منتج
+    // عرض التنوعات المرتبطة بكل منتج (ألوان، مقاسات، مخزون، أسعار)
+    // الاستجابة: { "variants": [{ id, price, original_price, discounted_price,
+    //   total_quantity, attribute_values: [{ value, attribute: { name } }] }] }
+    // يُستخدم في Flutter عبر ProductVariantsApi / ProductsApi.fetchProductVariants
     // GET /api/products/{id}/variants
     Route::get('/products/{id}/variants', [\App\Http\Controllers\Api\V1\ProductController::class, 'variants']);
 
@@ -683,6 +698,10 @@ Route::prefix('v1/auth')->group(function () {
         // 5 & 6. التعطيل والتفعيل
         // POST /api/v1/employees/{id}/toggle
         Route::post('/{id}/toggle', [\App\Http\Controllers\Api\V1\EmployeeController::class, 'toggle']);
+
+        // 9. حذف موظف
+        // DELETE /api/v1/employees/{id}
+        Route::delete('/{id}', [\App\Http\Controllers\Api\V1\EmployeeController::class, 'destroy']);
     });
 
     // =========================================================================
@@ -876,10 +895,10 @@ Route::prefix('v1/auth')->group(function () {
         Route::post('/{id}/cancel', [\App\Http\Controllers\Api\V1\OrderController::class, 'cancel'])
             ->middleware(['role:store_manager,store_staff,operations_admin', 'store_plan_active']);
 
-        // [16.7] تأكيد وصول الطلبية (للسائق ومدير وموظف المتجر)
-        // POST /api/v1/orders/{id}/confirm-delivery
+        // [16.7] تأكيد وصول الطلبية (السائق، موظف المتجر، أو الزبون برمز التحقق)
+        // POST /api/v1/orders/{id}/confirm-delivery  Body: { "otp": "123456" }
         Route::post('/{id}/confirm-delivery', [\App\Http\Controllers\Api\V1\OrderController::class, 'confirmDelivery'])
-            ->middleware('role:driver,super_admin,operations_admin,store_manager,store_staff');
+            ->middleware('role:driver,super_admin,operations_admin,store_manager,store_staff,customer');
     });
 
     // =========================================================================
@@ -977,49 +996,3 @@ Route::prefix('v1/auth')->group(function () {
         Route::post('/token', [\App\Http\Controllers\Api\V1\FcmTokenController::class, 'register']);
         Route::post('/token/unregister', [\App\Http\Controllers\Api\V1\FcmTokenController::class, 'unregister']);
     });
-
-
-// ═════════════════════════════════════════════════════════════════════════════
-// ربط تطبيق الزبون (Flutter) — الطلبات [16] والتقييمات [5.8]
-// ─────────────────────────────────────────────────────────────────────────────
-// نقطة الدخول: lib/services/api/customer_api.dart
-// المسارات:     lib/services/api/customer_api_paths.dart
-// ═════════════════════════════════════════════════════════════════════════════
-
-// ─── API الطلبات [16] ─────────────────────────────────────────────────────
-
-// GET /api/orders
-//   Headers: Authorization: Bearer {token}
-//   Query (اختياري): ?search=&status=&page=1&per_page=50
-//   Flutter: CustomerApi().orders.fetchOrders()
-//           OrdersManager.syncFromApi()
-
-// GET /api/orders/{id}
-//   Flutter: CustomerApi().orders.fetchOrderDetails(id)
-
-// POST /api/orders/{id}/confirm-delivery
-//   [16.7] تأكيد استلام الطلبية
-//   Body (اختياري): { "otp": "123456" }
-//   Flutter: CustomerApi().orders.confirmDelivery(id)
-//           OrdersManager.confirmDelivery() — عند 403 يُحدَّث محلياً للزبون
-
-// ─── API التقييمات [5.8] ───────────────────────────────────────────────────
-
-// POST /api/stores/{storeId}/ratings
-//   تقييم المتجر — نجوم فقط في الواجهة
-//   Body: { "stars": 1..5 }
-//   Flutter: CustomerApi().ratings.submitStoreRating()
-//           CustomerApi().orderRatings.rateStore() ← OrderRatingScreen
-
-// POST /api/products/{productId}/ratings
-//   تقييم المنتج — نجوم + تعليق + صورة (اختياري)
-//   JSON:  { "stars": 5, "comment": "..." }
-//   multipart: stars + comment + image (صورة واحدة، حد 5MB)
-//   Flutter: CustomerApi().ratings.submitProductRating()
-//           CustomerApi().orderRatings.rateProduct() ← OrderRatingScreen
-
-// GET /api/products/{productId}/ratings
-//   Flutter: CustomerApi().ratings.fetchProductRatings()
-
-// GET /api/stores/{storeId}/ratings
-//   Flutter: CustomerApi().ratings.fetchStoreRatings()

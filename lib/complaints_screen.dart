@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
-import 'l10n/app_strings.dart';
+import 'l10n/app_strings.dart';import 'models/auth_session.dart';
 import 'models/complaint.dart';
 import 'models/complaints_manager.dart';
 import 'widgets/app_back_button.dart';
+import 'widgets/store_cover_image.dart';
 import 'widgets/trendy_brand.dart';
 import 'widgets/new_complaint_dialog.dart';
 
@@ -31,10 +31,16 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
   }
 
   Future<void> _openNewComplaint() async {
+    if (!AuthSession.instance.isAuthenticated) {
+      _showError(context.tr('login_required_complaint'));
+      return;
+    }
+
     final created = await NewComplaintDialog.show(context);
     if (!mounted) return;
-    if (created == false) _showError(_manager.error);
-    setState(() {});
+    if (created == true) {
+      _showError(context.tr('complaint_sent'));
+    }
   }
 
   @override
@@ -47,38 +53,43 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
           child: ListenableBuilder(
             listenable: _manager,
             builder: (context, _) {
-              return SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 10),
-                    _buildHeader(context),
-                    const SizedBox(height: 24),
-                    Text(
-                      context.tr('complaint_title'),
-                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: _manager.isLoading ? null : _openNewComplaint,
-                      icon: const Icon(Icons.add),
-                      label: Text(context.tr('complaint_new')),
-                    ),
-                    const SizedBox(height: 20),
-                    if (_manager.isLoading)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 48),
-                        child: Center(child: CircularProgressIndicator()),
-                      )
-                    else if (_manager.error != null && _manager.complaints.isEmpty)
-                      _buildErrorState()
-                    else if (_manager.complaints.isEmpty)
-                      _buildEmptyState()
-                    else
-                      _buildComplaintsList(),
-                    const SizedBox(height: 40),
-                  ],
+              return RefreshIndicator(
+                onRefresh: _manager.syncFromApi,
+                color: const Color(0xFF3B82F6),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 10),
+                      _buildHeader(context),
+                      const SizedBox(height: 24),
+                      Text(
+                        context.tr('complaint_title'),
+                        style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: _manager.isLoading ? null : _openNewComplaint,
+                        icon: const Icon(Icons.add),
+                        label: Text(context.tr('complaint_new')),
+                      ),
+                      const SizedBox(height: 20),
+                      if (_manager.isLoading && _manager.complaints.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 48),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else if (_manager.error != null && _manager.complaints.isEmpty)
+                        _buildErrorState()
+                      else if (_manager.complaints.isEmpty)
+                        _buildEmptyState()
+                      else
+                        _buildComplaintsList(),
+                      const SizedBox(height: 40),
+                    ],
+                  ),
                 ),
               );
             },
@@ -197,44 +208,24 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
               style: const TextStyle(color: Colors.white38, fontSize: 12),
             ),
           ],
-          if (c.evidenceImages.isNotEmpty) ...[
+          if (c.displayImages.isNotEmpty) ...[
             const SizedBox(height: 8),
             SizedBox(
               height: 56,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                itemCount: c.evidenceImages.length,
+                itemCount: c.displayImages.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (context, i) {
-                  final path = c.evidenceImages[i];
-                  final isWeb = path.startsWith('http://') || path.startsWith('https://');
+                  final path = c.displayImages[i];
                   return ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: isWeb
-                        ? Image.network(
-                            path,
-                            width: 56,
-                            height: 56,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              width: 56,
-                              height: 56,
-                              color: Colors.white10,
-                              child: const Icon(Icons.broken_image_outlined, color: Colors.white24),
-                            ),
-                          )
-                        : Image.file(
-                            File(path),
-                            width: 56,
-                            height: 56,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              width: 56,
-                              height: 56,
-                              color: Colors.white10,
-                              child: const Icon(Icons.broken_image_outlined, color: Colors.white24),
-                            ),
-                          ),
+                    child: StoreCoverImage(
+                      imageUrl: path,
+                      width: 56,
+                      height: 56,
+                      fit: BoxFit.cover,
+                    ),
                   );
                 },
               ),

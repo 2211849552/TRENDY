@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../data/product_reviews_seed.dart';
 import 'customer_review.dart';
 import 'product_rating_detail.dart';
@@ -8,12 +9,56 @@ class RatingsManager extends ChangeNotifier {
   factory RatingsManager() => _instance;
   RatingsManager._internal();
 
+  static const _ratedOrdersKey = 'rated_order_ids';
+
   final Map<String, List<double>> _storeRatings = {};
   final Map<String, List<double>> _productRatings = {};
   final Map<String, double> _storeRatingByOrder = {};
   final Map<String, Map<String, double>> _productRatingsByOrder = {};
   final Map<String, Map<String, ProductRatingDetail>> _productDetailsByOrder = {};
   final Map<String, List<CustomerReview>> _userReviewsByProduct = {};
+  final Set<String> _ratedOrderIds = {};
+  bool _persistLoaded = false;
+
+  bool get isLoaded => _persistLoaded;
+
+  Future<void> ensureLoaded() async {
+    if (_persistLoaded) return;
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getStringList(_ratedOrdersKey) ?? const [];
+    _ratedOrderIds.addAll(stored);
+    _persistLoaded = true;
+    notifyListeners();
+  }
+
+  static String? _apiKey(int? apiId) {
+    if (apiId == null || apiId <= 0) return null;
+    return 'api:$apiId';
+  }
+
+  /// هل تم تقييم هذا الطلب (مرة واحدة فقط بعد الاستلام).
+  bool hasRatedOrder(String orderId, List<String> productKeys, {int? apiId}) {
+    if (_ratedOrderIds.contains(orderId)) return true;
+    final apiKey = _apiKey(apiId);
+    if (apiKey != null && _ratedOrderIds.contains(apiKey)) return true;
+    return hasAnyRatingForOrder(orderId, productKeys);
+  }
+
+  /// هل يمكن للزبون فتح شاشة التقييم لهذا الطلب.
+  bool canRateOrder(String orderId, List<String> productKeys, {int? apiId}) =>
+      !hasRatedOrder(orderId, productKeys, apiId: apiId);
+
+  Future<void> markOrderRated(String orderId, {int? apiId}) async {
+    final keys = <String>{orderId};
+    final apiKey = _apiKey(apiId);
+    if (apiKey != null) keys.add(apiKey);
+    if (keys.every(_ratedOrderIds.contains)) return;
+
+    _ratedOrderIds.addAll(keys);
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_ratedOrdersKey, _ratedOrderIds.toList());
+  }
 
   bool hasRatedStoreForOrder(String orderId) {
     return _storeRatingByOrder.containsKey(orderId);
@@ -37,8 +82,15 @@ class RatingsManager extends ChangeNotifier {
   }
 
   bool isOrderFullyRated(String orderId, List<String> productKeys) {
-    if (!hasRatedStoreForOrder(orderId)) return false;
-    return hasRatedAllProductsForOrder(orderId, productKeys);
+    return hasRatedOrder(orderId, productKeys);
+  }
+
+  bool hasAnyRatingForOrder(String orderId, List<String> productKeys) {
+    if (hasRatedStoreForOrder(orderId)) return true;
+    for (final key in productKeys) {
+      if (hasRatedProductForOrder(orderId, key)) return true;
+    }
+    return false;
   }
 
   List<CustomerReview> reviewsForProduct(String productKey) {

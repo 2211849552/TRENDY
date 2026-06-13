@@ -189,25 +189,74 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   void initState() {
     super.initState();
     _product = widget.product;
-    _colors = ProductColorVariants.colorsFor(_product.name);
-    _selectedColor = ProductColorVariants.defaultColorFor(_product.name);
+    _initSelectionDefaults();
     _loadFromApi();
   }
 
-  Future<void> _loadFromApi() async {
-    final productId = _product.id;
-    if (productId == null || productId <= 0) return;
+  /// بيانات افتراضية محلية فقط للمنتجات بدون معرّف API.
+  void _initSelectionDefaults() {
+    final hasApiId = _product.id != null && _product.id! > 0;
+    if (hasApiId) {
+      _colors = const [];
+      _selectedColor = '';
+      _sizes = const [];
+      _selectedSize = '';
+      return;
+    }
+    _colors = ProductColorVariants.colorsFor(_product.name);
+    _selectedColor = ProductColorVariants.defaultColorFor(_product.name);
+    _sizes = const ['S', 'M', 'L', 'XL', 'XXL'];
+    _selectedSize = 'M';
+  }
 
+  Future<int?> _resolveProductId() async {
+    final name = _product.name.trim();
+    if (name.isEmpty) return null;
+
+    final storeId = _product.storeId;
+    final storeName = _product.storeName;
+    if (storeId != null && storeId > 0) {
+      final rows = await _productsApi.fetchStoreProducts(
+        storeId: storeId,
+        storeName: storeName,
+        name: name,
+        perPage: 20,
+      );
+      for (final candidate in rows) {
+        if (candidate.name.trim() == name) return candidate.id;
+      }
+      if (rows.isNotEmpty) return rows.first.id;
+    }
+
+    final search = await _productsApi.searchProducts(query: name, perPage: 20);
+    for (final candidate in search) {
+      if (candidate.name.trim() == name) return candidate.id;
+    }
+    return search.isNotEmpty ? search.first.id : null;
+  }
+
+  Future<void> _loadFromApi() async {
     setState(() => _loading = true);
     try {
+      var productId = _product.id;
+      if (productId == null || productId <= 0) {
+        productId = await _resolveProductId();
+      }
+      if (productId == null || productId <= 0) return;
+
       final previousImageUrl = _product.imageUrl;
       final previousImageUrls = _product.imageUrls;
-      final details = await _productsApi.fetchProductDetails(productId);
-      final variants = await _productsApi.fetchProductVariants(productId);
+
+      final detailsFuture = _productsApi.fetchProductDetails(productId);
+      final variantsFuture = _productsApi.fetchProductVariants(productId);
+      final details = await detailsFuture;
+      final variants = await variantsFuture;
       if (!mounted) return;
 
       _product = details.copyWith(
+        id: productId,
         storeName: details.storeName.isNotEmpty ? details.storeName : _product.storeName,
+        storeId: details.storeId ?? _product.storeId,
         imageUrl: details.imageUrl.isNotEmpty ? details.imageUrl : previousImageUrl,
         imageUrls: details.imageUrls.isNotEmpty ? details.imageUrls : previousImageUrls,
       );
@@ -217,22 +266,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       if (_usesApiVariants) {
         _applyVariantSelectionFromApi();
       } else {
-        final colors = <String>{};
-        final sizes = <String>{};
-        for (final variant in variants) {
-          final color = variant.colorValue;
-          final size = variant.sizeValue;
-          if (color != null && color.isNotEmpty) colors.add(color);
-          if (size != null && size.isNotEmpty) sizes.add(size);
-        }
-        if (colors.isNotEmpty) {
-          _colors = colors.toList();
-          _selectedColor = _colors.first;
-        }
-        if (sizes.isNotEmpty) {
-          _sizes = sizes.toList();
-          _selectedSize = _sizes.contains('M') ? 'M' : _sizes.first;
-        }
+        _colors = const [];
+        _sizes = const [];
+        _selectedColor = '';
+        _selectedSize = '';
       }
     } on ApiException {
       // نُبقي بيانات المنتج المُمرَّرة.
@@ -302,8 +339,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       const SizedBox(height: 12),
                       ProductCommentsButton(
                         product: _product,
-                        variantLabel: _usesApiVariants
-                            ? '${context.tr(_selectedColor)} · $_selectedSize'
+                        variantLabel: _usesApiVariants && _selectedColor.isNotEmpty
+                            ? '${_variantDisplayLabel(_selectedColor)} · $_selectedSize'
                             : null,
                       ),
                       if (_availableColors.isNotEmpty) ...[
@@ -500,6 +537,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     );
   }
 
+  String _variantDisplayLabel(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return trimmed;
+    final translated = context.tr(trimmed);
+    return translated == trimmed ? trimmed : translated;
+  }
+
   Widget _buildSelectionLabel(String text) {
     return Text(
       text,
@@ -532,7 +576,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               ),
             ),
             child: Text(
-              context.tr(color),
+              _variantDisplayLabel(color),
               style: GoogleFonts.cairo(
                 color: isSelected ? Colors.white : Colors.white70,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,

@@ -1,4 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/api/api_exception.dart';
@@ -11,7 +16,18 @@ class ComplaintsManager extends ChangeNotifier {
   factory ComplaintsManager() => _instance;
   ComplaintsManager._internal();
 
-  static const _idsKey = 'complaint_api_ids';
+  static const _idsKeyPrefix = 'complaint_api_ids';
+  static const _cacheKeyPrefix = 'complaint_cache';
+
+  String _idsKey() {
+    final userId = AuthSession.instance.user?.id;
+    return userId != null ? '${_idsKeyPrefix}_$userId' : _idsKeyPrefix;
+  }
+
+  String _cacheKey() {
+    final userId = AuthSession.instance.user?.id;
+    return userId != null ? '${_cacheKeyPrefix}_$userId' : _cacheKeyPrefix;
+  }
 
   final ComplaintsApi _api = ComplaintsApi();
   final List<Complaint> _complaints = [];
@@ -23,7 +39,7 @@ class ComplaintsManager extends ChangeNotifier {
   List<Complaint> get complaints => List.unmodifiable(_complaints);
   int get count => _complaints.length;
 
-  /// يجلب تفاصيل الشكاوى المحفوظة عبر GET /api/complaints/{id}
+  /// يجلب الشكاوى من التخزين المحلي ثم يحدّثها عبر GET /api/complaints/{id}
   Future<void> syncFromApi() async {
     if (!AuthSession.instance.isAuthenticated) {
       _complaints.clear();
@@ -32,27 +48,64 @@ class ComplaintsManager extends ChangeNotifier {
       return;
     }
 
+    final cached = await _loadCache();
+    if (cached.isNotEmpty) {
+      _complaints
+        ..clear()
+        ..addAll(cached);
+      notifyListeners();
+    }
+
     _loading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final ids = await _loadStoredIds();
+      final ids = <int>{
+        ...await _loadStoredIds(),
+        for (final c in cached)
+          if (c.apiId != null) c.apiId!,
+      };
+      final fallback = {
+        for (final c in [...cached, ..._complaints])
+          if (c.apiId != null) c.apiId!: c,
+      };
+
       final loaded = <Complaint>[];
       for (final id in ids) {
         try {
           loaded.add(await _api.fetchComplaint(id));
+        } on ApiException catch (e) {
+          if (e.statusCode == 404) {
+            await _forgetId(id);
+            continue;
+          }
+          final cachedOne = fallback[id];
+          if (cachedOne != null) loaded.add(cachedOne);
         } catch (_) {
-          // قد تكون الشكوى محذوفة — نتجاهلها.
+          final cachedOne = fallback[id];
+          if (cachedOne != null) loaded.add(cachedOne);
         }
       }
+
+      loaded.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       _complaints
         ..clear()
         ..addAll(loaded);
+      for (final c in loaded) {
+        if (c.apiId != null) await _rememberId(c.apiId!);
+      }
+      await _saveCache(_complaints);
     } on ApiException catch (e) {
       _error = e.message;
+      if (_complaints.isEmpty && cached.isNotEmpty) {
+        _complaints.addAll(cached);
+      }
     } catch (e) {
       _error = e.toString();
+      if (_complaints.isEmpty && cached.isNotEmpty) {
+        _complaints.addAll(cached);
+      }
     } finally {
       _loading = false;
       notifyListeners();
@@ -61,10 +114,13 @@ class ComplaintsManager extends ChangeNotifier {
 
   /// POST /api/complaints
   Future<bool> submitComplaint({
-    required String typeKey,
+    required String category,
     required String subject,
     required String details,
     required int orderId,
+    String priority = 'medium',
+    List<XFile> attachments = const [],
+    List<XFile> proof = const [],
   }) async {
     if (!AuthSession.instance.isAuthenticated) {
       _error = 'يجب تسجيل الدخول لإرسال شكوى';
@@ -74,19 +130,31 @@ class ComplaintsManager extends ChangeNotifier {
 
     _error = null;
     try {
+      final files = await _buildMultipartFiles(
+        attachments: attachments.take(5).toList(),
+        proof: proof.take(5).toList(),
+      );
       final created = await _api.createComplaint(
         orderId: orderId,
-        category: Complaint.categoryForTypeKey(typeKey),
+        category: category,
         subject: subject,
         description: details,
+        priority: priority,
+        attachments: files.attachments,
+        proof: files.proof,
       );
       _complaints.insert(0, created);
       if (created.apiId != null) {
         await _rememberId(created.apiId!);
       }
+      await _saveCache(_complaints);
       notifyListeners();
       return true;
     } on ApiException catch (e) {
+      _error = _formatApiError(e);
+      notifyListeners();
+      return false;
+    } on FormatException catch (e) {
       _error = e.message;
       notifyListeners();
       return false;
@@ -120,6 +188,7 @@ class ComplaintsManager extends ChangeNotifier {
       await _api.addReply(complaintId: apiId, message: message);
       final refreshed = await _api.fetchComplaint(apiId);
       _complaints[index] = refreshed;
+      await _saveCache(_complaints);
       notifyListeners();
       return true;
     } on ApiException catch (e) {
@@ -133,19 +202,106 @@ class ComplaintsManager extends ChangeNotifier {
     }
   }
 
+  Future<({List<http.MultipartFile> attachments, List<http.MultipartFile> proof})>
+      _buildMultipartFiles({
+    required List<XFile> attachments,
+    required List<XFile> proof,
+  }) async {
+    final attachmentFiles = <http.MultipartFile>[];
+    final proofFiles = <http.MultipartFile>[];
+
+    for (var i = 0; i < attachments.length; i++) {
+      final x = attachments[i];
+      final bytes = await x.readAsBytes();
+      final filename = x.name.isNotEmpty ? x.name : 'attachment_$i.jpg';
+      attachmentFiles.add(
+        http.MultipartFile.fromBytes(
+          'attachments[$i]',
+          bytes,
+          filename: filename,
+          contentType: _imageMediaType(filename),
+        ),
+      );
+    }
+
+    for (var i = 0; i < proof.length; i++) {
+      final x = proof[i];
+      final bytes = await x.readAsBytes();
+      final filename = x.name.isNotEmpty ? x.name : 'proof_$i.jpg';
+      proofFiles.add(
+        http.MultipartFile.fromBytes(
+          'proof[$i]',
+          bytes,
+          filename: filename,
+          contentType: _imageMediaType(filename),
+        ),
+      );
+    }
+
+    return (attachments: attachmentFiles, proof: proofFiles);
+  }
+
+  String _formatApiError(ApiException e) {
+    final fieldErrors = e.errors;
+    if (fieldErrors != null && fieldErrors.isNotEmpty) {
+      return fieldErrors.values.expand((messages) => messages).join('\n');
+    }
+    return e.message;
+  }
+
+  MediaType _imageMediaType(String filename) {
+    final name = filename.toLowerCase();
+    if (name.endsWith('.png')) return MediaType('image', 'png');
+    if (name.endsWith('.gif')) return MediaType('image', 'gif');
+    if (name.endsWith('.webp')) return MediaType('image', 'webp');
+    if (name.endsWith('.bmp')) return MediaType('image', 'bmp');
+    return MediaType('image', 'jpeg');
+  }
+
   Future<List<int>> _loadStoredIds() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getStringList(_idsKey) ?? const [];
+    final raw = prefs.getStringList(_idsKey()) ?? const [];
     return raw.map(int.tryParse).whereType<int>().where((id) => id > 0).toList();
   }
 
   Future<void> _rememberId(int id) async {
     final prefs = await SharedPreferences.getInstance();
-    final current = prefs.getStringList(_idsKey) ?? <String>[];
+    final current = prefs.getStringList(_idsKey()) ?? <String>[];
     final idStr = '$id';
     if (!current.contains(idStr)) {
       current.insert(0, idStr);
-      await prefs.setStringList(_idsKey, current);
+      await prefs.setStringList(_idsKey(), current);
     }
+  }
+
+  Future<void> _forgetId(int id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final current = prefs.getStringList(_idsKey()) ?? <String>[];
+    current.remove('$id');
+    await prefs.setStringList(_idsKey(), current);
+  }
+
+  Future<List<Complaint>> _loadCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_cacheKey());
+    if (raw == null || raw.isEmpty) return const [];
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const [];
+      return decoded
+          .whereType<Map>()
+          .map((e) => Complaint.fromApiJson(Map<String, dynamic>.from(e)))
+          .where((c) => c.apiId != null)
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<void> _saveCache(List<Complaint> list) async {
+    final prefs = await SharedPreferences.getInstance();
+    final payload = list.map((c) => c.toCacheJson()).toList();
+    await prefs.setString(_cacheKey(), jsonEncode(payload));
   }
 }

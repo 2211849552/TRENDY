@@ -70,7 +70,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ),
                   const SizedBox(height: 24),
                   Expanded(
-                    child: notifications.isEmpty ? _buildEmptyState() : _buildNotificationsList(notifications),
+                    child: _manager.isSyncing && _manager.notifications.isEmpty
+                        ? const Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6)))
+                        : notifications.isEmpty
+                            ? _buildEmptyState()
+                            : RefreshIndicator(
+                                onRefresh: () => _manager.syncFromApi(),
+                                color: const Color(0xFF3B82F6),
+                                child: _buildNotificationsList(notifications),
+                              ),
                   ),
                 ],
               );
@@ -104,6 +112,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget _buildNotificationsList(List<NotificationItem> list) {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 20),
+      physics: const AlwaysScrollableScrollPhysics(),
       itemCount: list.length,
       itemBuilder: (context, index) {
         final item = list[index];
@@ -182,6 +191,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(item.message, style: GoogleFonts.cairo(color: Colors.white70, fontSize: 13, height: 1.4)),
+                  if (item.orderLabel != null) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.35)),
+                      ),
+                      child: Text(
+                        '${context.tr('notification_order_label')}: ${item.orderLabel}',
+                        style: GoogleFonts.cairo(color: Colors.lightBlueAccent, fontSize: 11),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   Text(item.formattedTime, style: GoogleFonts.cairo(color: Colors.white30, fontSize: 11)),
                 ],
@@ -224,7 +248,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             child: const Icon(Icons.notifications_none_outlined, size: 64, color: Colors.white24),
           ),
           const SizedBox(height: 24),
-          Text(context.tr('notifications'), style: GoogleFonts.cairo(fontSize: 18, color: Colors.white70, fontWeight: FontWeight.bold)),
+          Text(
+            context.tr('notifications'),
+            style: GoogleFonts.cairo(fontSize: 18, color: Colors.white70, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 8),
           Text(context.tr('notifications_empty'), style: const TextStyle(fontSize: 14, color: Colors.white30)),
         ],

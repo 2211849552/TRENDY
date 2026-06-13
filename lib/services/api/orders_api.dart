@@ -33,9 +33,21 @@ class OrdersApi {
       CustomerApiPaths.orders,
       query: query,
     );
-    final rows = json['data'];
-    if (rows is! List) return const [];
-    return rows.whereType<Map<String, dynamic>>().toList();
+    return _readOrderRows(json['data']);
+  }
+
+  /// يدعم `{ data: [...] }` و `{ data: { data: [...] } }` كما في بعض استجابات Laravel.
+  static List<Map<String, dynamic>> _readOrderRows(dynamic raw) {
+    if (raw is Map<String, dynamic>) {
+      final nested = raw['data'];
+      if (nested is List) {
+        return nested.whereType<Map<String, dynamic>>().toList();
+      }
+    }
+    if (raw is List) {
+      return raw.whereType<Map<String, dynamic>>().toList();
+    }
+    return const [];
   }
 
   /// GET /api/orders — قائمة طلبات الزبون (بحث/فلترة اختيارية).
@@ -62,11 +74,24 @@ class OrdersApi {
     return null;
   }
 
-  /// POST /api/orders/{id}/confirm-delivery — تم الاستلام (انظر api.md [16.7]).
-  Future<Order> confirmDelivery(int orderId, {String? otp}) async {
+  /// GET /api/orders/{id} — تحديث تفاصيل طلب واحد (OTP، الحالة، …).
+  Future<Order> refreshOrderDetails(Order order) async {
+    final apiId = order.apiId;
+    if (apiId == null || apiId <= 0) return order;
+    final fresh = await fetchOrderDetails(apiId);
+    return fresh ?? order;
+  }
+
+  /// POST /api/orders/{id}/confirm-delivery — تأكيد الاستلام برمز التحقق (انظر api.md [16.7]).
+  Future<Order> confirmDelivery(int orderId, {required String otp}) async {
+    final code = otp.trim();
+    if (code.length != 6) {
+      throw ApiException('يرجى إدخال رمز تحقق مكوّن من 6 أرقام');
+    }
+
     final json = await _client.postFromRoot(
       CustomerApiPaths.orderConfirmDelivery(orderId),
-      body: otp != null && otp.length == 6 ? {'otp': otp} : null,
+      body: {'otp': code},
     );
     final data = json['data'];
     if (data is Map<String, dynamic>) return _orderFromJson(data);
@@ -93,6 +118,8 @@ class OrdersApi {
 
     final paymentMethod = '${json['payment_method'] ?? ''}'.trim();
     final mappedPayment = paymentMethod == 'wallet' ? 'payment_wallet' : 'payment_cash';
+    final otpRaw = json['otp_code'];
+    final otpCode = otpRaw == null ? null : '$otpRaw'.trim();
 
     return Order(
       id: '${json['order_number'] ?? json['id'] ?? ''}',
@@ -100,11 +127,20 @@ class OrdersApi {
       date: DateTime.tryParse('${json['created_at'] ?? ''}') ?? DateTime.now(),
       items: items,
       totalPrice: _asDouble(json['total_amount']) ?? 0,
+      deliveryFee: _asDouble(json['delivery_fee']) ?? 0,
       status: _mapStatus('${json['status'] ?? ''}'),
       storeName: storeName,
       storeId: storeId,
       paymentMethod: mappedPayment,
+      otpCode: otpCode != null && otpCode.isNotEmpty ? otpCode : null,
+      driverName: _nullableString(json['driver_name']),
+      deliveredAt: DateTime.tryParse('${json['delivered_at'] ?? ''}'),
     );
+  }
+
+  static String? _nullableString(dynamic value) {
+    final text = '$value'.trim();
+    return text.isEmpty ? null : text;
   }
 
   String _mapStatus(String apiStatus) {

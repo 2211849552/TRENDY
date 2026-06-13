@@ -12,6 +12,7 @@ class AuthUser {
     required this.email,
     required this.phone,
     this.defaultAddress,
+    this.customerProfileId,
   });
 
   final int? id;
@@ -19,6 +20,8 @@ class AuthUser {
   final String email;
   final String phone;
   final String? defaultAddress;
+  /// معرّف `customer_profiles.id` — يُستخدم لمطابقة تقييمات API.
+  final int? customerProfileId;
 
   factory AuthUser.fromJson(Map<String, dynamic> json) {
     final name = _firstNonEmpty([
@@ -45,7 +48,22 @@ class AuthUser {
       email: '${json['email'] ?? ''}'.trim(),
       phone: phone ?? '',
       defaultAddress: address,
+      customerProfileId: _readCustomerProfileId(json),
     );
+  }
+
+  static int? _readCustomerProfileId(Map<String, dynamic> json) {
+    final direct = _asInt(json['customer_profile_id'] ?? json['customerProfileId']);
+    if (direct != null) return direct;
+
+    for (final key in ['customer_profile', 'customerProfile']) {
+      final nested = json[key];
+      if (nested is Map) {
+        final id = _asInt(nested['id']);
+        if (id != null) return id;
+      }
+    }
+    return null;
   }
 
   AuthUser copyWith({
@@ -53,6 +71,7 @@ class AuthUser {
     String? email,
     String? phone,
     String? defaultAddress,
+    int? customerProfileId,
   }) {
     return AuthUser(
       id: id,
@@ -60,6 +79,7 @@ class AuthUser {
       email: email ?? this.email,
       phone: phone ?? this.phone,
       defaultAddress: defaultAddress ?? this.defaultAddress,
+      customerProfileId: customerProfileId ?? this.customerProfileId,
     );
   }
 
@@ -76,6 +96,7 @@ class AuthUser {
         'email': email,
         'phone': phone,
         'default_address': defaultAddress,
+        if (customerProfileId != null) 'customer_profile_id': customerProfileId,
       };
 
   static int? _asInt(Object? value) {

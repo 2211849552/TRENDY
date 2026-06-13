@@ -11,6 +11,7 @@ class ApiRating {
     required this.stars,
     required this.comment,
     required this.authorName,
+    this.authorId,
     this.imageUrl,
     this.imageUrls = const [],
     this.createdAt,
@@ -20,6 +21,7 @@ class ApiRating {
   final int stars;
   final String comment;
   final String authorName;
+  final int? authorId;
   final String? imageUrl;
   final List<String> imageUrls;
   final DateTime? createdAt;
@@ -41,7 +43,11 @@ class ApiRating {
   factory ApiRating.fromJson(Map<String, dynamic> json) {
     final user = json['user'];
     var author = '';
-    if (user is Map) author = '${user['name'] ?? ''}'.trim();
+    int? authorId;
+    if (user is Map) {
+      author = '${user['name'] ?? ''}'.trim();
+      authorId = _asInt(user['id']);
+    }
 
     final rawImages = json['images'];
     final urls = <String>[];
@@ -60,6 +66,7 @@ class ApiRating {
       stars: _asInt(json['stars']) ?? 0,
       comment: '${json['comment'] ?? ''}'.trim(),
       authorName: author.isNotEmpty ? author : '—',
+      authorId: authorId,
       imageUrl: imageUrl.isEmpty ? null : imageUrl,
       imageUrls: urls,
       createdAt: DateTime.tryParse('${json['created_at'] ?? ''}'),

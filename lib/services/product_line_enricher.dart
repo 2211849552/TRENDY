@@ -50,7 +50,6 @@ class ProductLineEnricher {
             break;
           }
         }
-        matched ??= storeResults.isNotEmpty ? storeResults.first : null;
       }
 
       if (matched == null) {
@@ -61,7 +60,6 @@ class ProductLineEnricher {
             break;
           }
         }
-        matched ??= results.isNotEmpty ? results.first : null;
       }
 
       if (matched?.id != null) {

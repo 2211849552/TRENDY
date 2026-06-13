@@ -7,8 +7,8 @@
 ///
 /// - هاتف حقيقي (نفس الواي فاي): IP الكمبيوتر
 /// - محاكي Android: 10.0.2.2
-const String kApiServerHost = '192.168.110.74';
+const String kApiServerHost = '192.168.110.75';
 
-/// المنفذ 8001 — Laravel مفتوح على الشبكة (0.0.0.0).
-/// إذا أعدت تشغيله على 8000 استخدم: --host=0.0.0.0 --port=8000
-const int kApiServerPort = 8001;
+/// المنفذ 8000 — Laravel مفتوح على الشبكة (0.0.0.0).
+///   php artisan serve --host=0.0.0.0 --port=8000
+const int kApiServerPort = 8000;

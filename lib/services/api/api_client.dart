@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -176,20 +177,50 @@ class ApiClient {
     Future<http.Response> Function() request,
     Uri uri,
   ) async {
-    try {
-      final response = await request().timeout(ApiConfig.timeout);
-      return _decodeResponse(response);
-    } on ApiException {
-      rethrow;
-    } on SocketException catch (e) {
-      throw ApiException(_connectionMessage(uri, e.message));
-    } on HttpException catch (e) {
-      throw ApiException(_connectionMessage(uri, e.message));
-    } on FormatException catch (e) {
-      throw ApiException('استجابة غير صالحة من الخادم: ${e.message}');
-    } catch (e) {
-      throw ApiException(_connectionMessage(uri, e.toString()));
+    const maxAttempts = 2;
+    Object? lastError;
+
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        final response = await request().timeout(ApiConfig.timeout);
+        return _decodeResponse(response);
+      } on ApiException {
+        rethrow;
+      } on SocketException catch (e) {
+        lastError = e;
+        if (attempt < maxAttempts) {
+          await Future<void>.delayed(const Duration(milliseconds: 800));
+          continue;
+        }
+        throw ApiException(_connectionMessage(uri, e.message));
+      } on TimeoutException catch (e) {
+        lastError = e;
+        if (attempt < maxAttempts) {
+          await Future<void>.delayed(const Duration(milliseconds: 800));
+          continue;
+        }
+        throw ApiException(_timeoutMessage(uri));
+      } on HttpException catch (e) {
+        throw ApiException(_connectionMessage(uri, e.message));
+      } on FormatException catch (e) {
+        throw ApiException('استجابة غير صالحة من الخادم: ${e.message}');
+      } catch (e) {
+        lastError = e;
+        if (attempt < maxAttempts) {
+          await Future<void>.delayed(const Duration(milliseconds: 800));
+          continue;
+        }
+        throw ApiException(_connectionMessage(uri, '$lastError'));
+      }
     }
+
+    throw ApiException(_connectionMessage(uri, '$lastError'));
+  }
+
+  String _timeoutMessage(Uri uri) {
+    return 'انتهت مهلة الاتصال بـ $uri\n'
+        'الخادم بطيء أو غير متاح. تأكد أن Laravel يعمل:\n'
+        '  php artisan serve --host=0.0.0.0 --port=$kApiServerPort';
   }
 
   String _connectionMessage(Uri uri, String detail) {

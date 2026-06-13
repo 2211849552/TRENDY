@@ -24,7 +24,7 @@ class ApiConfig {
     return '127.0.0.1';
   }
 
-  static const Duration timeout = Duration(seconds: 30);
+  static const Duration timeout = Duration(seconds: 90);
 
   static const authPrefix = '/auth';
 

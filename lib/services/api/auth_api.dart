@@ -2,6 +2,7 @@ import '../../config/api_config.dart';
 import '../../models/auth_session.dart';
 import 'api_client.dart';
 import 'api_exception.dart';
+import 'profile_api.dart';
 
 class AuthApi {
   AuthApi({ApiClient? client}) : _client = client ?? ApiClient();
@@ -135,13 +136,32 @@ class AuthApi {
     try {
       final fresh = await fetchCurrentUser();
       if (fresh.id != null || fresh.name.isNotEmpty || fresh.email.isNotEmpty) {
-        await AuthSession.instance.updateUser(fresh);
-        return fresh;
+        var merged = fresh;
+        if (merged.customerProfileId == null && fallback.customerProfileId != null) {
+          merged = merged.copyWith(customerProfileId: fallback.customerProfileId);
+        }
+        merged = await _mergeCustomerProfileId(merged);
+        await AuthSession.instance.updateUser(merged);
+        return merged;
       }
     } on ApiException {
       // نُبقي بيانات الاستجابة الأولى إن فشل جلب /api/user.
     }
     return fallback;
+  }
+
+  /// GET /api/customer/profile — لمعرّف الملف المستخدم في مطابقة التقييمات.
+  Future<AuthUser> _mergeCustomerProfileId(AuthUser user) async {
+    if (user.customerProfileId != null) return user;
+    try {
+      final profile = await ProfileApi().fetchProfile();
+      if (profile.id != null) {
+        return user.copyWith(customerProfileId: profile.id);
+      }
+    } on ApiException {
+      // اختياري — نعتمد على الاسم أو التخزين المحلي.
+    }
+    return user;
   }
 
   /// POST /api/v1/auth/logout
